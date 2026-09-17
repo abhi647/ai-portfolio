@@ -28,3 +28,5 @@ npx vercel --prod
 - `work/<dept>/*.html` — one self-contained dashboard per department (Sales, Inventory Planning, Production, WMS, SCM, TMS, Quality, Finance).
 
 All data is illustrative and anonymized — built to demonstrate the shape of a real deployment, not actual client figures.
+
+_Deployed via Vercel._
