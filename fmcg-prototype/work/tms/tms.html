@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seven Billion Analytics | TMS Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F8F9; --panel:#FFFFFF; --line:#E4E9EC;
+  --ink:#0B0F12; --muted:#5B6870;
+  --blue:#05B4CF; --blue-dim:rgba(5,180,207,.08); --blue-dim-2:rgba(5,180,207,.16);
+  --green:#0F9D67; --green-dim:rgba(15,157,103,.09);
+  --amber:#B4720A; --amber-dim:rgba(180,114,10,.1);
+  --red:#C23B32; --red-dim:rgba(194,59,50,.09);
+  --serif:'Newsreader',serif; --sans:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --radius:12px; --shadow:0 2px 10px rgba(11,15,18,.05);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--ink);margin:0}
+button,select,input{font:inherit}
+button{cursor:pointer;border:none;background:none}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#D3DBDE;border-radius:6px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:236px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.sb-brand .mark{width:28px;height:28px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px var(--sans)}
+.sb-brand span{font:700 13px var(--sans);color:var(--ink)}
+.sb-section-label{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:0 10px;margin:0 0 8px}
+.sb-nav{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:2px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font:600 12.5px var(--sans);color:var(--muted);cursor:pointer}
+.sb-item svg{flex:none;width:17px;height:17px;stroke:var(--muted)}
+.sb-item:hover{background:var(--blue-dim)}
+.sb-item.active{background:var(--blue-dim-2);color:var(--blue)}
+.sb-item.active svg{stroke:var(--blue)}
+.sb-foot{margin-top:auto;padding-top:16px}
+.back-link{display:inline-flex;align-items:center;gap:6px;font:700 12px var(--sans);color:var(--blue);padding:8px 10px;border-radius:8px}
+.back-link:hover{background:var(--blue-dim)}
+
+.main{flex:1;min-width:0}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
+.topbar .titles h1{font-size:20px}
+.topbar .titles p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.topbar .meta{display:flex;gap:10px;flex-wrap:wrap}
+.meta-chip{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:600 10.5px var(--mono);color:var(--muted)}
+.meta-chip b{display:block;color:var(--ink);font-size:12px}
+
+.content{padding:24px 28px 60px}
+.page{display:none}
+.page.active{display:block}
+
+.filter-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.filter-chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:600 11.5px var(--sans);color:var(--muted);display:flex;align-items:center;gap:8px}
+.filter-chip b{color:var(--ink);font-weight:600}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
+.kpi .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kpi svg{width:16px;height:16px;stroke:var(--blue)}
+.kpi small{color:var(--muted);font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.3px}
+.kpi b{display:block;font:700 22px var(--mono);color:var(--ink)}
+.kpi .sub{font:600 10.5px var(--sans);margin-top:4px}
+.sub.up{color:var(--green)} .sub.down{color:var(--red)} .sub.flat{color:var(--muted)}
+
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:980px){.grid-2{grid-template-columns:1fr}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+.panel h3{font-size:14.5px;margin-bottom:2px}
+.panel .sub-t{color:var(--muted);font-size:11.5px;margin:0 0 14px}
+.panel .chart-box{position:relative;height:260px}
+.panel .chart-box.tall{height:320px}
+
+.section-heading{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 12px}
+.section-heading .ov{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--blue)}
+.section-heading h2{font-size:17px;margin-top:2px}
+
+table.dtable{width:100%;border-collapse:collapse;font-size:12px}
+table.dtable th{text-align:right;font:700 9.5px var(--mono);text-transform:uppercase;letter-spacing:.3px;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.dtable th:first-child,table.dtable td:first-child{text-align:left}
+table.dtable td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);white-space:nowrap}
+table.dtable tr.row-total td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
+table.dtable td:first-child{font-family:var(--sans);font-weight:500}
+.table-scroll{overflow-x:auto}
+
+.cell-status{display:inline-block;min-width:44px;padding:3px 7px;border-radius:6px;font-weight:700;font-size:11px}
+.st-good{background:var(--green-dim);color:var(--green)}
+.st-warn{background:var(--amber-dim);color:var(--amber)}
+.st-bad{background:var(--red-dim);color:var(--red)}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font:700 10px var(--mono);text-transform:uppercase}
+.badge-good{background:var(--green-dim);color:var(--green)}
+.badge-warn{background:var(--amber-dim);color:var(--amber)}
+.badge-bad{background:var(--red-dim);color:var(--red)}
+.badge-neutral{background:var(--blue-dim);color:var(--blue)}
+
+.insight{display:flex;gap:10px;align-items:flex-start;background:var(--blue-dim);border:1px solid var(--blue-dim-2);border-radius:10px;padding:12px 14px;margin-top:14px;font-size:12.5px;color:#0A5A66}
+.insight svg{flex:none;width:16px;height:16px;stroke:var(--blue);margin-top:1px}
+.insight b{color:#073E47}
+
+/* Trip board */
+.trip-board{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.trip-row{display:grid;grid-template-columns:100px 1fr 130px 90px 90px;gap:12px;align-items:center;background:var(--panel);padding:11px 14px;font-size:12px}
+.trip-row.head{background:#FAFBFC;font:700 9.5px var(--mono);text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
+.trip-veh{font-family:var(--mono);font-weight:600}
+.trip-route{color:var(--ink)}
+.trip-route small{display:block;color:var(--muted);font-size:10.5px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand"><div class="mark"><svg viewBox="0 0 177 178" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.000148773 165.671L41.1802 124.491C38.9602 121.671 35.5902 117.291 31.6902 111.801C13.3202 85.9209 1.30016 68.5309 2.46016 48.0209C2.75016 42.9109 3.41016 31.2809 11.9602 23.9609C20.5702 16.5909 32.3102 17.7609 38.6202 18.3809C54.7402 19.9709 66.9901 28.7409 72.1701 32.4709C79.4301 37.6909 91.5601 48.3409 98.3201 49.7409C104.52 51.0309 110.29 49.9609 110.29 49.9609C113.84 49.3109 117.26 47.9009 121.17 45.6309L164.74 0L176.57 12.5609C173.72 15.7209 161.53 28.3509 155.77 34.5509C134.9 57.0709 128.67 62.3609 127.89 71.5009C127.37 77.5709 129.21 84.3509 134.59 92.2709C144.28 106.531 155.11 122.241 158.33 140.091C160.34 151.191 159.42 161.531 153.33 168.441C148.95 173.411 143.33 174.991 139.44 176.041C111.11 183.681 80.9601 158.581 73.9001 152.301C72.8301 151.351 71.9801 150.551 71.5001 150.101L82.4601 138.831C107.45 159.301 129.9 166.951 138.95 159.281C142.89 155.941 144.83 150.331 144.03 145.381C142.01 132.801 131.84 114.191 124.04 104.031C121.21 100.341 117.39 97.3609 112.96 95.8509C100.88 91.7609 92.9501 97.0109 84.6701 104.841C74.4901 114.461 48.7802 141.061 13.2802 176.651M82.7401 80.6809C92.2601 68.8609 73.1201 54.3709 67.6401 49.3709C67.6401 49.3709 53.8902 36.2509 33.7502 34.8109C29.1002 34.4809 23.7902 34.6009 20.0502 38.1409C14.4002 43.4909 17.7502 56.1009 19.5102 61.5609C25.8802 81.3609 44.6802 103.581 54.8902 111.781C66.8602 99.8109 68.5501 98.3009 82.7401 80.6909V80.6809Z" fill="currentColor"/></svg></div><span>TMS</span></div>
+    <div class="sb-section-label">Control Tower</div>
+    <ul class="sb-nav">
+      <li class="sb-item active" data-page="tower" onclick="showPage('tower')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="1" y="7" width="13" height="10" rx="1"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="19" r="1.6"/><circle cx="17.5" cy="19" r="1.6"/></svg>
+        Live Trip Board
+      </li>
+    </ul>
+    <div class="sb-section-label">Performance</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="analytics" onclick="showPage('analytics')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="7" cy="16" r="2"/><circle cx="13" cy="8" r="2"/><circle cx="19" cy="12" r="2"/><path d="M8.4 14.7 11.3 9.8M14.6 9 17.4 11"/></svg>
+        Trip Analytics
+      </li>
+      <li class="sb-item" data-page="indent" onclick="showPage('indent')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        Indent &amp; Transporter SLA
+      </li>
+    </ul>
+    <div class="sb-section-label">Exceptions</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="garbage" onclick="showPage('garbage')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        Garbage Trips
+      </li>
+    </ul>
+    <div class="sb-foot">
+      <a class="back-link" href="../../index.html">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        All departments
+      </a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="titles">
+        <h1 id="page-title">TMS Control Tower</h1>
+        <p id="page-sub">Live location, trip performance and indent turnaround for every vehicle currently on the road.</p>
+      </div>
+      <div class="meta">
+        <div class="meta-chip">GPS FEED<b>Live, 2 min lag</b></div>
+        <div class="meta-chip">LAST INDENT<b>16-09-2026, 06:12 AM</b></div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- TOWER -->
+      <section class="page active" id="page-tower">
+        <div class="kpi-grid" id="towerKpis"></div>
+        <div class="section-heading" style="margin-top:0;"><div><div class="ov">Right now</div><h2>Active trips</h2></div></div>
+        <div class="trip-board" id="tripBoard"></div>
+        <div class="insight">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2 2 20h20L12 2Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>
+          <div><b>3 vehicles are running behind schedule</b> right now, including the load headed to CFA-Guwahati — the same location Inventory Planning has flagged as critical stock-out risk, where every hour of delay compounds a shelf that's already close to empty.</div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="page" id="page-analytics">
+        <div class="filter-row">
+          <div class="filter-chip">Date <b>1–16 Sep 2026</b></div>
+        </div>
+        <div class="kpi-grid" id="anaKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Trip duration vs. distance</h3>
+            <p class="sub-t">Each point is one route — trips well above the line are running slower than their distance should take</p>
+            <div class="chart-box tall"><canvas id="scatterChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>On-time trip %, last 14 days</h3>
+            <p class="sub-t">Share of trips delivered within planned TAT</p>
+            <div class="chart-box tall"><canvas id="otTrend"></canvas></div>
+          </div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Ledger</div><h2>Route performance</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="routeTable"></table>
+        </div>
+      </section>
+
+      <!-- INDENT -->
+      <section class="page" id="page-indent">
+        <div class="kpi-grid" id="indentKpis"></div>
+        <div class="panel" style="margin-bottom:16px">
+          <h3>SLA compliance, by transporter</h3>
+          <p class="sub-t">% of indents fulfilled within the agreed vehicle-placement window</p>
+          <div class="chart-box tall"><canvas id="slaBar"></canvas></div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Ledger</div><h2>Transporter scorecard</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="transporterTable"></table>
+        </div>
+      </section>
+
+      <!-- GARBAGE -->
+      <section class="page" id="page-garbage">
+        <div class="kpi-grid" id="garbageKpis"></div>
+        <div class="section-heading" style="margin-top:0;"><div><div class="ov">Flagged</div><h2>Garbage trips, this month</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="garbageTable"></table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const ICON = {
+  truck: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="1" y="7" width="13" height="10" rx="1"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="19" r="1.6"/><circle cx="17.5" cy="19" r="1.6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.3 2"/></svg>',
+  route: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8 19h7a3 3 0 0 0 3-3v-1a3 3 0 0 0-3-3H9a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h7"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>',
+  bin: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>'
+};
+function $(id){ return document.getElementById(id); }
+function fmt0(n){ return Number(n).toLocaleString('en-IN'); }
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+  Chart.defaults.color = '#5B6870';
+  Chart.defaults.borderColor = '#EDF1F2';
+}
+function safeChart(el, config){
+  if (typeof Chart === 'undefined') { return null; }
+  try { return new Chart(el, config); } catch (e) { console.warn('chart render failed', e); return null; }
+}
+const CBLUE='#05B4CF', CGREEN='#0F9D67', CAMBER='#B4720A', CRED='#C23B32';
+
+/* ---------------- DATA (illustrative-but-realistic, anonymized) ---------------- */
+
+const transporters = ['Swift Freight Carriers','Metro Logistics','Highway Express','National Transport Co','Regional Carriers Ltd'];
+
+const trips = [
+  { veh:'DL 04 GH 3312', route:'Plant — North Zone → CFA-Jaipur', transporter:'Swift Freight Carriers', status:'In Transit', eta:'2h 10m' },
+  { veh:'HR 55 AT 9081', route:'Plant — North Zone → CFA-Chandigarh', transporter:'Metro Logistics', status:'Delayed', eta:'4h 40m (+1h 50m)' },
+  { veh:'MH 12 KJ 5540', route:'Plant — Central Zone → CFA-Indore', transporter:'Highway Express', status:'In Transit', eta:'1h 25m' },
+  { veh:'UP 32 BF 7719', route:'Plant — East Zone → CFA-Guwahati', transporter:'National Transport Co', status:'Delayed', eta:'6h 05m (+2h 20m)' },
+  { veh:'GJ 01 CV 2246', route:'Plant — North Zone → CFA-Surat', transporter:'Swift Freight Carriers', status:'At Gate', eta:'Loading' },
+  { veh:'MP 09 DZ 6631', route:'Plant — Central Zone → CFA-Bhopal', transporter:'Regional Carriers Ltd', status:'Delayed', eta:'1h 55m (+55m)' },
+  { veh:'TN 19 EY 1187', route:'CFA-Coimbatore → CFA-Cochin', transporter:'Highway Express', status:'In Transit', eta:'3h 15m' },
+  { veh:'RJ 14 FT 4423', route:'Plant — North Zone → CFA-Jodhpur', transporter:'National Transport Co', status:'Delivered', eta:'—' },
+  { veh:'AP 28 GN 8856', route:'Plant — East Zone → CFA-Vizag', transporter:'Metro Logistics', status:'In Transit', eta:'2h 50m' },
+  { veh:'PB 65 HK 3390', route:'Plant — North Zone → CFA-Amritsar', transporter:'Regional Carriers Ltd', status:'At Gate', eta:'Loading' }
+];
+
+const routes = [
+  { route:'North Zone → Jaipur', distance:280, duration:6.2, delay:0.3, trips:34 },
+  { route:'North Zone → Chandigarh', distance:245, duration:5.8, delay:1.2, trips:29 },
+  { route:'Central Zone → Indore', distance:190, duration:4.1, delay:0.1, trips:22 },
+  { route:'East Zone → Guwahati', distance:410, duration:11.4, delay:2.8, trips:18 },
+  { route:'North Zone → Surat', distance:520, duration:10.9, delay:0.6, trips:15 },
+  { route:'Central Zone → Bhopal', distance:310, duration:7.6, delay:1.6, trips:21 },
+  { route:'Coimbatore → Cochin', distance:190, duration:4.6, delay:0.4, trips:19 },
+  { route:'North Zone → Jodhpur', distance:335, duration:7.1, delay:0.2, trips:17 }
+];
+
+const otTrendDays = Array.from({length:14},(_,i)=>i+1);
+function seedRandom(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
+const rnd = seedRandom(51);
+const otSeries = otTrendDays.map(d => Math.round(90 + Math.sin(d/2.8)*6 - (d>10?7:0) + rnd()*4));
+
+const transporterScores = transporters.map((t,i)=>({
+  name:t, indents:[142,118,96,104,88][i], sla:[94,88,91,76,82][i], garbageRate:[2.1,3.4,1.8,6.2,4.7][i]
+}));
+
+const garbageTrips = [
+  { veh:'UP 32 BF 7719', transporter:'National Transport Co', route:'Plant — East Zone → CFA-Guwahati', reason:'Duplicate indent, same order', cost:8400 },
+  { veh:'HR 55 AT 9081', transporter:'Metro Logistics', route:'Plant — North Zone → CFA-Chandigarh', reason:'Vehicle reported empty, no load found', cost:6200 },
+  { veh:'MP 09 DZ 6631', transporter:'Regional Carriers Ltd', route:'Plant — Central Zone → CFA-Bhopal', reason:'Cancelled after gate entry, invalid indent', cost:5100 },
+  { veh:'RJ 14 FT 4423', transporter:'National Transport Co', route:'Plant — North Zone → CFA-Jodhpur', reason:'Incomplete trip, POD never closed', cost:4800 },
+  { veh:'AP 28 GN 8856', transporter:'Metro Logistics', route:'Plant — East Zone → CFA-Vizag', reason:'Duplicate indent, same order', cost:7300 }
+];
+
+/* ---------------- RENDER ---------------- */
+
+function kpiTile(icon,label,value,sub,subClass){
+  return `<div class="kpi"><div class="top">${ICON[icon]}<small>${label}</small></div><b>${value}</b>${sub?`<div class="sub ${subClass||''}">${sub}</div>`:''}</div>`;
+}
+function statusBadge(s){
+  const map = { 'In Transit':'badge-neutral', 'Delayed':'badge-bad', 'At Gate':'badge-warn', 'Delivered':'badge-good' };
+  return `<span class="badge ${map[s]||'badge-neutral'}">${s}</span>`;
+}
+
+function renderTower(){
+  const delayed = trips.filter(t=>t.status==='Delayed').length;
+  const inTransit = trips.filter(t=>t.status==='In Transit').length;
+  $('towerKpis').innerHTML = [
+    kpiTile('truck','Trips In Transit', String(inTransit),'right now',''),
+    kpiTile('alert','Delayed', String(delayed),'vs. planned TAT','down'),
+    kpiTile('check','On-Time Trip %','87%','last 14 days','down'),
+    kpiTile('clock','Avg Indent TAT','5.6 hrs','placement to vehicle reporting',''),
+    kpiTile('route','Fleet Utilization','81%','owned + market vehicles',''),
+    kpiTile('bin','Garbage Trip Rate','3.6%','of all trips this month','down')
+  ].join('');
+
+  $('tripBoard').innerHTML = '<div class="trip-row head"><div>Vehicle</div><div>Route</div><div>Transporter</div><div>Status</div><div>ETA</div></div>' +
+    trips.map(t => `<div class="trip-row">
+      <div class="trip-veh">${t.veh}</div>
+      <div class="trip-route">${t.route}</div>
+      <div>${t.transporter}</div>
+      <div>${statusBadge(t.status)}</div>
+      <div>${t.eta}</div>
+    </div>`).join('');
+}
+
+function renderAnalytics(){
+  const avgDelay = (routes.reduce((a,r)=>a+r.delay,0)/routes.length).toFixed(1);
+  const worst = routes.slice().sort((a,b)=>b.delay-a.delay)[0];
+  $('anaKpis').innerHTML = [
+    kpiTile('route','Routes Tracked', String(routes.length),'active network',''),
+    kpiTile('clock','Avg Delay vs. TAT', avgDelay+' hrs','across all routes','down'),
+    kpiTile('alert','Worst Route', worst.route,'+'+worst.delay+' hrs avg delay','down'),
+    kpiTile('truck','Total Trips MTD', fmt0(routes.reduce((a,r)=>a+r.trips,0)),'1–16 Sep 2026','')
+  ].join('');
+
+  safeChart($('scatterChart'), { type:'scatter', data:{ datasets:[{
+    data: routes.map(r=>({x:r.distance,y:r.duration,label:r.route})),
+    backgroundColor: routes.map(r=> r.delay>2?CRED:r.delay>1?CAMBER:CGREEN), pointRadius:8, pointHoverRadius:10
+  }]}, options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(c)=>`${c.raw.label}: ${c.raw.x}km, ${c.raw.y}h` } } },
+    scales:{ x:{ title:{display:true,text:'Distance (km)'}, grid:{color:'#EDF1F2'} }, y:{ title:{display:true,text:'Duration (hrs)'}, grid:{color:'#EDF1F2'} } } }});
+
+  safeChart($('otTrend'), { type:'line', data:{ labels: otTrendDays.map(d=>'D'+d), datasets:[{
+    data: otSeries, borderColor:CBLUE, backgroundColor:'rgba(5,180,207,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2
+  }]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ grid:{display:false} }, y:{ min:75,max:100, grid:{color:'#EDF1F2'}, title:{display:true,text:'% on-time'} } } }});
+
+  let rows = '<thead><tr><th>Route</th><th>Distance</th><th>Avg Duration</th><th>Avg Delay</th><th>Trips MTD</th></tr></thead><tbody>';
+  routes.slice().sort((a,b)=>b.delay-a.delay).forEach(r=>{
+    const st = r.delay>2?'st-bad':r.delay>1?'st-warn':'st-good';
+    rows += `<tr><td>${r.route}</td><td>${r.distance} km</td><td>${r.duration} hrs</td><td><span class="cell-status ${st}">+${r.delay}h</span></td><td>${r.trips}</td></tr>`;
+  });
+  $('routeTable').innerHTML = rows + '</tbody>';
+}
+
+function renderIndent(){
+  const totalIndents = transporterScores.reduce((a,t)=>a+t.indents,0);
+  const avgSla = Math.round(transporterScores.reduce((a,t)=>a+t.sla,0)/transporterScores.length);
+  $('indentKpis').innerHTML = [
+    kpiTile('truck','Total Indents MTD', fmt0(totalIndents),'across 5 transporters',''),
+    kpiTile('check','Avg SLA Compliance', avgSla+'%','network average','down'),
+    kpiTile('alert','Weakest Transporter','National Transport Co','76% SLA compliance','down'),
+    kpiTile('clock','Avg Placement Time','5.6 hrs','indent to vehicle reporting','')
+  ].join('');
+
+  safeChart($('slaBar'), { type:'bar', data:{ labels: transporterScores.map(t=>t.name), datasets:[{
+    data: transporterScores.map(t=>t.sla), backgroundColor: transporterScores.map(t=> t.sla<80?CRED:t.sla<90?CAMBER:CGREEN)
+  }]}, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ min:0,max:100, title:{display:true,text:'% SLA compliance'}, grid:{color:'#EDF1F2'} }, y:{grid:{display:false}} } }});
+
+  let rows = '<thead><tr><th>Transporter</th><th>Indents Fulfilled</th><th>SLA Compliance</th><th>Garbage Trip Rate</th></tr></thead><tbody>';
+  transporterScores.forEach(t=>{
+    const st = t.sla<80?'st-bad':t.sla<90?'st-warn':'st-good';
+    rows += `<tr><td>${t.name}</td><td>${fmt0(t.indents)}</td><td><span class="cell-status ${st}">${t.sla}%</span></td><td>${t.garbageRate}%</td></tr>`;
+  });
+  $('transporterTable').innerHTML = rows + '</tbody>';
+}
+
+function renderGarbage(){
+  const totalCost = garbageTrips.reduce((a,g)=>a+g.cost,0);
+  $('garbageKpis').innerHTML = [
+    kpiTile('bin','Garbage Trips Flagged', String(garbageTrips.length),'this month',''),
+    kpiTile('alert','Cost Impact','₹'+(totalCost/1000).toFixed(1)+'K','wasted transport spend','down'),
+    kpiTile('truck','Rate of Total Trips','3.6%','vs. all trips MTD',''),
+    kpiTile('check','Top Reason','Duplicate indent','2 of 5 flagged trips','')
+  ].join('');
+
+  let rows = '<thead><tr><th>Vehicle</th><th>Transporter</th><th>Route</th><th>Reason</th><th>Cost Impact</th></tr></thead><tbody>';
+  garbageTrips.forEach(g=>{
+    rows += `<tr><td>${g.veh}</td><td>${g.transporter}</td><td>${g.route}</td><td style="text-align:left;font-family:var(--sans);font-weight:400">${g.reason}</td><td>₹${fmt0(g.cost)}</td></tr>`;
+  });
+  rows += `<tr class="row-total"><td colspan="4">Total</td><td>₹${fmt0(totalCost)}</td></tr>`;
+  $('garbageTable').innerHTML = rows + '</tbody>';
+}
+
+const titles = {
+  tower:['TMS Control Tower','Live location, trip performance and indent turnaround for every vehicle currently on the road.'],
+  analytics:['Trip Analytics','Duration, distance and delay across the transport network, route by route.'],
+  indent:['Indent & Transporter SLA','How reliably each transporter places a vehicle against an indent, within the agreed window.'],
+  garbage:['Garbage Trips','Trips flagged as duplicate, invalid or incomplete — and what they cost.']
+};
+const rendered = {};
+const renderers = { tower:renderTower, analytics:renderAnalytics, indent:renderIndent, garbage:renderGarbage };
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  $('page-'+id).classList.add('active');
+  document.querySelector(`.sb-item[data-page="${id}"]`).classList.add('active');
+  $('page-title').textContent = titles[id][0];
+  $('page-sub').textContent = titles[id][1];
+  if(!rendered[id]){ renderers[id](); rendered[id] = true; }
+}
+const __h = (location.hash||'').slice(1);
+showPage(titles[__h] ? __h : 'tower');
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (titles[h]) showPage(h); });
+</script>
+</body>
+</html>

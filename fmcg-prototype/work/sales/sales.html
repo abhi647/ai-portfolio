@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seven Billion Analytics | Sales Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F8F9;--bg2:#F1F4F6;--panel:#FFFFFF;--panel-2:#F6F8F9;--line:#E4E9EC;
+  --ink:#10222A;--muted:#5B6870;--cyan:#05B4CF;--cyan-dim:rgba(5,180,207,.08);
+  --green:#0F9D67;--green-dim:rgba(15,157,103,.09);--amber:#B4720A;--amber-dim:rgba(180,114,10,.1);
+  --red:#C23B32;--red-dim:rgba(194,59,50,.09);--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--serif:'Newsreader',serif;
+  --radius:12px;--shadow:0 2px 10px rgba(11,15,18,.05);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:13px/1.5 var(--sans);overflow:hidden}
+h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--ink);margin:0}
+button,select,input{font:inherit}
+button{cursor:pointer}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#C7D3D7;border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+
+.app-shell{display:flex;height:100vh}
+.sidebar{width:216px;flex:0 0 216px;padding:22px 16px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:30px;padding:0 4px}
+.brand-mark{width:26px;height:26px;color:var(--cyan);flex:0 0 auto}
+.brand-word{font:800 15px var(--sans);color:var(--ink);line-height:1.2}
+.brand-word small{display:block;font:600 9px var(--sans);color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.nav-label{color:var(--muted);font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;margin:0 4px 10px}
+.nav{display:grid;gap:4px}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);text-align:left;font-weight:700;font-size:12.5px}
+.nav-btn .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--bg);font:600 10px var(--mono);color:var(--muted)}
+.nav-btn:hover{background:var(--cyan-dim);color:var(--ink)}
+.nav-btn.active{background:rgba(5,180,207,.14);border-color:rgba(5,180,207,.3);color:var(--ink)}
+.nav-btn.active .num{background:var(--cyan);color:#fff}
+.sidebar-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);display:flex;gap:9px;align-items:center}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(52,211,153,.14);flex:0 0 auto}
+.sidebar-foot b{display:block;font-size:11px}
+.sidebar-foot small{display:block;color:var(--muted);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh}
+.topbar{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:18px 28px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.92);backdrop-filter:blur(8px)}
+.topbar h1{margin:0;font-size:21px;letter-spacing:-.02em}
+.topbar .overline{color:var(--cyan);font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;margin:0 0 3px}
+.refresh-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.refresh-chip{display:flex;flex-direction:column;gap:1px;padding:7px 12px;border:1px solid var(--line);border-radius:7px;background:var(--panel-2)}
+.refresh-chip b{font:600 11px var(--mono);color:var(--ink)}
+.refresh-chip span{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.status-chip{display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid rgba(52,211,153,.35);border-radius:7px;color:var(--green);font:600 11px var(--mono)}
+.top-actions{display:flex;gap:8px}
+.icon-btn,.primary-btn{border:1px solid var(--line);border-radius:7px;padding:8px 13px;background:var(--panel);color:var(--ink);font-size:11.5px;font-weight:700}
+.primary-btn{background:var(--cyan);border-color:var(--cyan);color:#fff}
+
+.content{flex:1;overflow-y:auto;padding:20px 28px 30px}
+.page{display:none}
+.page.active{display:block}
+
+.filter-bar{display:flex;flex-wrap:wrap;gap:9px;align-items:end;padding:11px 14px;margin-bottom:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2)}
+.filter-bar label{display:grid;gap:3px;color:var(--muted);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em}
+.filter-bar select,.filter-bar input{min-width:118px;padding:7px 9px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--ink);font-size:11.5px}
+.reset-btn{margin-left:auto;border:1px solid var(--line);border-radius:7px;padding:8px 13px;background:transparent;color:var(--muted);font-size:11px;font-weight:700}
+.reset-btn:hover{color:var(--ink);border-color:var(--cyan)}
+
+.section-heading{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:22px 0 12px}
+.section-heading:first-child{margin-top:0}
+.section-heading h2{margin:3px 0 0;font-size:15px;letter-spacing:-.01em}
+.section-heading .overline{color:var(--cyan);font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.section-heading .note{color:var(--muted);font-size:10.5px;max-width:360px;text-align:right}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:26px}
+.kpi-card{padding:13px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow)}
+.kpi-label{color:var(--muted);font-size:10.5px;font-weight:700;min-height:26px}
+.kpi-value{margin:8px 0 3px;font-size:21px;font-weight:800;letter-spacing:-.03em}
+.kpi-unit{color:var(--muted);font:10px var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.kpi-status{display:inline-block;margin-top:7px;padding:2px 7px;border-radius:20px;font:600 9.5px var(--mono);letter-spacing:.03em}
+.kpi-status.healthy{background:var(--green-dim);color:var(--green)}
+.kpi-status.watch{background:var(--cyan-dim);color:var(--cyan)}
+.kpi-status.attention{background:var(--amber-dim);color:var(--amber)}
+.kpi-status.critical{background:var(--red-dim);color:var(--red)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.panel{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow);min-width:0;margin-bottom:18px}
+.grid-2>.panel,.grid-3>.panel{margin-bottom:0}
+.panel h3{margin:0 0 3px;font-size:12.5px}
+.panel .sub{margin:0 0 12px;color:var(--muted);font-size:10.5px}
+.panel-wide{grid-column:1/-1}
+.chart-box{position:relative;height:210px}
+.chart-box.tall{height:270px}
+
+.insight-panel{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid rgba(5,180,207,.28);border-radius:8px;background:var(--cyan-dim);margin-top:10px;margin-bottom:14px}
+.insight-panel .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);margin-top:5px;flex:0 0 auto}
+.insight-panel p{margin:0;font-size:11.5px;color:var(--ink)}
+.insight-panel b{color:var(--cyan)}
+
+.bar-head{display:grid;grid-template-columns:1fr 60px;padding:0 0 6px;color:var(--muted);font:9.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line);margin-bottom:8px}
+.bar-row{display:grid;grid-template-columns:minmax(120px,1.3fr) 2fr 58px;align-items:center;gap:9px;margin-bottom:7px}
+.bar-label{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-label small{color:var(--muted)}
+.bar-track{height:7px;border-radius:3px;background:var(--bg);overflow:hidden}
+.bar-fill{display:block;height:100%;min-width:2px;background:var(--cyan);border-radius:inherit}
+.bar-fill.fill-amber{background:var(--amber)}
+.bar-fill.fill-teal{background:var(--green)}
+.bar-fill.fill-red{background:var(--red)}
+.bar-value{text-align:right;font:10.5px var(--mono);color:var(--muted)}
+
+.mini-kpi{padding:11px;border-left:3px solid var(--cyan);background:var(--bg);border-radius:0 6px 6px 0}
+.mini-kpi b{display:block;font-size:17px;font-weight:800}
+.mini-kpi span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.mini-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-bottom:18px}
+
+.table-scroll{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:7px;margin-bottom:20px}
+.table-scroll.flat{max-height:none;overflow:visible}
+.table-scroll.flat .data-table thead th{position:static}
+.data-table{width:100%;border-collapse:collapse;min-width:640px}
+.data-table thead th{position:sticky;top:0;background:var(--panel);padding:9px 10px;text-align:left;color:var(--muted);font:9.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line);z-index:1;white-space:nowrap}
+.data-table td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:11px;white-space:nowrap}
+.data-table tbody tr:hover{background:var(--cyan-dim)}
+.data-table td.cell-strong{color:var(--cyan);font-weight:700}
+.data-table tr.row-total td{font-weight:800;color:var(--ink);border-top:1px solid var(--line)}
+
+.status-pill{padding:3px 8px;border-radius:20px;font:600 9.5px var(--mono)}
+.status-pill.good{background:var(--green-dim);color:var(--green)}
+.status-pill.amber{background:var(--amber-dim);color:var(--amber)}
+.status-pill.red{background:var(--red-dim);color:var(--red)}
+.status-pill.cyan{background:var(--cyan-dim);color:var(--cyan)}
+
+.exception-row{display:grid;grid-template-columns:14px 1.6fr 1fr 1fr 90px;gap:12px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line)}
+.exception-row:last-child{border-bottom:0}
+.priority-dot{width:8px;height:8px;border-radius:50%}
+.priority-dot.critical{background:var(--red);box-shadow:0 0 0 3px var(--red-dim)}
+.priority-dot.high{background:var(--amber);box-shadow:0 0 0 3px var(--amber-dim)}
+.priority-dot.medium{background:var(--cyan);box-shadow:0 0 0 3px var(--cyan-dim)}
+.priority-dot.normal{background:var(--muted)}
+.exception-name{font-size:11.5px;font-weight:700}
+.exception-loc{color:var(--muted);font-size:10px}
+.exception-figure{font:11px var(--mono);color:var(--ink)}
+.exception-figure small{color:var(--muted);font-size:9px;display:block}
+.priority-label{justify-self:end;padding:3px 9px;border-radius:20px;font:600 9.5px var(--mono);text-align:center}
+.priority-label.critical{background:var(--red-dim);color:var(--red)}
+.priority-label.high{background:var(--amber-dim);color:var(--amber)}
+.priority-label.medium{background:var(--cyan-dim);color:var(--cyan)}
+.priority-label.normal{background:var(--bg);color:var(--muted)}
+
+.search-box{display:flex;gap:7px;align-items:center;padding:7px 11px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--muted);min-width:200px}
+.search-box input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);font-size:11.5px}
+
+.toast{position:fixed;right:24px;bottom:24px;padding:11px 15px;border:1px solid var(--ink);border-radius:7px;background:var(--ink);color:#fff;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none;font-size:11.5px;z-index:60}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:1180px){.grid-3{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){
+  body{overflow:auto}.app-shell{display:block;height:auto}
+  .sidebar{width:100%;flex:none;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}
+  .brand{margin-bottom:0}.nav{flex-direction:row;flex-wrap:wrap}.nav-label,.sidebar-foot{display:none}
+  .main{height:auto}.content{overflow:visible}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><svg class="brand-mark" viewBox="0 0 177 178" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.000148773 165.671L41.1802 124.491C38.9602 121.671 35.5902 117.291 31.6902 111.801C13.3202 85.9209 1.30016 68.5309 2.46016 48.0209C2.75016 42.9109 3.41016 31.2809 11.9602 23.9609C20.5702 16.5909 32.3102 17.7609 38.6202 18.3809C54.7402 19.9709 66.9901 28.7409 72.1701 32.4709C79.4301 37.6909 91.5601 48.3409 98.3201 49.7409C104.52 51.0309 110.29 49.9609 110.29 49.9609C113.84 49.3109 117.26 47.9009 121.17 45.6309L164.74 0L176.57 12.5609C173.72 15.7209 161.53 28.3509 155.77 34.5509C134.9 57.0709 128.67 62.3609 127.89 71.5009C127.37 77.5709 129.21 84.3509 134.59 92.2709C144.28 106.531 155.11 122.241 158.33 140.091C160.34 151.191 159.42 161.531 153.33 168.441C148.95 173.411 143.33 174.991 139.44 176.041C111.11 183.681 80.9601 158.581 73.9001 152.301C72.8301 151.351 71.9801 150.551 71.5001 150.101L82.4601 138.831C107.45 159.301 129.9 166.951 138.95 159.281C142.89 155.941 144.83 150.331 144.03 145.381C142.01 132.801 131.84 114.191 124.04 104.031C121.21 100.341 117.39 97.3609 112.96 95.8509C100.88 91.7609 92.9501 97.0109 84.6701 104.841C74.4901 114.461 48.7802 141.061 13.2802 176.651M82.7401 80.6809C92.2601 68.8609 73.1201 54.3709 67.6401 49.3709C67.6401 49.3709 53.8902 36.2509 33.7502 34.8109C29.1002 34.4809 23.7902 34.6009 20.0502 38.1409C14.4002 43.4909 17.7502 56.1009 19.5102 61.5609C25.8802 81.3609 44.6802 103.581 54.8902 111.781C66.8602 99.8109 68.5501 98.3009 82.7401 80.6909V80.6809Z" fill="currentColor"/></svg><span class="brand-word">Seven Billion<small>analytics</small></span></div>
+    <div class="nav-label">Sales Control Tower</div>
+    <nav class="nav" id="pageNav">
+      <button class="nav-btn active" data-page="tower"><span class="num">1</span>Sales Control Tower</button>
+      <button class="nav-btn" data-page="performance"><span class="num">2</span>Sales Performance</button>
+      <button class="nav-btn" data-page="target"><span class="num">3</span>Target / SO_ASM</button>
+      <button class="nav-btn" data-page="product"><span class="num">4</span>Product Analysis</button>
+      <button class="nav-btn" data-page="channel"><span class="num">5</span>Channel &amp; Region</button>
+      <button class="nav-btn" data-page="fg"><span class="num">6</span>FG Coverage</button>
+      <button class="nav-btn" data-page="insights"><span class="num">7</span>Sales Insights</button>
+    </nav>
+    <div class="sidebar-foot"><span class="live-dot"></span><div><b>Live view</b><small>Sales &amp; distribution</small></div></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div><div class="overline" id="pageOverline">Executive summary</div><h1 id="pageTitle">Sales Control Tower</h1></div>
+      <div class="refresh-row">
+        <div class="refresh-chip"><b id="rPrimary">—</b><span>Primary Invoice Till</span></div>
+        <div class="refresh-chip"><b id="rSecondary">—</b><span>Secondary Sales Till</span></div>
+        <div class="refresh-chip"><b id="rCollection">—</b><span>Primary Collection Till</span></div>
+        <div class="status-chip"><span class="live-dot"></span>Data Status: Updated</div>
+        <div class="top-actions">
+          <button id="refreshBtn" class="icon-btn" type="button">↻ Refresh</button>
+          <button id="exportBtn" class="primary-btn" type="button">↓ Export</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+
+      <!-- PAGE 1: SALES CONTROL TOWER -->
+      <section class="page active" id="page-tower">
+        <div class="kpi-grid" id="towerKpis"></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Primary Sales by Category</h3><p class="sub">Top contributing categories, MTD (reporting date: 31 Aug 2025)</p><div id="towerCategoryChart"></div></article>
+          <article class="panel"><h3>Primary Sales by Zone</h3><p class="sub">Zone-wise MTD primary sales</p><div id="towerZoneChart"></div></article>
+        </div>
+        <div class="grid-2">
+          <article class="panel"><h3>Primary Channel Mix</h3><p class="sub">Primary sales by channel</p><div id="towerChannelChart"></div></article>
+          <article class="panel"><h3>FG Coverage by SKU</h3><p class="sub">Region: North · Class: SP-A</p><div id="towerCoverageChart"></div></article>
+        </div>
+        <div class="section-heading"><div><div class="overline">Where attention is required</div><h2>Top exceptions</h2></div></div>
+        <div class="panel panel-wide"><div id="towerExceptions"></div></div>
+        <div class="insight-panel"><span class="dot"></span><p id="towerInsight"></p></div>
+      </section>
+
+      <!-- PAGE 2: SALES PERFORMANCE -->
+      <section class="page" id="page-performance">
+        <div class="kpi-grid" id="perfKpis"></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Primary vs Target vs Secondary vs Collection</h3><p class="sub">Company total, ₹ Lac</p><div class="chart-box"><canvas id="chartPrimaryTarget"></canvas></div></article>
+          <article class="panel"><h3>Category Contribution to Primary Sales</h3><p class="sub">Share of total ₹320.7 L primary</p><div class="chart-box"><canvas id="chartCategoryDonut"></canvas></div></article>
+        </div>
+        <div class="grid-2">
+          <article class="panel"><h3>Zone Contribution</h3><p class="sub">Primary sales by zone</p><div id="perfZoneChart"></div></article>
+          <article class="panel"><h3>Channel Contribution</h3><p class="sub">Primary sales by channel</p><div id="perfChannelChart"></div></article>
+        </div>
+        <div class="section-heading"><div><div class="overline">Trend</div><h2>Sales trend</h2></div><span class="note">Large Pack channel monthly primary (CY2025) · Primary YoY cumulative (Nov–Dec 2025)</span></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Large Pack Primary — Monthly Trend</h3><p class="sub">₹ Lac, Jan–Dec 2025</p><div class="chart-box"><canvas id="chartMonthlyTrend"></canvas></div></article>
+          <article class="panel"><h3>Primary YoY — Cumulative</h3><p class="sub">₹ Lac, 2025</p><div class="chart-box"><canvas id="chartYoY"></canvas></div></article>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="perfInsight"></p></div>
+      </section>
+
+      <!-- PAGE 3: TARGET / SO_ASM -->
+      <section class="page" id="page-target">
+        <div class="kpi-grid" id="targetKpis"></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Target vs Primary MTD (Cumulative)</h3><p class="sub">North Zone · by SubZone</p><div id="targetVsActualChart"></div></article>
+          <article class="panel"><h3>Achievement % by ASM</h3><p class="sub">North Zone · vs Month Target</p><div id="achChart"></div></article>
+        </div>
+        <div class="section-heading"><div><div class="overline">SO / ASM operational table</div><h2>Zone → SubZone → ASM performance</h2></div><span class="note">North Zone — the only zone captured with target-level detail in this extract</span></div>
+        <div class="table-scroll flat"><table class="data-table" id="targetTable"></table></div>
+        <div class="insight-panel"><span class="dot"></span><p id="targetInsight"></p></div>
+        <div class="section-heading"><div><div class="overline">Roster</div><h2>SO / ASM designation list</h2></div></div>
+        <div class="table-scroll" style="max-height:260px"><table class="data-table" id="rosterTable"></table></div>
+      </section>
+
+      <!-- PAGE 4: PRODUCT / CATEGORY ANALYSIS -->
+      <section class="page" id="page-product">
+        <div class="kpi-grid" id="productKpis"></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Primary Sales by Category</h3><div id="productCategoryChart"></div></article>
+          <article class="panel"><h3>Primary vs Secondary by Category</h3><div class="chart-box tall"><canvas id="chartPrimaryVsSecondary"></canvas></div></article>
+        </div>
+        <div class="section-heading"><div><div class="overline">Category detail</div><h2>Brandwise sales performance</h2></div></div>
+        <div class="table-scroll flat"><table class="data-table" id="categoryTable"></table></div>
+        <div class="insight-panel"><span class="dot"></span><p id="productInsight"></p></div>
+        <div class="section-heading"><div><div class="overline">SKU drill-down</div><h2>Twists — flavour split</h2></div></div>
+        <div class="table-scroll flat"><table class="data-table" id="topSkuTable"></table></div>
+        <div class="section-heading"><div><div class="overline">MRP / Price group</div><h2>Price group performance</h2></div></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Primary by Price Group</h3><div id="priceGroupChart"></div></article>
+          <article class="panel"><h3>Price Group Variance vs Benchmark Month</h3><div id="priceVarianceChart"></div></article>
+        </div>
+      </section>
+
+      <!-- PAGE 5: CHANNEL & REGION ANALYSIS -->
+      <section class="page" id="page-channel">
+        <div class="kpi-grid" id="channelKpis"></div>
+        <div class="section-heading"><div><div class="overline">Primary channel</div><h2>Channel performance</h2></div></div>
+        <div class="table-scroll flat"><table class="data-table" id="channelTable"></table></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Primary Channel Split</h3><div class="chart-box"><canvas id="chartChannelDonut"></canvas></div></article>
+          <article class="panel"><h3>Secondary Channel Group</h3><div id="secChannelChart"></div></article>
+        </div>
+        <div class="section-heading"><div><div class="overline">Region</div><h2>Zone performance</h2></div></div>
+        <div class="table-scroll flat"><table class="data-table" id="zoneTable"></table></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Primary by Zone</h3><div id="channelZoneChart"></div></article>
+          <article class="panel"><h3>Collection by Zone</h3><div id="channelZoneCollChart"></div></article>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="channelInsight"></p></div>
+      </section>
+
+      <!-- PAGE 6: FG STOCK COVERAGE -->
+      <section class="page" id="page-fg">
+        <div class="kpi-grid" id="fgKpis"></div>
+        <div class="section-heading"><div><div class="overline">Coverage matrix</div><h2>Zone / CFA × SKU coverage %</h2></div><span class="note">Region: North · Class: SP-A — the only region/class captured in this extract</span></div>
+        <div class="table-scroll flat"><table class="data-table" id="fgMatrixTable"></table></div>
+        <div class="grid-2">
+          <article class="panel"><h3>Coverage % by SKU (Total)</h3><div id="fgSkuChart"></div></article>
+          <article class="panel"><h3>Coverage Band Distribution</h3><p class="sub">Zone/CFA rows across all 6 tracked SKUs</p><div class="chart-box"><canvas id="chartCoverageBand"></canvas></div></article>
+        </div>
+        <div class="section-heading"><div><div class="overline">SKU-level detail</div><h2>Consumption &amp; coverage inputs</h2></div></div>
+        <div class="table-scroll flat"><table class="data-table" id="fgSkuTable"></table></div>
+        <div class="section-heading"><div><div class="overline">Cross analysis</div><h2>Sales demand vs FG coverage</h2></div></div>
+        <div class="table-scroll flat"><table class="data-table" id="crossTable"></table></div>
+        <div class="insight-panel"><span class="dot"></span><p id="fgInsight"></p></div>
+      </section>
+
+      <!-- PAGE 7: SALES INSIGHTS -->
+      <section class="page" id="page-insights">
+        <div class="mini-kpi-grid" id="insightSummary"></div>
+        <div class="section-heading"><div><div class="overline">Sales insights</div><h2>What management should look at first</h2></div></div>
+        <div class="panel panel-wide"><div id="insightList"></div></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+<div id="toast" class="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   salesData — centralized data model for an illustrative FMCG
+   Sales Control Tower. Employee, distributor and location names
+   are numbered labels (ASM 0xx, CFA 0x). Two reporting scopes
+   are shown — a company-wide single-day snapshot (used for the
+   Brandwise/Channelwise/Zone tables) and a North-Zone cumulative
+   MTD view (used for SO/ASM Target) — each captioned with its
+   own scope rather than blended.
+   ============================================================ */
+
+const salesData = {
+  meta: {
+    primaryInvoiceTill: '16-09-2026 05:42 AM',
+    secondarySalesTill: '9/15/2026',
+    primaryCollectionTill: '9/16/2026',
+    pbiRefresh: '9/16/2026 8:42:47 AM',
+    etlRefresh: '9/16/2026 8:00:12 AM',
+    fgSalesDataTill: '9/16/2026 6:25:46 AM',
+    fgStockUpdatedTill: '9/16/2026 6:45:33 AM',
+    fgLastUpdateTill: '9/16/2026 7:07:24 AM',
+    reportingDate: '31 Aug 2025'
+  },
+
+  // Company-wide totals — Brandwise/Channelwise Sales Growth, single-day snapshot (31 Aug 2025)
+  totals: { primaryMTD: 320.7, mtdTarget: 10399.1, secondary: 506.8, collection: 140.9, priGrowth: -97, secGrowth: -95, collGrowth: -99, rrPrimary: 251.3, rrGrowth: -97 },
+
+  // North Zone cumulative MTD target achievement — SO TARGET view (the only zone captured)
+  northTarget: { monthTarget: 9139.08, l3mAvg: 9080.35, lysmPri: 6772.6, lmPri: 9102.7, cmMtdPri: 9050.35, achTgt: 99, achLM: 99, grLYSM: 34, grLM: -1 },
+
+  // FG Coverage avg — simple mean of the Total row across the 6 tracked SKUs (Region: North)
+  fgCoverageAvg: 79,
+
+  categories: [
+    { name:'Extruded', primary:278.4, mtdTarget:8381.6, priGrowth:-97, mthRRR:46486.6, secondary:462.0, secComp:8247.6, secGrowth:-94, parent:true },
+    { name:'Twists', primary:60.5, mtdTarget:1425.3, priGrowth:-96, mthRRR:8149.7, secondary:97.4, secComp:1396.4, secGrowth:-93 },
+    { name:'Loops', primary:58.5, mtdTarget:1469.5, priGrowth:-96, mthRRR:8067.8, secondary:79.5, secComp:1417.9, secGrowth:-94 },
+    { name:'Crisps', primary:47.9, mtdTarget:1495.8, priGrowth:-97, mthRRR:8390.8, secondary:92.7, secComp:1522.7, secGrowth:-94 },
+    { name:'Puffs', primary:29.1, mtdTarget:1312.8, priGrowth:-98, mthRRR:6444.2, secondary:73.2, secComp:1253.6, secGrowth:-94 },
+    { name:'Zingers', primary:23.9, mtdTarget:812.5, priGrowth:-97, mthRRR:4767.8, secondary:43.9, secComp:827.7, secGrowth:-95 },
+    { name:'Sweet Loops', primary:18.7, mtdTarget:202.7, priGrowth:-91, mthRRR:1359.4, secondary:16.7, secComp:207.4, secGrowth:-92 },
+    { name:'Noodles', primary:17.9, mtdTarget:633.6, priGrowth:-97, mthRRR:3239.7, secondary:37.4, secComp:635.1, secGrowth:-94 },
+    { name:'Pasta', primary:12.7, mtdTarget:205.0, priGrowth:-94, mthRRR:1146.9, secondary:12.4, secComp:195.8, secGrowth:-94 },
+    { name:'Cheese Bites', primary:5.9, mtdTarget:295.1, priGrowth:-98, mthRRR:1716.5, secondary:4.9, secComp:288.9, secGrowth:-98 },
+    { name:'Party Pack', primary:2.1, mtdTarget:152.0, priGrowth:-99, mthRRR:872.7, secondary:2.1, secComp:151.2, secGrowth:-99 },
+    { name:'Korean Noodles', primary:0.8, mtdTarget:21.0, priGrowth:-96, mthRRR:190.8, secondary:1.2, secComp:20.8, secGrowth:-94 },
+    { name:'Biryani', primary:0.4, mtdTarget:0.7, priGrowth:-46, mthRRR:-0.4, secondary:0.6, secComp:2.1, secGrowth:-74 },
+    { name:'Bowls', primary:0.0, mtdTarget:0.1, priGrowth:-94, mthRRR:0.0, secondary:0.0, secComp:0.1, secGrowth:-94 },
+    { name:'Combo', primary:0.0, mtdTarget:10.4, priGrowth:-100, mthRRR:97.9, secondary:10.4, secComp:10.4, secGrowth:-100 }
+  ],
+  topSkuDetail: [
+    { name:'Twists Chatpata Masala', primary:51.8, secondary:94.3 },
+    { name:'Twists Tomato Treat', primary:5.5, secondary:0.8 },
+    { name:'Twists Cheese Delight', primary:3.1, secondary:2.3 }
+  ],
+
+  channels: [
+    { name:'RDS', primary:175.8, mtdTarget:4919.5, priGrowth:-96, collection:65.6, collComp:4819.6, collGrowth:-99, secondary:296.2 },
+    { name:'Super', primary:85.3, mtdTarget:2309.5, priGrowth:-96, collection:12.7, collComp:2282.9, collGrowth:-99, secondary:161.6 },
+    { name:'MT-Ecom', primary:26.7, mtdTarget:1998.4, priGrowth:-99, collection:56.5, collComp:1463.4, collGrowth:-96, secondary:26.7 },
+    { name:'Large Pack', primary:13.0, mtdTarget:785.7, priGrowth:-98, collection:3.7, collComp:747.8, collGrowth:-99, secondary:10.1 },
+    { name:'T3 Supply', primary:4.8, mtdTarget:234.6, priGrowth:-98, collection:0.1, collComp:237.7, collGrowth:-100, secondary:11.0 },
+    { name:'Anchor', primary:15.0, mtdTarget:151.4, priGrowth:-90, collection:2.3, collComp:147.1, collGrowth:-98, secondary:1.2 }
+  ],
+  secondaryChannelGroup: [
+    { name:'Retail', secondary:87.0, secComp:3609.3, secGrowth:-98 },
+    { name:'Sub-Rural', secondary:158.8, secComp:1883.3, secGrowth:-92 },
+    { name:'Wholesale', secondary:234.3, secComp:2780.3, secGrowth:-92 }
+  ],
+
+  zones: [
+    { name:'North', primary:222.8, priComp:5881.5, priGrowth:-96, rrPrimary:143.6, rrGrowth:-97, collection:67.4, collGrowth:-99, secondary:333.1, secGrowth:-94 },
+    { name:'E Com', primary:25.9, priComp:1935.3, priGrowth:-99, rrPrimary:29.2, rrGrowth:-98, collection:53.4, collGrowth:-96, secondary:25.9, secGrowth:-99 },
+    { name:'West', primary:36.3, priComp:204.7, priGrowth:-82, rrPrimary:22.1, rrGrowth:-86, collection:7.3, collGrowth:-96, secondary:7.2, secGrowth:-94 },
+    { name:'East & CG', primary:16.3, priComp:1160.6, priGrowth:-99, rrPrimary:44.0, rrGrowth:-96, collection:5.0, collGrowth:-100, secondary:126.7, secGrowth:-90 },
+    { name:'Large Pack', primary:12.2, priComp:764.9, priGrowth:-98, rrPrimary:10.9, rrGrowth:-98, collection:4.6, collGrowth:-99, secondary:10.9, secGrowth:-99 },
+    { name:'MT', primary:0.0, priComp:61.8, priGrowth:-100, rrPrimary:0.0, rrGrowth:-100, collection:2.3, collGrowth:-96, secondary:0.0, secGrowth:-100 },
+    { name:'South', primary:7.1, priComp:390.3, priGrowth:-98, rrPrimary:1.6, rrGrowth:-100, collection:1.0, collGrowth:-100, secondary:3.0, secGrowth:-99 }
+  ],
+
+  priceGroups: [
+    { name:'Rs.10 to Rs.15', primary:25.9, priComp:1033.0, variance:-1007.1 },
+    { name:'Rs.20', primary:5.9, priComp:238.8, variance:-232.8 },
+    { name:'Rs.25', primary:4.9, priComp:193.9, variance:-189.0 },
+    { name:'Rs.25+', primary:23.6, priComp:1883.0, variance:-1859.4 }
+  ],
+
+  monthlyTrend: { months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], values:[1200,1200,1200,1300,1400,1500,1600,1700,1700,1900,2000,2300] },
+  yoy: { months:['Nov','Dec'], values:[8875,9263] },
+
+  // North Zone SO/ASM target hierarchy — Zone > SubZone > ASM. Column basis: Month Target, CM MTD Primary, Achievement % on Target, Growth % on LYSM
+  targetHierarchy: [
+    { level:'zone', name:'North', target:5534.11, cmMtd:5719.46, achTgt:103, grLYSM:24 },
+    { level:'subzone', name:'NZ-4', target:1791.99, cmMtd:1961.53, achTgt:109, grLYSM:28 },
+    { level:'asm', name:'ASM 001', target:405.35, cmMtd:443.97, achTgt:110, grLYSM:28 },
+    { level:'asm', name:'ASM 002', target:322.14, cmMtd:375.73, achTgt:117, grLYSM:33 },
+    { level:'asm', name:'ASM 003', target:360.07, cmMtd:364.49, achTgt:101, grLYSM:14 },
+    { level:'asm', name:'ASM 004', target:277.34, cmMtd:316.78, achTgt:114, grLYSM:38 },
+    { level:'subzone', name:'NZ-3', target:1490.00, cmMtd:1501.37, achTgt:101, grLYSM:22 },
+    { level:'subzone', name:'NZ-2', target:1120.00, cmMtd:1102.44, achTgt:98, grLYSM:20 },
+    { level:'asm', name:'ASM 005', target:400.00, cmMtd:400.38, achTgt:100, grLYSM:19 },
+    { level:'asm', name:'ASM 006', target:400.00, cmMtd:75.50, achTgt:19, grLYSM:20 },
+    { level:'asm', name:'ASM 007', target:400.00, cmMtd:66.90, achTgt:17, grLYSM:15 },
+    { level:'row-total', name:'Total (North)', target:9139.08, cmMtd:9050.35, achTgt:99, grLYSM:34 }
+  ],
+  roster: [
+    { name:'ASM 010', designation:'ASM' }, { name:'ASM 011', designation:'ASM' }, { name:'ASM 001', designation:'ASM' },
+    { name:'ASM 016', designation:'ASM' }, { name:'ASM 015', designation:'ASM' }, { name:'ASM 012', designation:'ASM' },
+    { name:'ASM 013', designation:'ASM' }, { name:'ASM 014', designation:'ASM' }, { name:'ASM 017', designation:'ASM' },
+    { name:'ASM 018', designation:'ASM' }, { name:'ASM 019', designation:'ASM' }, { name:'ASM 020', designation:'ASM' },
+    { name:'ASM 005', designation:'ASM' }
+  ],
+
+  // FG Stock Coverage — Region: North, Class: SP-A. Coverage % matrix (6 tracked SKUs)
+  fgItems: ['Puffs Salted','Twists Chatpata Masala','Crisps Cream and Onion','Zingers Classic','Noodle Crunch Magic Masala','Pasta Crunch Chinese Tadka'],
+  fgMatrix: [
+    { level:'zone', name:'NZ-4', values:[69,94,79,100,86,52] },
+    { level:'cfa', name:'CFA 01', values:[0,59,125,152,0,124] },
+    { level:'cfa', name:'CFA 02', values:[324,149,138,171,100,58] },
+    { level:'cfa', name:'CFA 03', values:[41,100,39,154,156,0] },
+    { level:'cfa', name:'CFA 04', values:[161,130,16,112,115,82] },
+    { level:'cfa', name:'CFA 05', values:[65,162,149,221,200,29] },
+    { level:'cfa', name:'CFA 06', values:[79,196,194,268,100,0] },
+    { level:'cfa', name:'CFA 07', values:[156,143,149,130,115,93] },
+    { level:'zone', name:'NZ-2', values:[66,80,100,95,68,60] },
+    { level:'zone', name:'NZ-3', values:[76,100,100,100,80,39] },
+    { level:'zone', name:'NZ-1', values:[100,100,100,100,100,100] },
+    { level:'zone', name:'NZ-5', values:[7,31,68,55,86,100] },
+    { level:'cfa', name:'CFA 08', values:[15,59,78,16,71,253] },
+    { level:'cfa', name:'CFA 09', values:[0,3,59,94,186,100] },
+    { level:'row-total', name:'Total', values:[66,87,90,95,81,57] }
+  ],
+
+  // SKU-level detail. Con_Val and LM blanks in source filled using the average Con_Val/Con_Cases
+  // and LM/L3M ratios observed across the rows where both figures were captured (documented here
+  // rather than left blank) — see calculateDerivedRatio() below for the same method reused live.
+  fgSkuDetail: [
+    { zone:'NZ-4', cfa:'CFA 02', item:'Crisps Cream and Onion', lm:167, l3m:9138.00, conCases:11993, conVal:73585, tdp1:4797, tdp2:3598, tdp3:3598, gt1:4797, gt2:3598, gt2n:3598 },
+    { zone:'NZ-2', cfa:'CFA 10', item:'Loops Tangy Tomato', lm:30, l3m:6665.33, conCases:11024, conVal:70443, tdp1:4410, tdp2:3307, tdp3:3307, gt1:4410, gt2:3307, gt2n:3307, derived:['conVal'] },
+    { zone:'NZ-4', cfa:'CFA 01', item:'Loops Tangy Tomato', lm:131, l3m:5385.33, conCases:9827, conVal:62798, tdp1:3931, tdp2:2948, tdp3:2948, gt1:3931, gt2:2948, gt2n:2948, derived:['conVal'] },
+    { zone:'NZ-4', cfa:'CFA 03', item:'Crisps Cream and Onion', lm:175, l3m:5884.00, conCases:8020, conVal:27514, tdp1:3208, tdp2:2406, tdp3:2406, gt1:3208, gt2:2406, gt2n:2406 },
+    { zone:'NZ-4', cfa:'CFA 01', item:'Crisps Cream and Onion', lm:198, l3m:6198.33, conCases:7943, conVal:50758, tdp1:3177, tdp2:2383, tdp3:2383, gt1:3177, gt2:2383, gt2n:2383, derived:['conVal'] },
+    { zone:'NZ-4', cfa:'CFA 01', item:'Twists Chatpata Masala', lm:108, l3m:6058.67, conCases:7643, conVal:48859, tdp1:3057, tdp2:2293, tdp3:2293, gt1:3057, gt2:2293, gt2n:2293, derived:['conVal'] },
+    { zone:'NZ-2', cfa:'CFA 11', item:'Loops Tangy Tomato', lm:35, l3m:5091.67, conCases:7463, conVal:74976, tdp1:2985, tdp2:2239, tdp3:2239, gt1:2985, gt2:2239, gt2n:2239 },
+    { zone:'NZ-4', cfa:'CFA 03', item:'Twists Chatpata Masala', lm:168, l3m:5244.00, conCases:7390, conVal:82347, tdp1:2956, tdp2:2217, tdp3:2217, gt1:2956, gt2:2217, gt2n:2217 },
+    { zone:'NZ-1', cfa:'CFA 14', item:'Twists Chatpata Masala', lm:111, l3m:5207.00, conCases:6924, conVal:52561, tdp1:2770, tdp2:2077, tdp3:2077, gt1:2770, gt2:2077, gt2n:2077 },
+    { zone:'NZ-4', cfa:'CFA 02', item:'Twists Chatpata Masala', lm:125, l3m:5965.33, conCases:6924, conVal:24259, tdp1:2770, tdp2:2077, tdp3:2077, gt1:2770, gt2:2077, gt2n:2077 },
+    { zone:'NZ-4', cfa:'CFA 01', item:'Zingers Classic', lm:30, l3m:4654.67, conCases:6677, conVal:42674, tdp1:2671, tdp2:2003, tdp3:2003, gt1:2671, gt2:2003, gt2n:2003, derived:['conVal'] },
+    { zone:'NZ-4', cfa:'CFA 02', item:'Loops Tangy Tomato', lm:77, l3m:3749.67, conCases:6493, conVal:26953, tdp1:2597, tdp2:1948, tdp3:1948, gt1:2597, gt2:1948, gt2n:1948, derived:['lm'] },
+    { zone:'NZ-1', cfa:'CFA 14', item:'Crisps Cream and Onion', lm:78, l3m:3750.33, conCases:5996, conVal:29919, tdp1:2398, tdp2:1799, tdp3:1799, gt1:2398, gt2:1799, gt2n:1799 },
+    { zone:'NZ-4', cfa:'CFA 03', item:'Loops Tangy Tomato', lm:98, l3m:3030.00, conCases:5657, conVal:20386, tdp1:2263, tdp2:1697, tdp3:1697, gt1:2263, gt2:1697, gt2n:1697 },
+    { zone:'NZ-3', cfa:'CFA 15', item:'Crisps Cream and Onion', lm:78, l3m:3787.67, conCases:5277, conVal:33720, tdp1:2111, tdp2:1583, tdp3:1583, gt1:2111, gt2:1583, gt2n:1583, derived:['lm','conVal'] }
+  ],
+  fgSkuTotal: { lm:3512, l3m:263589.67, conCases:368767, conVal:2066723, tdp1:145586, tdp2:111454, tdp3:111727, gt1:145586, gt2:111454, gt2n:111454 }
+};
+
+/* ============================================================
+   Calculation layer
+   ============================================================ */
+function fmt(n){ return n===null||n===undefined ? '—' : Number(n).toLocaleString('en-IN',{maximumFractionDigits:1}); }
+function fmtInt(n){ return n===null||n===undefined ? '—' : Math.round(n).toLocaleString('en-IN'); }
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+function calculateContribution(part, total){ return total ? +((part/total)*100).toFixed(1) : 0; }
+function calculateAchievement(actual, target){ return target ? +((actual/target)*100).toFixed(1) : 0; }
+function calculateVariance(actual, target){ return +(actual-target).toFixed(1); }
+function calculateGrowth(current, base){ return base ? +(((current-base)/base)*100).toFixed(1) : 0; }
+function calculateStatus(achPct){
+  if(achPct>=100) return 'On Track';
+  if(achPct>=85) return 'Watch';
+  if(achPct>=60) return 'Attention';
+  return 'Critical';
+}
+function statusClass(status){ return status==='On Track'?'good':status==='Watch'?'cyan':status==='Attention'?'amber':'red'; }
+function coverageBand(pct){
+  if(pct>=90) return 'Healthy';
+  if(pct>=70) return 'Watch';
+  if(pct>=40) return 'Attention';
+  return 'Critical';
+}
+function coverageBandClass(band){ return band==='Healthy'?'good':band==='Watch'?'cyan':band==='Attention'?'amber':'red'; }
+
+function generateSalesInsight(kind){
+  const t = salesData.totals;
+  if(kind==='target'){
+    return `North Zone MTD Primary is <b>₹${fmt(salesData.northTarget.cmMtdPri)} L</b> against a Month Target of ₹${fmt(salesData.northTarget.monthTarget)} L — <b>${salesData.northTarget.achTgt}%</b> achievement, up ${salesData.northTarget.grLYSM}% on LYSM.`;
+  }
+  if(kind==='category'){
+    const top = [...salesData.categories].filter(c=>!c.parent).sort((a,b)=>b.primary-a.primary)[0];
+    const pct = calculateContribution(top.primary, t.primaryMTD);
+    return `<b>${esc(top.name)}</b> contributes ${pct}% of Primary Sales (₹${fmt(top.primary)} L of ₹${fmt(t.primaryMTD)} L total) — the largest single category.`;
+  }
+  if(kind==='zone'){
+    const top = [...salesData.zones].sort((a,b)=>b.primary-a.primary)[0];
+    const pct = calculateContribution(top.primary, t.primaryMTD);
+    return `Zone <b>${esc(top.name)}</b> contributes ₹${fmt(top.primary)} L of Primary Sales (${pct}% of total) — the largest zone by primary volume.`;
+  }
+  if(kind==='channel'){
+    const top = [...salesData.channels].sort((a,b)=>b.primary-a.primary)[0];
+    return `<b>${esc(top.name)}</b> is the largest primary channel at ₹${fmt(top.primary)} L, ${calculateContribution(top.primary,t.primaryMTD)}% of company Primary Sales.`;
+  }
+  if(kind==='coverage'){
+    const worst = [...salesData.fgMatrix].filter(r=>r.level==='cfa').map(r=>({name:r.name, min:Math.min(...r.values)})).sort((a,b)=>a.min-b.min)[0];
+    return `<b>${esc(worst.name)}</b> shows the lowest FG Coverage among tracked locations (${worst.min}% on its weakest SKU) — a stock-out risk worth reviewing first.`;
+  }
+  if(kind==='fg'){
+    const skuAvg = salesData.fgItems.map((name,i)=>({name, total: salesData.fgMatrix.find(r=>r.level==='row-total').values[i]}));
+    const low = [...skuAvg].sort((a,b)=>a.total-b.total)[0];
+    return `<b>${esc(low.name)}</b> has the lowest overall coverage (${low.total}%) across tracked North-Zone locations — high sales demand combined with low coverage here indicates a fulfilment risk.`;
+  }
+  return '';
+}
+
+function buildExceptions(){
+  const items = [];
+  const lowAsm = salesData.targetHierarchy.filter(r=>r.level==='asm').sort((a,b)=>a.achTgt-b.achTgt)[0];
+  items.push({ name:'Lowest ASM Achievement', loc:esc(lowAsm.name)+' (North)', count:lowAsm.achTgt+'%', qty:'₹'+fmt(lowAsm.cmMtd)+' L', priority:'critical' });
+  const worstZone = [...salesData.zones].sort((a,b)=>a.priGrowth-b.priGrowth)[0];
+  items.push({ name:'Steepest Zone Decline (vs BM)', loc:esc(worstZone.name), count:worstZone.priGrowth+'%', qty:'₹'+fmt(worstZone.primary)+' L', priority:'high' });
+  const lowCfa = salesData.fgMatrix.filter(r=>r.level==='cfa').map(r=>({name:r.name, min:Math.min(...r.values)})).sort((a,b)=>a.min-b.min)[0];
+  // Qty = that CFA's own L3M consumption (cases) from the SKU detail table where available; if a
+  // CFA has no detail rows, fall back to the average per-CFA consumption across all tracked CFAs.
+  const cfaConCases = salesData.fgSkuDetail.filter(r=>r.cfa===lowCfa.name).reduce((s,r)=>s+r.conCases,0);
+  const avgCfaConCases = Math.round(salesData.fgSkuTotal.conCases / new Set(salesData.fgSkuDetail.map(r=>r.cfa)).size);
+  const lowCfaQty = cfaConCases>0 ? cfaConCases : avgCfaConCases;
+  items.push({ name:'Lowest FG Coverage (CFA)', loc:esc(lowCfa.name)+' (North)', count:lowCfa.min+'%', qty:fmtInt(lowCfaQty)+' cases (L3M)', priority:'critical' });
+  const smallestCat = [...salesData.categories].filter(c=>!c.parent && c.primary>0).sort((a,b)=>a.primary-b.primary)[0];
+  items.push({ name:'Lowest-Volume Category', loc:esc(smallestCat.name), count:calculateContribution(smallestCat.primary, salesData.totals.primaryMTD)+'% share', qty:'₹'+fmt(smallestCat.primary)+' L', priority:'medium' });
+  return items;
+}
+
+/* ============================================================
+   Render layer
+   ============================================================ */
+let charts = {};
+const $ = id => document.getElementById(id);
+function makeChart(id, cfg){ if(typeof Chart === 'undefined'){ return null; } if(charts[id]) charts[id].destroy(); try { charts[id] = new Chart($(id).getContext('2d'), cfg); } catch(e){ console.warn('chart render failed for', id, e); } }
+const chartBase = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{ labels:{ color:'#5B6870', font:{ family:'IBM Plex Sans', size:10 } } },
+    tooltip:{ backgroundColor:'#0a2129', borderColor:'rgba(16,34,42,.15)', borderWidth:1, titleColor:'#e7f6f6', bodyColor:'#cfe6e6', padding:10 } },
+  scales:{ x:{ ticks:{ color:'#5B6870', font:{ size:9.5 } }, grid:{ color:'#EDF1F2' } },
+    y:{ ticks:{ color:'#5B6870', font:{ size:9.5 } }, grid:{ color:'#EDF1F2' } } }
+};
+function barRows(container, rows, opts={}){
+  const max = Math.max(1, ...rows.map(r=>Math.abs(r.value)));
+  $(container).innerHTML = `
+    <div class="bar-head"><span>Name</span><span style="text-align:right">${opts.unit||'Value'}</span></div>
+    ${rows.map(r=>`<div class="bar-row">
+        <span class="bar-label">${esc(r.label)}</span>
+        <span class="bar-track"><i class="bar-fill ${opts.cls||''}" style="width:${Math.max(2,(Math.abs(r.value)/max)*100)}%"></i></span>
+        <span class="bar-value">${opts.fmtFn ? opts.fmtFn(r.value) : fmt(r.value)}</span>
+      </div>`).join('')}`;
+}
+function showToast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+function renderTower(){
+  const t = salesData.totals;
+  const cards = [
+    { l:'Primary Sales', v:'₹'+fmt(t.primaryMTD)+' L', u:'MTD · '+salesData.meta.reportingDate, s:'watch' },
+    { l:'Secondary Sales', v:'₹'+fmt(t.secondary)+' L', u:'MTD', s:'watch' },
+    { l:'Collection', v:'₹'+fmt(t.collection)+' L', u:'MTD', s:'watch' },
+    { l:'MTD Target', v:'₹'+fmt(t.mtdTarget)+' L', u:'Full month, company-wide', s:'watch' },
+    { l:'Target Achievement', v:salesData.northTarget.achTgt+'%', u:'North Zone · MTD cumulative', s:calculateStatus(salesData.northTarget.achTgt)==='On Track'?'healthy':'watch' },
+    { l:'Primary Growth', v:t.priGrowth+'%', u:'vs Benchmark Month', s:'attention' },
+    { l:'Secondary Growth', v:t.secGrowth+'%', u:'vs Benchmark Month', s:'attention' },
+    { l:'FG Coverage (Avg)', v:salesData.fgCoverageAvg+'%', u:'Region: North · 6 tracked SKUs', s:coverageBandClass(coverageBand(salesData.fgCoverageAvg))==='good'?'healthy':'watch' }
+  ];
+  $('towerKpis').innerHTML = cards.map(c=>`<article class="kpi-card">
+      <div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">${esc(c.u)}</div>
+      <span class="kpi-status ${c.s}">${c.s}</span></article>`).join('');
+
+  const topCats = [...salesData.categories].filter(c=>!c.parent).sort((a,b)=>b.primary-a.primary).slice(0,8).map(c=>({label:c.name,value:c.primary}));
+  barRows('towerCategoryChart', topCats, { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L' });
+  barRows('towerZoneChart', [...salesData.zones].sort((a,b)=>b.primary-a.primary).map(z=>({label:z.name,value:z.primary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L', cls:'fill-teal' });
+  barRows('towerChannelChart', [...salesData.channels].sort((a,b)=>b.primary-a.primary).map(c=>({label:c.name,value:c.primary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L' });
+  const totalRow = salesData.fgMatrix.find(r=>r.level==='row-total');
+  barRows('towerCoverageChart', salesData.fgItems.map((name,i)=>({label:name,value:totalRow.values[i]})), { unit:'%', fmtFn:v=>v+'%', cls:'fill-amber' });
+
+  const ex = buildExceptions();
+  $('towerExceptions').innerHTML = ex.map(e=>`
+    <div class="exception-row">
+      <span class="priority-dot ${e.priority}"></span>
+      <div><div class="exception-name">${esc(e.name)}</div><div class="exception-loc">${e.loc}</div></div>
+      <div class="exception-figure">${e.count}<small>metric</small></div>
+      <div class="exception-figure">${e.qty}<small>value</small></div>
+      <span class="priority-label ${e.priority}">${e.priority}</span>
+    </div>`).join('');
+  $('towerInsight').innerHTML = generateSalesInsight('category') + ' ' + generateSalesInsight('target');
+}
+
+function renderPerformance(){
+  const t = salesData.totals;
+  const cards = [
+    { l:'Primary Sales', v:'₹'+fmt(t.primaryMTD)+' L' }, { l:'Secondary Sales', v:'₹'+fmt(t.secondary)+' L' },
+    { l:'Collection', v:'₹'+fmt(t.collection)+' L' }, { l:'MTD Target', v:'₹'+fmt(t.mtdTarget)+' L' },
+    { l:'Primary Growth (vs BM)', v:t.priGrowth+'%' }, { l:'Secondary Growth (vs BM)', v:t.secGrowth+'%' }
+  ];
+  $('perfKpis').innerHTML = cards.map(c=>`<article class="kpi-card"><div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">₹ Lac</div></article>`).join('');
+
+  makeChart('chartPrimaryTarget', { type:'bar', data:{ labels:['Primary','Target','Secondary','Collection'],
+    datasets:[{ label:'₹ Lac', data:[t.primaryMTD,t.mtdTarget,t.secondary,t.collection], backgroundColor:['#05B4CF','#5B6870','#0F9D67','#B4720A'] }] },
+    options:{...chartBase, plugins:{...chartBase.plugins, legend:{display:false}}} });
+
+  const cats = [...salesData.categories].filter(c=>!c.parent);
+  makeChart('chartCategoryDonut', { type:'doughnut', data:{ labels:cats.map(c=>c.name),
+    datasets:[{ data:cats.map(c=>c.primary), backgroundColor:['#05B4CF','#0F9D67','#B4720A','#C23B32','#59e0e0','#7dd3fc','#a78bfa','#fb923c','#4ade80','#fbbf24','#f472b6','#38bdf8','#facc15','#94a3b8'] }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#5B6870', font:{size:9}, boxWidth:9 } } } } });
+
+  barRows('perfZoneChart', [...salesData.zones].sort((a,b)=>b.primary-a.primary).map(z=>({label:z.name,value:z.primary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L' });
+  barRows('perfChannelChart', [...salesData.channels].sort((a,b)=>b.primary-a.primary).map(c=>({label:c.name,value:c.primary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L', cls:'fill-teal' });
+
+  makeChart('chartMonthlyTrend', { type:'line', data:{ labels:salesData.monthlyTrend.months,
+    datasets:[{ label:'Large Pack Primary (₹ Lac)', data:salesData.monthlyTrend.values, borderColor:'#05B4CF', backgroundColor:'rgba(5,180,207,.12)', fill:true, tension:.35 }] },
+    options:chartBase });
+  makeChart('chartYoY', { type:'line', data:{ labels:salesData.yoy.months,
+    datasets:[{ label:'Primary YoY Cumulative (₹ Lac)', data:salesData.yoy.values, borderColor:'#0F9D67', backgroundColor:'rgba(15,157,103,.12)', fill:true, tension:.2 }] },
+    options:chartBase });
+
+  $('perfInsight').innerHTML = generateSalesInsight('zone') + ' ' + generateSalesInsight('channel');
+}
+
+function renderTarget(){
+  const nt = salesData.northTarget;
+  const cards = [
+    { l:'Month Target (North)', v:'₹'+fmt(nt.monthTarget)+' L' }, { l:'Primary MTD (North)', v:'₹'+fmt(nt.cmMtdPri)+' L' },
+    { l:'Achievement %', v:nt.achTgt+'%' }, { l:'Variance', v:'₹'+fmt(calculateVariance(nt.cmMtdPri,nt.monthTarget))+' L' },
+    { l:'Growth vs LYSM', v:nt.grLYSM+'%' }, { l:'Growth vs LM', v:nt.grLM+'%' }
+  ];
+  $('targetKpis').innerHTML = cards.map(c=>`<article class="kpi-card"><div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">North Zone · MTD</div></article>`).join('');
+
+  const subzones = salesData.targetHierarchy.filter(r=>r.level==='subzone');
+  const rows = subzones.map(s=>({label:s.name, value:s.cmMtd}));
+  barRows('targetVsActualChart', rows, { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L' });
+
+  const asms = salesData.targetHierarchy.filter(r=>r.level==='asm').sort((a,b)=>b.achTgt-a.achTgt);
+  $('achChart').innerHTML = `
+    <div class="bar-head"><span>ASM</span><span style="text-align:right">Achievement</span></div>
+    ${asms.map(a=>`<div class="bar-row">
+        <span class="bar-label">${esc(a.name)}</span>
+        <span class="bar-track"><i class="bar-fill ${a.achTgt>=100?'':a.achTgt>=60?'fill-amber':'fill-red'}" style="width:${Math.min(100,a.achTgt)}%"></i></span>
+        <span class="bar-value">${a.achTgt}%</span>
+      </div>`).join('')}`;
+
+  $('targetTable').innerHTML = `<thead><tr><th>Zone / SubZone / ASM</th><th>Month Target</th><th>Primary MTD</th><th>Achievement %</th><th>Variance</th><th>Growth % (LYSM)</th><th>Status</th></tr></thead>
+    <tbody>${salesData.targetHierarchy.map(r=>{
+      const status = calculateStatus(r.achTgt);
+      const indent = r.level==='subzone'?'padding-left:18px;':r.level==='asm'?'padding-left:34px;':'';
+      const strong = r.level==='zone'||r.level==='row-total';
+      return `<tr class="${r.level==='row-total'?'row-total':''}"><td class="${strong?'cell-strong':''}" style="${indent}">${esc(r.name)}</td>
+        <td>₹${fmt(r.target)} L</td><td>₹${fmt(r.cmMtd)} L</td><td>${r.achTgt}%</td><td>₹${fmt(calculateVariance(r.cmMtd,r.target))} L</td><td>${r.grLYSM}%</td>
+        <td><span class="status-pill ${statusClass(status)}">${status}</span></td></tr>`;
+    }).join('')}</tbody>`;
+
+  $('rosterTable').innerHTML = `<thead><tr><th>SO / ASM</th><th>Designation</th></tr></thead>
+    <tbody>${salesData.roster.map(r=>`<tr><td class="cell-strong">${esc(r.name)}</td><td>${esc(r.designation)}</td></tr>`).join('')}</tbody>`;
+
+  const critical = salesData.targetHierarchy.filter(r=>r.level==='asm' && r.achTgt<60);
+  $('targetInsight').innerHTML = critical.length
+    ? `${critical.map(c=>`<b>${esc(c.name)}</b> is at ${c.achTgt}% of target`).join(' and ')} — the two lowest achievers in North Zone, both well below the 60% Attention threshold despite positive growth vs LYSM.`
+    : generateSalesInsight('target');
+}
+
+function renderProduct(){
+  const cats = [...salesData.categories].filter(c=>!c.parent);
+  const t = salesData.totals;
+  const cards = [
+    { l:'Categories Tracked', v:cats.length }, { l:'Top Category', v:[...cats].sort((a,b)=>b.primary-a.primary)[0].name },
+    { l:'Top Category Share', v:calculateContribution([...cats].sort((a,b)=>b.primary-a.primary)[0].primary, t.primaryMTD)+'%' },
+    { l:'Total Primary (Categories)', v:'₹'+fmt(t.primaryMTD)+' L' }
+  ];
+  $('productKpis').innerHTML = cards.map(c=>`<article class="kpi-card"><div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">MTD</div></article>`).join('');
+
+  barRows('productCategoryChart', [...cats].sort((a,b)=>b.primary-a.primary).map(c=>({label:c.name,value:c.primary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L' });
+
+  makeChart('chartPrimaryVsSecondary', { type:'bar', data:{ labels:cats.map(c=>c.name),
+    datasets:[ { label:'Primary', data:cats.map(c=>c.primary), backgroundColor:'#05B4CF' }, { label:'Secondary', data:cats.map(c=>c.secondary), backgroundColor:'#0F9D67' } ] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins: chartBase.plugins,
+      scales:{ x:{ ticks:{ color:'#5B6870', font:{size:9.5} }, grid:{ color:'#EDF1F2' } },
+        y:{ ticks:{ color:'#5B6870', font:{size:9.5} }, grid:{ display:false } } } } });
+
+  $('categoryTable').innerHTML = `<thead><tr><th>Category</th><th>Primary</th><th>MTD Target</th><th>Contribution %</th><th>Growth % (vs BM)</th><th>Secondary</th><th>Sec. Growth</th></tr></thead>
+    <tbody>${salesData.categories.map(c=>`<tr class="${c.parent?'row-total':''}"><td class="${c.parent?'cell-strong':''}">${esc(c.name)}</td><td>₹${fmt(c.primary)} L</td><td>₹${fmt(c.mtdTarget)} L</td>
+      <td>${calculateContribution(c.primary, t.primaryMTD)}%</td><td>${c.priGrowth}%</td><td>₹${fmt(c.secondary)} L</td><td>${c.secGrowth}%</td></tr>`).join('')}</tbody>`;
+
+  $('topSkuTable').innerHTML = `<thead><tr><th>SKU / Flavour</th><th>Primary</th><th>Secondary</th></tr></thead>
+    <tbody>${salesData.topSkuDetail.map(s=>`<tr><td class="cell-strong">${esc(s.name)}</td><td>₹${fmt(s.primary)} L</td><td>₹${fmt(s.secondary)} L</td></tr>`).join('')}</tbody>`;
+
+  barRows('priceGroupChart', salesData.priceGroups.map(p=>({label:p.name,value:p.primary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L', cls:'fill-teal' });
+  barRows('priceVarianceChart', salesData.priceGroups.map(p=>({label:p.name,value:p.variance})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L', cls:'fill-red' });
+
+  $('productInsight').innerHTML = generateSalesInsight('category');
+}
+
+function renderChannel(){
+  const t = salesData.totals;
+  const cards = [
+    { l:'Primary Channels', v:salesData.channels.length }, { l:'Top Channel', v:[...salesData.channels].sort((a,b)=>b.primary-a.primary)[0].name },
+    { l:'Zones Tracked', v:salesData.zones.length }, { l:'Top Zone', v:[...salesData.zones].sort((a,b)=>b.primary-a.primary)[0].name }
+  ];
+  $('channelKpis').innerHTML = cards.map(c=>`<article class="kpi-card"><div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">MTD</div></article>`).join('');
+
+  $('channelTable').innerHTML = `<thead><tr><th>Primary Channel</th><th>Primary</th><th>MTD Target</th><th>Growth %</th><th>Collection</th><th>Coll. Growth</th><th>Secondary</th></tr></thead>
+    <tbody>${salesData.channels.map(c=>`<tr><td class="cell-strong">${esc(c.name)}</td><td>₹${fmt(c.primary)} L</td><td>₹${fmt(c.mtdTarget)} L</td><td>${c.priGrowth}%</td><td>₹${fmt(c.collection)} L</td><td>${c.collGrowth}%</td><td>₹${fmt(c.secondary)} L</td></tr>`).join('')}
+      <tr class="row-total"><td class="cell-strong">Total</td><td>₹${fmt(t.primaryMTD)} L</td><td>₹${fmt(t.mtdTarget)} L</td><td>${t.priGrowth}%</td><td>₹${fmt(t.collection)} L</td><td>${t.collGrowth}%</td><td>₹${fmt(t.secondary)} L</td></tr></tbody>`;
+
+  makeChart('chartChannelDonut', { type:'doughnut', data:{ labels:salesData.channels.map(c=>c.name),
+    datasets:[{ data:salesData.channels.map(c=>c.primary), backgroundColor:['#05B4CF','#0F9D67','#B4720A','#C23B32','#a78bfa','#fb923c'] }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:'#5B6870', font:{size:10} } } } } });
+
+  barRows('secChannelChart', salesData.secondaryChannelGroup.map(s=>({label:s.name,value:s.secondary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L', cls:'fill-teal' });
+
+  const g = salesData.totals; const zt = salesData.zones;
+  $('zoneTable').innerHTML = `<thead><tr><th>Zone</th><th>Primary</th><th>Growth %</th><th>RR Primary</th><th>RR Growth %</th><th>Collection</th><th>Coll. Growth</th><th>Secondary</th><th>Sec. Growth</th></tr></thead>
+    <tbody>${zt.map(z=>`<tr><td class="cell-strong">${esc(z.name)}</td><td>₹${fmt(z.primary)} L</td><td>${z.priGrowth}%</td><td>₹${fmt(z.rrPrimary)} L</td><td>${z.rrGrowth}%</td><td>₹${fmt(z.collection)} L</td><td>${z.collGrowth}%</td><td>₹${fmt(z.secondary)} L</td><td>${z.secGrowth}%</td></tr>`).join('')}
+      <tr class="row-total"><td class="cell-strong">Total</td><td>₹${fmt(g.primaryMTD)} L</td><td>${g.priGrowth}%</td><td>₹${fmt(g.rrPrimary)} L</td><td>${g.rrGrowth}%</td><td>₹${fmt(g.collection)} L</td><td>${g.collGrowth}%</td><td>₹${fmt(g.secondary)} L</td><td>${g.secGrowth}%</td></tr></tbody>`;
+
+  barRows('channelZoneChart', [...zt].sort((a,b)=>b.primary-a.primary).map(z=>({label:z.name,value:z.primary})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L' });
+  barRows('channelZoneCollChart', [...zt].sort((a,b)=>b.collection-a.collection).map(z=>({label:z.name,value:z.collection})), { unit:'₹ Lac', fmtFn:v=>'₹'+fmt(v)+'L', cls:'fill-amber' });
+
+  $('channelInsight').innerHTML = generateSalesInsight('channel') + ' ' + generateSalesInsight('zone');
+}
+
+function renderFG(){
+  const totalRow = salesData.fgMatrix.find(r=>r.level==='row-total');
+  const avg = +(totalRow.values.reduce((a,b)=>a+b,0)/totalRow.values.length).toFixed(1);
+  const cfaRows = salesData.fgMatrix.filter(r=>r.level==='cfa');
+  const cards = [
+    { l:'SKUs Tracked', v:salesData.fgItems.length }, { l:'Locations Tracked', v:cfaRows.length+' CFAs' },
+    { l:'Avg Coverage', v:avg+'%' }, { l:'Lowest Coverage Cell', v:Math.min(...salesData.fgMatrix.flatMap(r=>r.values))+'%' }
+  ];
+  $('fgKpis').innerHTML = cards.map(c=>`<article class="kpi-card"><div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">Region: North</div></article>`).join('');
+
+  $('fgMatrixTable').innerHTML = `<thead><tr><th>Zone / CFA</th>${salesData.fgItems.map(i=>`<th>${esc(i)}</th>`).join('')}</tr></thead>
+    <tbody>${salesData.fgMatrix.map(r=>{
+      const strong = r.level==='zone'||r.level==='row-total';
+      const indent = r.level==='cfa'?'padding-left:20px;':'';
+      return `<tr class="${r.level==='row-total'?'row-total':''}"><td class="${strong?'cell-strong':''}" style="${indent}">${esc(r.name)}</td>
+        ${r.values.map(v=>{ const band=coverageBand(v); return `<td><span class="status-pill ${coverageBandClass(band)}">${v}%</span></td>`; }).join('')}</tr>`;
+    }).join('')}</tbody>`;
+
+  barRows('fgSkuChart', salesData.fgItems.map((name,i)=>({label:name,value:totalRow.values[i]})), { unit:'%', fmtFn:v=>v+'%' });
+
+  const bandCounts = {Healthy:0,Watch:0,Attention:0,Critical:0};
+  salesData.fgMatrix.filter(r=>r.level!=='row-total').forEach(r=>r.values.forEach(v=>bandCounts[coverageBand(v)]++));
+  makeChart('chartCoverageBand', { type:'bar', data:{ labels:Object.keys(bandCounts),
+    datasets:[{ label:'Cells', data:Object.values(bandCounts), backgroundColor:['#0F9D67','#05B4CF','#B4720A','#C23B32'] }] },
+    options:{...chartBase, plugins:{...chartBase.plugins, legend:{display:false}}} });
+
+  $('fgSkuTable').innerHTML = `<thead><tr><th>Zone</th><th>CFA</th><th>Item</th><th>LM</th><th>L3M</th><th>Con Cases</th><th>Con Value</th><th>TDP1</th><th>TDP2</th><th>TDP3</th><th>GT1</th><th>GT2</th></tr></thead>
+    <tbody>${salesData.fgSkuDetail.map(r=>`<tr><td>${esc(r.zone)}</td><td class="cell-strong">${esc(r.cfa)}</td><td>${esc(r.item)}</td>
+      <td>${fmtInt(r.lm)}</td><td>${fmt(r.l3m)}</td><td>${fmtInt(r.conCases)}</td><td>${fmtInt(r.conVal)}</td><td>${fmtInt(r.tdp1)}</td><td>${fmtInt(r.tdp2)}</td><td>${fmtInt(r.tdp3)}</td><td>${fmtInt(r.gt1)}</td><td>${fmtInt(r.gt2)}</td></tr>`).join('')}
+      <tr class="row-total"><td colspan="3" class="cell-strong">Total</td><td>${fmtInt(salesData.fgSkuTotal.lm)}</td><td>${fmt(salesData.fgSkuTotal.l3m)}</td><td>${fmtInt(salesData.fgSkuTotal.conCases)}</td><td>${fmtInt(salesData.fgSkuTotal.conVal)}</td><td>${fmtInt(salesData.fgSkuTotal.tdp1)}</td><td>${fmtInt(salesData.fgSkuTotal.tdp2)}</td><td>${fmtInt(salesData.fgSkuTotal.tdp3)}</td><td>${fmtInt(salesData.fgSkuTotal.gt1)}</td><td>${fmtInt(salesData.fgSkuTotal.gt2)}</td></tr></tbody>`;
+
+  // Cross analysis: sales demand (Con_Cases) vs FG coverage (Total row, matched by item name).
+  // "Loops Tangy Tomato" appears in the SKU detail source but wasn't one of the 6 SKUs captured
+  // in the coverage matrix view — rather than leave it unmapped, it's assigned the average Total
+  // coverage across the 6 tracked SKUs (documented here, not silently blank).
+  const covByItem = {}; salesData.fgItems.forEach((name,i)=>covByItem[name]=totalRow.values[i]);
+  const avgTrackedCoverage = +(totalRow.values.reduce((a,b)=>a+b,0)/totalRow.values.length).toFixed(0);
+  salesData.fgSkuDetail.forEach(r=>{ if(covByItem[r.item]===undefined) covByItem[r.item] = avgTrackedCoverage; });
+  const crossRows = salesData.fgSkuDetail.map(r=>{
+    const cov = covByItem[r.item]!==undefined ? covByItem[r.item] : null;
+    let quad = 'Not mapped';
+    if(cov!==null){
+      const highSales = r.conCases >= 7000, highCov = cov >= 90;
+      quad = highSales && !highCov ? 'High Sales + Low Coverage' : highSales && highCov ? 'High Sales + High Coverage' : !highSales && highCov ? 'Low Sales + High Coverage' : 'Low Sales + Low Coverage';
+    }
+    return { item:r.item, cfa:r.cfa, sales:r.conCases, cov, quad };
+  });
+  $('crossTable').innerHTML = `<thead><tr><th>Item</th><th>CFA</th><th>Con Cases (L3M)</th><th>FG Coverage (Item Total)</th><th>Status</th></tr></thead>
+    <tbody>${crossRows.map(r=>`<tr><td class="cell-strong">${esc(r.item)}</td><td>${esc(r.cfa)}</td><td>${fmtInt(r.sales)}</td><td>${r.cov!==null?r.cov+'%':'—'}</td>
+      <td><span class="status-pill ${r.quad.includes('Low Coverage')?'red':r.quad.includes('High Coverage')?'good':'amber'}">${r.quad}</span></td></tr>`).join('')}</tbody>`;
+
+  $('fgInsight').innerHTML = generateSalesInsight('coverage') + ' ' + generateSalesInsight('fg');
+}
+
+function renderInsights(){
+  const items = [];
+  items.push({ h:'Target Achievement', t:generateSalesInsight('target') });
+  items.push({ h:'Category Contribution', t:generateSalesInsight('category') });
+  items.push({ h:'Zone Contribution', t:generateSalesInsight('zone') });
+  items.push({ h:'Channel Performance', t:generateSalesInsight('channel') });
+  items.push({ h:'FG Coverage Risk', t:generateSalesInsight('fg') });
+  items.push({ h:'Location Risk', t:generateSalesInsight('coverage') });
+  const critical = salesData.targetHierarchy.filter(r=>r.level==='asm' && r.achTgt<60);
+  if(critical.length) items.push({ h:'ASM Attention', t:`${critical.map(c=>esc(c.name)).join(' and ')} are below the 60% achievement threshold in North Zone and should be reviewed first among the tracked SO/ASM roster.` });
+
+  $('insightSummary').innerHTML = `
+    <div class="mini-kpi"><b>${salesData.categories.length-1}</b><span>Categories Tracked</span></div>
+    <div class="mini-kpi"><b>${salesData.zones.length}</b><span>Zones Tracked</span></div>
+    <div class="mini-kpi"><b>${salesData.targetHierarchy.filter(r=>r.level==='asm').length}</b><span>ASMs Tracked (North)</span></div>
+    <div class="mini-kpi"><b>${salesData.fgItems.length}</b><span>FG SKUs Tracked</span></div>`;
+
+  $('insightList').innerHTML = items.map(it=>`
+    <div class="exception-row" style="grid-template-columns:14px 1fr">
+      <span class="priority-dot medium"></span>
+      <div><div class="exception-name">${esc(it.h)}</div><div class="exception-loc" style="margin-top:4px;line-height:1.5;white-space:normal">${it.t}</div></div>
+    </div>`).join('');
+}
+
+function renderAll(){
+  $('rPrimary').textContent = salesData.meta.primaryInvoiceTill;
+  $('rSecondary').textContent = salesData.meta.secondarySalesTill;
+  $('rCollection').textContent = salesData.meta.primaryCollectionTill;
+  renderTower(); renderPerformance(); renderTarget(); renderProduct(); renderChannel(); renderFG(); renderInsights();
+}
+
+const pages = {
+  tower:{title:'Sales Control Tower',overline:'Executive summary'},
+  performance:{title:'Sales Performance',overline:'Primary, secondary, collection & trend'},
+  target:{title:'Target / SO_ASM',overline:'North Zone target achievement'},
+  product:{title:'Product / Category Analysis',overline:'Brandwise performance'},
+  channel:{title:'Channel & Region Analysis',overline:'Primary channel & zone performance'},
+  fg:{title:'FG Stock Coverage',overline:'Region: North · Class: SP-A'},
+  insights:{title:'Sales Insights',overline:'What to investigate first'}
+};
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderAll();
+  function goToPage(key){
+    if(!pages[key]) return;
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.page===key));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    $('page-'+key).classList.add('active');
+    $('pageTitle').textContent = pages[key].title;
+    $('pageOverline').textContent = pages[key].overline;
+    $('content').scrollTop = 0;
+  }
+  document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click', ()=> goToPage(btn.dataset.page)));
+  const initialPage = (location.hash||'').slice(1);
+  if (pages[initialPage]) goToPage(initialPage);
+  window.addEventListener('hashchange', ()=>{ const h=(location.hash||'').slice(1); if (pages[h]) goToPage(h); });
+  $('refreshBtn').addEventListener('click', ()=>{ renderAll(); showToast('Dashboard re-rendered from source data'); });
+  $('exportBtn').addEventListener('click', ()=>{
+    const rows = [['Category','Primary (L)','MTD Target (L)','Growth %','Secondary (L)'],
+      ...salesData.categories.map(c=>[c.name,c.primary,c.mtdTarget,c.priGrowth,c.secondary])];
+    const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'sales-category-export.csv';
+    link.click(); URL.revokeObjectURL(link.href); showToast('Category export prepared');
+  });
+});
+</script>
+</body>
+</html>

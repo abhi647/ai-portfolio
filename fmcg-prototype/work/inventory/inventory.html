@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seven Billion Analytics | Inventory Planning Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F8F9; --panel:#FFFFFF; --line:#E4E9EC;
+  --ink:#0B0F12; --muted:#5B6870;
+  --blue:#05B4CF; --blue-dim:rgba(5,180,207,.08); --blue-dim-2:rgba(5,180,207,.16);
+  --green:#0F9D67; --green-dim:rgba(15,157,103,.09);
+  --amber:#B4720A; --amber-dim:rgba(180,114,10,.1);
+  --red:#C23B32; --red-dim:rgba(194,59,50,.09);
+  --serif:'Newsreader',serif; --sans:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --radius:12px; --shadow:0 2px 10px rgba(11,15,18,.05);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--ink);margin:0}
+button,select,input{font:inherit}
+button{cursor:pointer;border:none;background:none}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#D3DBDE;border-radius:6px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:236px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.sb-brand .mark{width:28px;height:28px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px var(--sans)}
+.sb-brand span{font:700 13px var(--sans);color:var(--ink)}
+.sb-section-label{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:0 10px;margin:0 0 8px}
+.sb-nav{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:2px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font:600 12.5px var(--sans);color:var(--muted);cursor:pointer}
+.sb-item svg{flex:none;width:17px;height:17px;stroke:var(--muted)}
+.sb-item:hover{background:var(--blue-dim)}
+.sb-item.active{background:var(--blue-dim-2);color:var(--blue)}
+.sb-item.active svg{stroke:var(--blue)}
+.sb-foot{margin-top:auto;padding-top:16px}
+.back-link{display:inline-flex;align-items:center;gap:6px;font:700 12px var(--sans);color:var(--blue);padding:8px 10px;border-radius:8px}
+.back-link:hover{background:var(--blue-dim)}
+
+.main{flex:1;min-width:0}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
+.topbar .titles h1{font-size:20px}
+.topbar .titles p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.topbar .meta{display:flex;gap:10px;flex-wrap:wrap}
+.meta-chip{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:600 10.5px var(--mono);color:var(--muted)}
+.meta-chip b{display:block;color:var(--ink);font-size:12px}
+
+.content{padding:24px 28px 60px}
+.page{display:none}
+.page.active{display:block}
+
+.filter-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.filter-chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:600 11.5px var(--sans);color:var(--muted);display:flex;align-items:center;gap:8px}
+.filter-chip b{color:var(--ink);font-weight:600}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
+.kpi .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kpi svg{width:16px;height:16px;stroke:var(--blue)}
+.kpi small{color:var(--muted);font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.3px}
+.kpi b{display:block;font:700 22px var(--mono);color:var(--ink)}
+.kpi .sub{font:600 10.5px var(--sans);margin-top:4px}
+.sub.up{color:var(--green)} .sub.down{color:var(--red)} .sub.flat{color:var(--muted)}
+
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+@media(max-width:980px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+.panel h3{font-size:14.5px;margin-bottom:2px}
+.panel .sub-t{color:var(--muted);font-size:11.5px;margin:0 0 14px}
+.panel .chart-box{position:relative;height:260px}
+.panel .chart-box.tall{height:320px}
+.panel .chart-box.short{height:190px}
+
+.section-heading{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 12px}
+.section-heading .ov{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--blue)}
+.section-heading h2{font-size:17px;margin-top:2px}
+
+table.dtable{width:100%;border-collapse:collapse;font-size:12px}
+table.dtable th{text-align:right;font:700 9.5px var(--mono);text-transform:uppercase;letter-spacing:.3px;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.dtable th:first-child,table.dtable td:first-child{text-align:left}
+table.dtable td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);white-space:nowrap}
+table.dtable tr.row-total td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
+table.dtable tr.row-group td{font-weight:600;background:#FAFBFC}
+table.dtable td:first-child{font-family:var(--sans);font-weight:500}
+.table-scroll{overflow-x:auto}
+
+.cell-status{display:inline-block;min-width:44px;padding:3px 7px;border-radius:6px;font-weight:700;font-size:11px}
+.st-good{background:var(--green-dim);color:var(--green)}
+.st-warn{background:var(--amber-dim);color:var(--amber)}
+.st-bad{background:var(--red-dim);color:var(--red)}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font:700 10px var(--mono);text-transform:uppercase}
+.badge-good{background:var(--green-dim);color:var(--green)}
+.badge-warn{background:var(--amber-dim);color:var(--amber)}
+.badge-bad{background:var(--red-dim);color:var(--red)}
+
+.insight{display:flex;gap:10px;align-items:flex-start;background:var(--blue-dim);border:1px solid var(--blue-dim-2);border-radius:10px;padding:12px 14px;margin-top:14px;font-size:12.5px;color:#0A5A66}
+.insight svg{flex:none;width:16px;height:16px;stroke:var(--blue);margin-top:1px}
+.insight b{color:#073E47}
+
+.legend-row{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px}
+.legend-row span{display:inline-flex;align-items:center;gap:6px}
+.legend-dot{width:9px;height:9px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand"><div class="mark"><svg viewBox="0 0 177 178" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.000148773 165.671L41.1802 124.491C38.9602 121.671 35.5902 117.291 31.6902 111.801C13.3202 85.9209 1.30016 68.5309 2.46016 48.0209C2.75016 42.9109 3.41016 31.2809 11.9602 23.9609C20.5702 16.5909 32.3102 17.7609 38.6202 18.3809C54.7402 19.9709 66.9901 28.7409 72.1701 32.4709C79.4301 37.6909 91.5601 48.3409 98.3201 49.7409C104.52 51.0309 110.29 49.9609 110.29 49.9609C113.84 49.3109 117.26 47.9009 121.17 45.6309L164.74 0L176.57 12.5609C173.72 15.7209 161.53 28.3509 155.77 34.5509C134.9 57.0709 128.67 62.3609 127.89 71.5009C127.37 77.5709 129.21 84.3509 134.59 92.2709C144.28 106.531 155.11 122.241 158.33 140.091C160.34 151.191 159.42 161.531 153.33 168.441C148.95 173.411 143.33 174.991 139.44 176.041C111.11 183.681 80.9601 158.581 73.9001 152.301C72.8301 151.351 71.9801 150.551 71.5001 150.101L82.4601 138.831C107.45 159.301 129.9 166.951 138.95 159.281C142.89 155.941 144.83 150.331 144.03 145.381C142.01 132.801 131.84 114.191 124.04 104.031C121.21 100.341 117.39 97.3609 112.96 95.8509C100.88 91.7609 92.9501 97.0109 84.6701 104.841C74.4901 114.461 48.7802 141.061 13.2802 176.651M82.7401 80.6809C92.2601 68.8609 73.1201 54.3709 67.6401 49.3709C67.6401 49.3709 53.8902 36.2509 33.7502 34.8109C29.1002 34.4809 23.7902 34.6009 20.0502 38.1409C14.4002 43.4909 17.7502 56.1009 19.5102 61.5609C25.8802 81.3609 44.6802 103.581 54.8902 111.781C66.8602 99.8109 68.5501 98.3009 82.7401 80.6909V80.6809Z" fill="currentColor"/></svg></div><span>Inventory Planning</span></div>
+    <div class="sb-section-label">Control Tower</div>
+    <ul class="sb-nav">
+      <li class="sb-item active" data-page="tower" onclick="showPage('tower')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="11" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>
+        Overview
+      </li>
+    </ul>
+    <div class="sb-section-label">Material Supply</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="rmpm" onclick="showPage('rmpm')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+        RM/PM Coverage
+      </li>
+    </ul>
+    <div class="sb-section-label">Finished Goods</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="fg" onclick="showPage('fg')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        FG Stock Coverage
+      </li>
+      <li class="sb-item" data-page="oos" onclick="showPage('oos')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 9v4"/><circle cx="12" cy="16.3" r=".4" fill="currentColor" stroke="none"/><path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        Stock Out &amp; Sales Loss
+      </li>
+      <li class="sb-item" data-page="fresh" onclick="showPage('fresh')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.3 2"/></svg>
+        Freshness &amp; Ageing
+      </li>
+    </ul>
+    <div class="sb-section-label">Action</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="exceptions" onclick="showPage('exceptions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>
+        Exceptions &amp; Action
+      </li>
+    </ul>
+    <div class="sb-foot">
+      <a class="back-link" href="../../index.html">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        All departments
+      </a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="titles">
+        <h1 id="page-title">Inventory Control Tower</h1>
+        <p id="page-sub">RM/PM &amp; FG coverage, stock-out risk and overstock across all zones — refreshed continuously from Production, WMS and Sales.</p>
+      </div>
+      <div class="meta">
+        <div class="meta-chip">STOCK UPDATED<b>16-09-2026, 06:45 AM</b></div>
+        <div class="meta-chip">ETL REFRESH<b>16-09-2026, 06:00 AM</b></div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- PAGE: TOWER -->
+      <section class="page active" id="page-tower">
+        <div class="kpi-grid" id="towerKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Coverage risk map</h3>
+            <p class="sub-t">Each point is one zone — RM/PM coverage (days) vs. FG coverage (days). Bottom-left is exposed on both sides at once.</p>
+            <div class="chart-box tall"><canvas id="riskScatter"></canvas></div>
+            <div class="legend-row">
+              <span><span class="legend-dot" style="background:var(--red)"></span>Short both sides</span>
+              <span><span class="legend-dot" style="background:var(--amber)"></span>Short one side</span>
+              <span><span class="legend-dot" style="background:var(--green)"></span>Healthy</span>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Sales loss, last 30 days</h3>
+            <p class="sub-t">Value lost to stock-outs, daily (₹ Lac)</p>
+            <div class="chart-box tall"><canvas id="lossTrend"></canvas></div>
+          </div>
+        </div>
+        <div class="insight">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2 2 20h20L12 2Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>
+          <div><b>North-East and South-Central zones</b> are short on both RM/PM and FG coverage simultaneously — the two zones sitting in the bottom-left of the risk map are compounding a raw-material shortfall with a finished-goods shortfall on the same SKUs, the highest-severity combination this view tracks.</div>
+        </div>
+      </section>
+
+      <!-- PAGE: RMPM -->
+      <section class="page" id="page-rmpm">
+        <div class="filter-row">
+          <div class="filter-chip">Date <b>1–16 Sep 2026</b></div>
+          <div class="filter-chip">Warehouse <b>All</b></div>
+          <div class="filter-chip">Material Type <b>All</b></div>
+        </div>
+        <div class="kpi-grid" id="rmpmKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Forecast vs. consumption by material</h3>
+            <p class="sub-t">Top raw &amp; packing materials, month-to-date (₹ Lac)</p>
+            <div class="chart-box tall"><canvas id="rmpmBar"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>RM/PM coverage by plant</h3>
+            <p class="sub-t">Days of production supported at current consumption rate</p>
+            <div class="chart-box tall"><canvas id="rmpmCoverageBar"></canvas></div>
+          </div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Material ledger</div><h2>Forecast, receipt &amp; closing stock</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="rmpmTable"></table>
+        </div>
+      </section>
+
+      <!-- PAGE: FG -->
+      <section class="page" id="page-fg">
+        <div class="filter-row">
+          <div class="filter-chip">Flavour <b>All</b></div>
+          <div class="filter-chip">Class <b>SP-A</b></div>
+          <div class="filter-chip">Region <b>All Zones</b></div>
+        </div>
+        <div class="kpi-grid" id="fgKpis"></div>
+        <div class="section-heading"><div><div class="ov">Coverage matrix</div><h2>FG stock coverage — SKU × Zone</h2></div></div>
+        <p class="sub-t" style="margin:-6px 0 12px;">Coverage as % of the days-of-stock norm for that SKU. Below 50% is a stock-out risk; above 150% is tying up working capital.</p>
+        <div class="panel table-scroll">
+          <table class="dtable" id="fgMatrixTable"></table>
+        </div>
+        <div class="section-heading"><div><div class="ov">Ranked</div><h2>Weakest coverage, by zone</h2></div></div>
+        <div class="panel">
+          <div class="chart-box tall"><canvas id="fgWeakBar"></canvas></div>
+        </div>
+      </section>
+
+      <!-- PAGE: OOS -->
+      <section class="page" id="page-oos">
+        <div class="filter-row">
+          <div class="filter-chip">Date <b>1–16 Sep 2026</b></div>
+          <div class="filter-chip">Class <b>SP-A</b></div>
+          <div class="filter-chip">Region <b>All</b></div>
+        </div>
+        <div class="kpi-grid" id="oosKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Stock-out quantity, daily</h3>
+            <p class="sub-t">Units unavailable at point of sale</p>
+            <div class="chart-box"><canvas id="oosQtyTrend"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>Sales loss value, daily</h3>
+            <p class="sub-t">₹ Lac forecast value unrealized</p>
+            <div class="chart-box"><canvas id="oosValueTrend"></canvas></div>
+          </div>
+        </div>
+        <div class="section-heading"><div><div class="ov">By zone</div><h2>Sales loss summary</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="lossZoneTable"></table>
+        </div>
+      </section>
+
+      <!-- PAGE: FRESH -->
+      <section class="page" id="page-fresh">
+        <div class="filter-row">
+          <div class="filter-chip">ABC Classification <b>All</b></div>
+          <div class="filter-chip">Category <b>All</b></div>
+          <div class="filter-chip">Warehouse Type <b>All</b></div>
+        </div>
+        <div class="kpi-grid" id="freshKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Stock ageing, by warehouse</h3>
+            <p class="sub-t">Share of stock quantity in each ageing bucket</p>
+            <div class="chart-box tall"><canvas id="ageingStack"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>ABC classification, by value</h3>
+            <p class="sub-t">Inventory value share — A/B/C velocity bands</p>
+            <div class="chart-box tall"><canvas id="abcBar"></canvas></div>
+          </div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Batch detail</div><h2>Near-expiry &amp; expired stock, by warehouse</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="freshTable"></table>
+        </div>
+      </section>
+
+      <!-- PAGE: EXCEPTIONS -->
+      <section class="page" id="page-exceptions">
+        <div class="kpi-grid" id="excKpis"></div>
+        <div class="section-heading"><div><div class="ov">Needs action</div><h2>Flagged SKU × location combinations</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="excTable"></table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const ICON = {
+  package: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>',
+  box: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.3 2"/></svg>',
+  rupee: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 4h10M7 4c4 0 6.5 1.6 6.5 4.5S11 13 7 13h6l-6.5 7"/></svg>',
+  bin: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>'
+};
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function fmt(n,d=1){ return Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function fmt0(n){ return Number(n).toLocaleString('en-IN'); }
+function statusFor(pct){ if(pct<50) return 'bad'; if(pct<90) return 'warn'; return 'good'; }
+
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+  Chart.defaults.color = '#5B6870';
+  Chart.defaults.borderColor = '#EDF1F2';
+}
+function safeChart(el, config){
+  if (typeof Chart === 'undefined') { console.warn('Chart.js not loaded'); return null; }
+  try { return new Chart(el, config); } catch (e) { console.warn('chart render failed', e); return null; }
+}
+const CBLUE='#05B4CF', CGREEN='#0F9D67', CAMBER='#B4720A', CRED='#C23B32', CVIOLET='#7C6AE8', CINK='#0B0F12';
+
+/* ---------------- DATA MODEL (illustrative-but-realistic, anonymized) ---------------- */
+
+const zones = [
+  { name:'North-East',   rmpm:4.1,  fg:5.8,  cfa:'CFA-Guwahati' },
+  { name:'South-Central',rmpm:5.4,  fg:6.9,  cfa:'CFA-Nagpur' },
+  { name:'West',         rmpm:6.8,  fg:9.2,  cfa:'CFA-Surat' },
+  { name:'North',        rmpm:9.6,  fg:12.4, cfa:'CFA-Jaipur' },
+  { name:'North-West',   rmpm:8.1,  fg:10.6, cfa:'CFA-Chandigarh' },
+  { name:'South',        rmpm:11.3, fg:14.8, cfa:'CFA-Coimbatore' },
+  { name:'East',         rmpm:7.5,  fg:9.9,  cfa:'CFA-Cochin' },
+  { name:'Central',      rmpm:10.2, fg:13.1, cfa:'CFA-Indore' },
+  { name:'South-East',   rmpm:6.1,  fg:7.4,  cfa:'CFA-Vizag' },
+  { name:'North-Central',rmpm:12.7, fg:16.2, cfa:'CFA-Bhopal' }
+];
+
+function riskColor(z){
+  if(z.rmpm<6 && z.fg<8) return CRED;
+  if(z.rmpm<6 || z.fg<8) return CAMBER;
+  return CGREEN;
+}
+
+const materials = [
+  { name:'Corn Meal', type:'Raw Material', forecast:2846, consumption:2611, closing:1948, adherence:92 },
+  { name:'Potato Flakes', type:'Raw Material', forecast:1734, consumption:1592, closing:1122, adherence:92 },
+  { name:'Corn Flour', type:'Raw Material', forecast:2190, consumption:2043, closing:1587, adherence:93 },
+  { name:'Pellet Base', type:'Raw Material', forecast:986, consumption:1041, closing:604, adherence:106 },
+  { name:'Edible Oil', type:'Raw Material', forecast:642, consumption:598, closing:389, adherence:93 },
+  { name:'Flavour Premix', type:'Raw Material', forecast:411, consumption:447, closing:198, adherence:109 },
+  { name:'Suji', type:'Raw Material', forecast:287, consumption:251, closing:214, adherence:87 },
+  { name:'Bran', type:'Raw Material', forecast:156, consumption:139, closing:122, adherence:89 },
+  { name:'Cartons', type:'Packing Material', forecast:1988, consumption:1834, closing:1211, adherence:92 },
+  { name:'Laminate Film', type:'Packing Material', forecast:1420, consumption:1356, closing:892, adherence:96 },
+  { name:'BOPP Tape', type:'Packing Material', forecast:318, consumption:296, closing:241, adherence:93 },
+  { name:'Pouch Film', type:'Packing Material', forecast:764, consumption:812, closing:349, adherence:106 }
+];
+
+const rmpmPlants = [
+  { name:'Plant — North Zone', materials:[
+    { name:'Raw Material', forecast:496036, opening:513482, receipt:1512055, consumption:1487216, closing:454042, adherence:0 },
+    { name:'Packaging Material', forecast:230196, opening:170905, receipt:549475, consumption:561021, closing:127534, adherence:0 }
+  ]},
+  { name:'Plant — East Zone', materials:[
+    { name:'Raw Material', forecast:284310, opening:298117, receipt:812440, consumption:798553, closing:296004, adherence:0 },
+    { name:'Packaging Material', forecast:118204, opening:96442, receipt:271980, consumption:279108, closing:89314, adherence:0 }
+  ]},
+  { name:'Plant — Central Zone', materials:[
+    { name:'Raw Material', forecast:151882, opening:164390, receipt:398711, consumption:405218, closing:157883, adherence:0 },
+    { name:'Packaging Material', forecast:62740, opening:51309, receipt:142006, consumption:139877, closing:53438, adherence:0 }
+  ]}
+];
+rmpmPlants.forEach(p=>p.materials.forEach(m=>{ m.daysCover = Math.round((m.closing/(m.consumption/16))*10)/10; }));
+
+const fgSkus = ['Twists','Loops','Crisps','Puffs','Zingers','Noodles'];
+const fgZones = ['North','North-East','West','South','South-Central','East','Central'];
+function seedRandom(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
+const rnd = seedRandom(42);
+const fgMatrix = fgZones.map(z=>{
+  const row = { zone:z, values:{} };
+  fgSkus.forEach((sku,i)=>{
+    const base = 55 + rnd()*90 + (z==='North'||z==='South'?25:0) - (z==='North-East'||z==='South-Central'?20:0);
+    row.values[sku] = Math.max(8, Math.round(base));
+  });
+  return row;
+});
+
+const lossTrendDays = Array.from({length:30},(_,i)=>i+1);
+const lossValueSeries = lossTrendDays.map(d=> Math.round((8 + Math.sin(d/3)*4 + (d>22?6:0) + rnd()*5)*10)/10 );
+const oosQtySeries = lossTrendDays.map(d=> Math.round(140 + Math.sin(d/4)*60 + (d>22?90:0) + rnd()*40) );
+
+const lossZones = [
+  { zone:'North-East', forecast:842, contribution:19, ooStockValue:511, overallPct:61 },
+  { zone:'South-Central', forecast:768, contribution:17, ooStockValue:498, overallPct:65 },
+  { zone:'West', forecast:612, contribution:14, ooStockValue:288, overallPct:47 },
+  { zone:'North', forecast:398, contribution:9, ooStockValue:142, overallPct:36 },
+  { zone:'East', forecast:534, contribution:12, ooStockValue:301, overallPct:56 },
+  { zone:'South', forecast:289, contribution:6, ooStockValue:98, overallPct:34 },
+  { zone:'Central', forecast:476, contribution:11, ooStockValue:266, overallPct:56 },
+  { zone:'North-West', forecast:521, contribution:12, ooStockValue:214, overallPct:41 }
+];
+
+const ageingBuckets = ['<7D','8–15D','16–30D','31–60D','>60D'];
+const ageingByWarehouse = [
+  { wh:'Plant', values:[38,29,14,11,8] },
+  { wh:'CFA — North', values:[41,27,16,10,6] },
+  { wh:'CFA — East', values:[33,24,18,15,10] },
+  { wh:'CFA — South', values:[46,26,13,9,6] },
+  { wh:'CFA — Central', values:[35,25,17,13,10] }
+];
+
+const abcSplit = [
+  { cls:'A — top velocity', value:64, skuShare:22 },
+  { cls:'B — moderate', value:26, skuShare:35 },
+  { cls:'C — long tail', value:10, skuShare:43 }
+];
+
+const freshTable = [
+  { wh:'Plant — North Zone', nearExpiry:412000, expired:68000, avgAge:11, fifo:94 },
+  { wh:'Plant — East Zone', nearExpiry:286000, expired:41000, avgAge:9, fifo:96 },
+  { wh:'CFA — North', nearExpiry:198000, expired:52000, avgAge:16, fifo:88 },
+  { wh:'CFA — East', nearExpiry:241000, expired:79000, avgAge:19, fifo:84 },
+  { wh:'CFA — South', nearExpiry:156000, expired:33000, avgAge:13, fifo:91 },
+  { wh:'CFA — Central', nearExpiry:227000, expired:61000, avgAge:17, fifo:87 }
+];
+
+const exceptions = [
+  { sku:'Zingers Classic', loc:'CFA-Guwahati', issue:'Stock-Out Risk', detail:'2.1 days cover, below 4-day threshold', priority:'critical' },
+  { sku:'Twists Chatpata Masala', loc:'CFA-Nagpur', issue:'Stock-Out Risk', detail:'3.4 days cover, trending down 3 days straight', priority:'critical' },
+  { sku:'Crisps Cream & Onion', loc:'Plant — North Zone', issue:'Overstock', detail:'214% of norm, 28 days cover', priority:'high' },
+  { sku:'Puffs Salted', loc:'CFA-Bhopal', issue:'Overstock', detail:'187% of norm, tying up ₹9.8L working capital', priority:'medium' },
+  { sku:'Loops Tangy Tomato', loc:'CFA-Indore', issue:'Near-Expiry', detail:'₹4.2L at >45 days age, priority dispatch needed', priority:'high' },
+  { sku:'Noodle Crunch Magic Masala', loc:'CFA-Surat', issue:'Stock-Out Risk', detail:'1.8 days cover, zero replenishment in transit', priority:'critical' },
+  { sku:'Sweet Loops', loc:'Plant — Central Zone', issue:'Overstock', detail:'241% of norm, 34 days cover', priority:'medium' }
+];
+
+/* ---------------- RENDER ---------------- */
+
+function kpiTile(icon,label,value,sub,subClass){
+  return `<div class="kpi"><div class="top">${ICON[icon]}<small>${label}</small></div><b>${value}</b>${sub?`<div class="sub ${subClass||''}">${sub}</div>`:''}</div>`;
+}
+
+function renderTower(){
+  $('towerKpis').innerHTML = [
+    kpiTile('package','Avg RM/PM Coverage','8.2 days','▼ 0.6d vs last week','down'),
+    kpiTile('box','Avg FG Coverage','10.6 days','▲ 0.3d vs last week','up'),
+    kpiTile('alert','SKUs Stock-Out Risk','16','▲ 3 vs last week','down'),
+    kpiTile('clock','SKUs Overstocked','11','flat vs last week','flat'),
+    kpiTile('rupee','Sales Loss MTD','₹18.4L','▲ 12% vs last MTD','down'),
+    kpiTile('bin','Expired Value MTD','₹3.35L','▼ 8% vs last MTD','up')
+  ].join('');
+
+  safeChart($('riskScatter'), { type:'scatter', data:{ datasets:[{
+    data: zones.map(z=>({x:z.rmpm,y:z.fg,label:z.name})),
+    backgroundColor: zones.map(riskColor), pointRadius:8, pointHoverRadius:10
+  }]}, options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(c)=>`${c.raw.label}: RM/PM ${c.raw.x}d, FG ${c.raw.y}d` } } },
+    scales:{ x:{ title:{display:true,text:'RM/PM coverage (days)'}, grid:{color:'#EDF1F2'} },
+             y:{ title:{display:true,text:'FG coverage (days)'}, grid:{color:'#EDF1F2'} } }
+  }});
+
+  safeChart($('lossTrend'), { type:'line', data:{ labels: lossTrendDays.map(d=>'D'+d), datasets:[{
+    data: lossValueSeries, borderColor:CRED, backgroundColor:'rgba(194,59,50,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2
+  }]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ ticks:{maxTicksLimit:8}, grid:{display:false} }, y:{ grid:{color:'#EDF1F2'} } } }});
+}
+
+function renderRmpm(){
+  $('rmpmKpis').innerHTML = [
+    kpiTile('package','Total Forecast Req.','₹9.26Cr','MTD, all plants',''),
+    kpiTile('box','Total Consumption','₹8.98Cr','97% of forecast','up'),
+    kpiTile('clock','Avg Coverage','8.2 days','across 3 plants',''),
+    kpiTile('alert','Materials Below 5d','3','Suji, Bran, Oil','down')
+  ].join('');
+
+  safeChart($('rmpmBar'), { type:'bar', data:{ labels: materials.map(m=>m.name), datasets:[
+    { label:'Forecast', data: materials.map(m=>m.forecast/100), backgroundColor:'#CDEEF4' },
+    { label:'Consumption', data: materials.map(m=>m.consumption/100), backgroundColor:CBLUE }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle'}}},
+    scales:{ x:{ ticks:{maxRotation:60,minRotation:60,font:{size:10}}, grid:{display:false} }, y:{ title:{display:true,text:'₹ Lac'}, grid:{color:'#EDF1F2'} } } }});
+
+  safeChart($('rmpmCoverageBar'), { type:'bar', data:{ labels: zones.map(z=>z.name), datasets:[{
+    data: zones.map(z=>z.rmpm),
+    backgroundColor: zones.map(z=> z.rmpm<6?CRED : z.rmpm<9?CAMBER : CGREEN)
+  }]}, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ title:{display:true,text:'Days'}, grid:{color:'#EDF1F2'} }, y:{ grid:{display:false} } } }});
+
+  let rows = '<thead><tr><th>Plant / Material</th><th>Forecast</th><th>Opening</th><th>Receipt</th><th>Consumption</th><th>Closing</th><th>Days Cover</th></tr></thead><tbody>';
+  rmpmPlants.forEach(p=>{
+    const tf=p.materials.reduce((a,m)=>a+m.forecast,0), to=p.materials.reduce((a,m)=>a+m.opening,0),
+          tr=p.materials.reduce((a,m)=>a+m.receipt,0), tc=p.materials.reduce((a,m)=>a+m.consumption,0),
+          tcl=p.materials.reduce((a,m)=>a+m.closing,0);
+    rows += `<tr class="row-group"><td>${p.name}</td><td>${fmt0(tf)}</td><td>${fmt0(to)}</td><td>${fmt0(tr)}</td><td>${fmt0(tc)}</td><td>${fmt0(tcl)}</td><td></td></tr>`;
+    p.materials.forEach(m=>{
+      const dc = m.daysCover, dcSt = dc<5?'st-bad':dc<8?'st-warn':'st-good';
+      rows += `<tr><td style="padding-left:22px">${m.name}</td><td>${fmt0(m.forecast)}</td><td>${fmt0(m.opening)}</td><td>${fmt0(m.receipt)}</td><td>${fmt0(m.consumption)}</td><td>${fmt0(m.closing)}</td><td><span class="cell-status ${dcSt}">${dc}d</span></td></tr>`;
+    });
+  });
+  rows += '</tbody>';
+  $('rmpmTable').innerHTML = rows;
+}
+
+function renderFg(){
+  const avgCov = Math.round(fgMatrix.flatMap(r=>fgSkus.map(s=>r.values[s])).reduce((a,b)=>a+b,0) / (fgMatrix.length*fgSkus.length));
+  const below50 = fgMatrix.flatMap(r=>fgSkus.map(s=>r.values[s])).filter(v=>v<50).length;
+  $('fgKpis').innerHTML = [
+    kpiTile('box','Avg Coverage',avgCov+'%','across tracked SKUs',''),
+    kpiTile('alert','Cells Below 50%',String(below50),'stock-out risk','down'),
+    kpiTile('package','SKUs Tracked','6','Class SP-A',''),
+    kpiTile('clock','Zones Tracked','7','national footprint','')
+  ].join('');
+
+  let head = '<thead><tr><th>Zone</th>'+fgSkus.map(s=>`<th>${s}</th>`).join('')+'</tr></thead><tbody>';
+  let body = fgMatrix.map(r=>`<tr><td>${r.zone}</td>`+fgSkus.map(s=>{
+    const v=r.values[s]; const st= v<50?'st-bad': v<100?'st-warn':'st-good';
+    return `<td><span class="cell-status ${st}">${v}%</span></td>`;
+  }).join('')+'</tr>').join('');
+  $('fgMatrixTable').innerHTML = head+body+'</tbody>';
+
+  const weakest = fgMatrix.map(r=>({ zone:r.zone, min: Math.min(...fgSkus.map(s=>r.values[s])) })).sort((a,b)=>a.min-b.min);
+  safeChart($('fgWeakBar'), { type:'bar', data:{ labels: weakest.map(w=>w.zone), datasets:[{
+    data: weakest.map(w=>w.min), backgroundColor: weakest.map(w=> w.min<50?CRED:w.min<100?CAMBER:CGREEN)
+  }]}, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ title:{display:true,text:'Weakest SKU coverage in zone (%)'}, grid:{color:'#EDF1F2'} }, y:{grid:{display:false}} } }});
+}
+
+function renderOos(){
+  const totalLoss = lossValueSeries.reduce((a,b)=>a+b,0);
+  const totalQty = oosQtySeries.reduce((a,b)=>a+b,0);
+  $('oosKpis').innerHTML = [
+    kpiTile('bin','Total Sales Loss','₹'+fmt(totalLoss)+'L','1–16 Sep 2026',''),
+    kpiTile('alert','Total Stock-Out Qty',fmt0(totalQty),'units, MTD','down'),
+    kpiTile('clock','Worst Single Day','D24','₹'+fmt(Math.max(...lossValueSeries))+'L lost',''),
+    kpiTile('package','Zones Affected','8','of 10 tracked','')
+  ].join('');
+
+  safeChart($('oosQtyTrend'), { type:'bar', data:{ labels: lossTrendDays.map(d=>'D'+d), datasets:[{
+    data: oosQtySeries, backgroundColor:'#F3C9A8'
+  }]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ ticks:{maxTicksLimit:8}, grid:{display:false} }, y:{ grid:{color:'#EDF1F2'} } } }});
+
+  safeChart($('oosValueTrend'), { type:'line', data:{ labels: lossTrendDays.map(d=>'D'+d), datasets:[{
+    data: lossValueSeries, borderColor:CAMBER, backgroundColor:'rgba(180,114,10,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2
+  }]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ ticks:{maxTicksLimit:8}, grid:{display:false} }, y:{ grid:{color:'#EDF1F2'} } } }});
+
+  let rows='<thead><tr><th>Zone</th><th>Forecast Value</th><th>Contribution %</th><th>OO Stock Value</th><th>Overall %</th></tr></thead><tbody>';
+  lossZones.sort((a,b)=>b.overallPct-a.overallPct).forEach(z=>{
+    const st = z.overallPct<40?'st-good':z.overallPct<60?'st-warn':'st-bad';
+    rows += `<tr><td>${z.zone}</td><td>${fmt0(z.forecast)}</td><td>${z.contribution}%</td><td>${fmt0(z.ooStockValue)}</td><td><span class="cell-status ${st}">${z.overallPct}%</span></td></tr>`;
+  });
+  const tot = lossZones.reduce((a,z)=>({forecast:a.forecast+z.forecast,ooStockValue:a.ooStockValue+z.ooStockValue}),{forecast:0,ooStockValue:0});
+  rows += `<tr class="row-total"><td>Total</td><td>${fmt0(tot.forecast)}</td><td>100%</td><td>${fmt0(tot.ooStockValue)}</td><td>${Math.round(tot.ooStockValue/tot.forecast*100)}%</td></tr>`;
+  $('lossZoneTable').innerHTML = rows+'</tbody>';
+}
+
+function renderFresh(){
+  $('freshKpis').innerHTML = [
+    kpiTile('clock','Near-Expiry Value','₹15.2L','>31 days age',''),
+    kpiTile('bin','Expired MTD','₹3.35L','write-off booked','down'),
+    kpiTile('package','Avg Stock Age','14 days','all warehouses',''),
+    kpiTile('box','FIFO Compliance','90%','weighted average','up')
+  ].join('');
+
+  safeChart($('ageingStack'), { type:'bar', data:{ labels: ageingByWarehouse.map(w=>w.wh), datasets:
+    ageingBuckets.map((b,i)=>({ label:b, data: ageingByWarehouse.map(w=>w.values[i]),
+      backgroundColor:[CGREEN,'#8FD6BD',CAMBER,'#E0A868',CRED][i] }))
+  }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true,pointStyle:'rect'}}},
+    scales:{ x:{ stacked:true, grid:{display:false} }, y:{ stacked:true, title:{display:true,text:'% of stock qty'}, grid:{color:'#EDF1F2'} } } }});
+
+  safeChart($('abcBar'), { type:'bar', data:{ labels: abcSplit.map(a=>a.cls), datasets:[{
+    data: abcSplit.map(a=>a.value), backgroundColor:[CBLUE,'#7DD3E0','#CDEEF4']
+  }]}, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+    tooltip:{ callbacks:{ label:(c)=>`${c.raw}% of value, ${abcSplit[c.dataIndex].skuShare}% of SKU count` } } },
+    scales:{ x:{ title:{display:true,text:'% of inventory value'}, grid:{color:'#EDF1F2'} }, y:{grid:{display:false}} } }});
+
+  let rows='<thead><tr><th>Warehouse</th><th>Near-Expiry Value</th><th>Expired Value</th><th>Avg Age (days)</th><th>FIFO Compliance</th></tr></thead><tbody>';
+  freshTable.forEach(w=>{
+    const st = w.fifo>=92?'st-good':w.fifo>=87?'st-warn':'st-bad';
+    rows += `<tr><td>${w.wh}</td><td>₹${fmt0(w.nearExpiry/1000)}K</td><td>₹${fmt0(w.expired/1000)}K</td><td>${w.avgAge}</td><td><span class="cell-status ${st}">${w.fifo}%</span></td></tr>`;
+  });
+  $('freshTable').innerHTML = rows+'</tbody>';
+}
+
+function renderExceptions(){
+  $('excKpis').innerHTML = [
+    kpiTile('alert','Critical','3','need action today','down'),
+    kpiTile('clock','High','2','act within 48h',''),
+    kpiTile('package','Medium','2','monitor this week',''),
+    kpiTile('box','Total Open','7','across all zones','')
+  ].join('');
+
+  let rows='<thead><tr><th>SKU</th><th>Location</th><th>Issue</th><th>Detail</th><th>Priority</th></tr></thead><tbody>';
+  const order={critical:0,high:1,medium:2};
+  exceptions.sort((a,b)=>order[a.priority]-order[b.priority]).forEach(e=>{
+    const badge = e.priority==='critical'?'badge-bad':e.priority==='high'?'badge-warn':'badge-good';
+    rows += `<tr><td>${e.sku}</td><td>${e.loc}</td><td>${e.issue}</td><td style="text-align:left;font-family:var(--sans);font-weight:400">${e.detail}</td><td><span class="badge ${badge}">${e.priority}</span></td></tr>`;
+  });
+  $('excTable').innerHTML = rows+'</tbody>';
+}
+
+const titles = {
+  tower:['Inventory Control Tower','RM/PM & FG coverage, stock-out risk and overstock across all zones — refreshed continuously from Production, WMS and Sales.'],
+  rmpm:['RM/PM Coverage & Requirement','Forecast, receipt and consumption of raw & packing material against the production plan, by plant.'],
+  fg:['FG Stock Coverage','Finished-goods coverage against the days-of-stock norm, by SKU and zone.'],
+  oos:['Stock Out & Sales Loss','Where and when finished-goods stock-outs are costing real sales, day by day.'],
+  fresh:['Freshness & Ageing','Batch ageing, ABC classification and expiry exposure across the warehouse network.'],
+  exceptions:['Exceptions & Action','Every SKU × location combination currently flagged for stock-out, overstock or near-expiry risk.']
+};
+const rendered = {};
+const renderers = { tower:renderTower, rmpm:renderRmpm, fg:renderFg, oos:renderOos, fresh:renderFresh, exceptions:renderExceptions };
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  $('page-'+id).classList.add('active');
+  document.querySelector(`.sb-item[data-page="${id}"]`).classList.add('active');
+  $('page-title').textContent = titles[id][0];
+  $('page-sub').textContent = titles[id][1];
+  if(!rendered[id]){ renderers[id](); rendered[id] = true; }
+}
+const __h = (location.hash||'').slice(1);
+showPage(titles[__h] ? __h : 'tower');
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (titles[h]) showPage(h); });
+</script>
+</body>
+</html>

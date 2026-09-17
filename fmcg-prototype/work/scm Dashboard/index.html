@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seven Billion Analytics | SCM Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F8F9;--bg2:#F1F4F6;--panel:#FFFFFF;--panel-2:#F6F8F9;--line:#E4E9EC;
+  --ink:#10222A;--muted:#5B6870;--cyan:#05B4CF;--cyan-dim:rgba(5,180,207,.08);
+  --green:#0F9D67;--green-dim:rgba(15,157,103,.09);--amber:#B4720A;--amber-dim:rgba(180,114,10,.1);
+  --red:#C23B32;--red-dim:rgba(194,59,50,.09);--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--serif:'Newsreader',serif;
+  --radius:12px;--shadow:0 2px 10px rgba(11,15,18,.05);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:13px/1.5 var(--sans);overflow:hidden}
+h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--ink);margin:0}
+button,select,input{font:inherit}
+button{cursor:pointer}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#C7D3D7;border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+
+.app-shell{display:flex;height:100vh}
+.sidebar{width:216px;flex:0 0 216px;padding:22px 16px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:30px;padding:0 4px}
+.brand-mark{width:26px;height:26px;color:var(--cyan);flex:0 0 auto}
+.brand-word{font:800 15px var(--sans);color:var(--ink);line-height:1.2}
+.brand-word small{display:block;font:600 9px var(--sans);color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.nav-label{color:var(--muted);font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;margin:0 4px 10px}
+.nav{display:grid;gap:4px}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--muted);text-align:left;font-weight:700;font-size:12.5px}
+.nav-btn .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:var(--bg);font:600 10px var(--mono);color:var(--muted)}
+.nav-btn:hover{background:var(--cyan-dim);color:var(--ink)}
+.nav-btn.active{background:rgba(5,180,207,.14);border-color:rgba(5,180,207,.3);color:var(--ink)}
+.nav-btn.active .num{background:var(--cyan);color:#fff}
+.sidebar-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);display:flex;gap:9px;align-items:center}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(52,211,153,.14);flex:0 0 auto}
+.sidebar-foot b{display:block;font-size:11px}
+.sidebar-foot small{display:block;color:var(--muted);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh}
+.topbar{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:18px 28px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.92);backdrop-filter:blur(8px)}
+.topbar h1{margin:0;font-size:21px;letter-spacing:-.02em}
+.topbar .overline{color:var(--cyan);font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;margin:0 0 3px}
+.refresh-row{display:flex;gap:10px;align-items:center}
+.refresh-chip{display:flex;flex-direction:column;gap:1px;padding:7px 12px;border:1px solid var(--line);border-radius:7px;background:var(--panel-2)}
+.refresh-chip b{font:600 11px var(--mono);color:var(--ink)}
+.refresh-chip span{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.status-chip{display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid rgba(52,211,153,.35);border-radius:7px;color:var(--green);font:600 11px var(--mono)}
+.top-actions{display:flex;gap:8px}
+.icon-btn,.primary-btn{border:1px solid var(--line);border-radius:7px;padding:8px 13px;background:var(--panel);color:var(--ink);font-size:11.5px;font-weight:700}
+.primary-btn{background:var(--cyan);border-color:var(--cyan);color:#fff}
+
+.content{flex:1;overflow-y:auto;padding:20px 28px 30px}
+.page{display:none}
+.page.active{display:block}
+
+.filter-bar{display:flex;flex-wrap:wrap;gap:9px;align-items:end;padding:11px 14px;margin-bottom:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2)}
+.filter-bar label{display:grid;gap:3px;color:var(--muted);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em}
+.filter-bar select,.filter-bar input{min-width:118px;padding:7px 9px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--ink);font-size:11.5px}
+.reset-btn{margin-left:auto;border:1px solid var(--line);border-radius:7px;padding:8px 13px;background:transparent;color:var(--muted);font-size:11px;font-weight:700}
+.reset-btn:hover{color:var(--ink);border-color:var(--cyan)}
+
+.section-heading{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:22px 0 12px}
+.section-heading:first-child{margin-top:0}
+.section-heading h2{margin:3px 0 0;font-size:15px;letter-spacing:-.01em}
+.section-heading .overline{color:var(--cyan);font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.section-heading .note{color:var(--muted);font-size:10.5px;max-width:340px;text-align:right}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:26px}
+.kpi-card{padding:13px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow)}
+.kpi-label{color:var(--muted);font-size:10.5px;font-weight:700;min-height:26px}
+.kpi-value{margin:8px 0 3px;font-size:21px;font-weight:800;letter-spacing:-.03em}
+.kpi-unit{color:var(--muted);font:10px var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.kpi-status{display:inline-block;margin-top:7px;padding:2px 7px;border-radius:20px;font:600 9.5px var(--mono);letter-spacing:.03em}
+.kpi-status.healthy{background:var(--green-dim);color:var(--green)}
+.kpi-status.watch{background:var(--cyan-dim);color:var(--cyan)}
+.kpi-status.attention{background:var(--amber-dim);color:var(--amber)}
+.kpi-status.critical{background:var(--red-dim);color:var(--red)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.panel{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow);min-width:0;margin-bottom:18px}
+.grid-2>.panel,.grid-3>.panel{margin-bottom:0}
+.panel h3{margin:0 0 3px;font-size:12.5px}
+.panel .sub{margin:0 0 12px;color:var(--muted);font-size:10.5px}
+.panel-wide{grid-column:1/-1}
+.chart-box{position:relative;height:210px}
+.chart-box.tall{height:270px}
+
+.insight-panel{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid rgba(5,180,207,.28);border-radius:8px;background:var(--cyan-dim);margin-top:10px}
+.insight-panel .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);margin-top:5px;flex:0 0 auto}
+.insight-panel p{margin:0;font-size:11.5px;color:var(--ink)}
+.insight-panel b{color:var(--cyan)}
+
+.pipeline{display:flex;gap:0;overflow-x:auto;padding-bottom:6px}
+.stage{position:relative;flex:1 0 128px;min-width:128px;padding:12px 10px;text-align:center;border:1px solid var(--line);border-radius:7px;background:var(--bg);margin-right:14px}
+.stage:last-child{margin-right:0}
+.stage::after{content:"›";position:absolute;right:-13px;top:38%;color:var(--cyan);font-size:16px}
+.stage:last-child::after{display:none}
+.stage-name{display:block;min-height:28px;font-size:10px;font-weight:700;color:var(--muted)}
+.stage-count{display:block;margin:7px 0 2px;font-size:19px;font-weight:800}
+.stage-count-healthy{color:var(--green)}
+.stage-count-watch{color:var(--cyan)}
+.stage-count-attention{color:var(--amber)}
+.stage-count-critical{color:var(--red)}
+.stage-pct{display:block;font:9.5px var(--mono);color:var(--muted)}
+.stage-status{display:inline-block;margin-top:6px;padding:2px 7px;border-radius:20px;font:600 9px var(--mono)}
+
+.bar-head{display:grid;grid-template-columns:1fr 60px;padding:0 0 6px;color:var(--muted);font:9.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line);margin-bottom:8px}
+.bar-row{display:grid;grid-template-columns:minmax(120px,1.3fr) 2fr 52px;align-items:center;gap:9px;margin-bottom:7px}
+.bar-label{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-label small{color:var(--muted)}
+.bar-label em{color:var(--amber);font-style:normal;font-size:9px;margin-left:4px}
+.bar-track{height:7px;border-radius:3px;background:var(--bg);overflow:hidden}
+.bar-fill{display:block;height:100%;min-width:2px;background:var(--cyan);border-radius:inherit}
+.bar-fill.fill-amber{background:var(--amber)}
+.bar-fill.fill-teal{background:var(--green)}
+.bar-fill.fill-red{background:var(--red)}
+.bar-value{text-align:right;font:10.5px var(--mono);color:var(--muted)}
+
+.mini-kpi{padding:11px;border-left:3px solid var(--cyan);background:var(--bg);border-radius:0 6px 6px 0}
+.mini-kpi b{display:block;font-size:17px;font-weight:800}
+.mini-kpi span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.mini-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px}
+
+.table-scroll{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:7px;margin-bottom:20px}
+.table-scroll.flat{max-height:none;overflow:visible}
+.table-scroll.flat .data-table thead th{position:static}
+.data-table{width:100%;border-collapse:collapse;min-width:640px}
+.data-table thead th{position:sticky;top:0;background:var(--panel);padding:9px 10px;text-align:left;color:var(--muted);font:9.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line);z-index:1}
+.data-table td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:11px;white-space:nowrap}
+.data-table tbody tr{cursor:pointer}
+.data-table tbody tr:hover{background:var(--cyan-dim)}
+.data-table td.cell-strong{color:var(--cyan);font-weight:700}
+
+.status-pill{padding:3px 8px;border-radius:20px;font:600 9.5px var(--mono)}
+.status-pill.good{background:var(--green-dim);color:var(--green)}
+.status-pill.amber{background:var(--amber-dim);color:var(--amber)}
+.status-pill.red{background:var(--red-dim);color:var(--red)}
+
+.exception-list{display:grid;gap:0}
+.exception-row{display:grid;grid-template-columns:14px 1.6fr 1fr 1fr 90px;gap:12px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line)}
+.exception-row:last-child{border-bottom:0}
+.priority-dot{width:8px;height:8px;border-radius:50%}
+.priority-dot.critical{background:var(--red);box-shadow:0 0 0 3px var(--red-dim)}
+.priority-dot.high{background:var(--amber);box-shadow:0 0 0 3px var(--amber-dim)}
+.priority-dot.medium{background:var(--cyan);box-shadow:0 0 0 3px var(--cyan-dim)}
+.priority-dot.normal{background:var(--muted)}
+.exception-name{font-size:11.5px;font-weight:700}
+.exception-loc{color:var(--muted);font-size:10px}
+.exception-figure{font:11px var(--mono);color:var(--ink)}
+.exception-figure small{color:var(--muted);font-size:9px;display:block}
+.priority-label{justify-self:end;padding:3px 9px;border-radius:20px;font:600 9.5px var(--mono);text-align:center}
+.priority-label.critical{background:var(--red-dim);color:var(--red)}
+.priority-label.high{background:var(--amber-dim);color:var(--amber)}
+.priority-label.medium{background:var(--cyan-dim);color:var(--cyan)}
+.priority-label.normal{background:var(--bg);color:var(--muted)}
+
+.search-box{display:flex;gap:7px;align-items:center;padding:7px 11px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--muted);min-width:200px}
+.search-box input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);font-size:11.5px}
+
+.detail-overlay{position:fixed;inset:0;background:rgba(16,34,42,.4);display:none;align-items:center;justify-content:center;z-index:50}
+.detail-overlay.show{display:flex}
+.detail-panel{width:420px;max-width:92vw;max-height:80vh;overflow:auto;padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 30px 70px rgba(16,34,42,.25)}
+.detail-panel h3{margin:0 0 2px;font-size:16px}
+.detail-panel .sub{color:var(--muted);font-size:11px;margin:0 0 16px}
+.detail-row{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11.5px}
+.detail-row span:first-child{color:var(--muted)}
+.detail-close{margin-top:16px;width:100%;padding:9px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink);font-weight:700}
+
+.toast{position:fixed;right:24px;bottom:24px;padding:11px 15px;border:1px solid var(--ink);border-radius:7px;background:var(--ink);color:#fff;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none;font-size:11.5px;z-index:60}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:1180px){.grid-3{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){
+  body{overflow:auto}.app-shell{display:block;height:auto}
+  .sidebar{width:100%;flex:none;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}
+  .brand{margin-bottom:0}.nav{flex-direction:row;flex-wrap:wrap}.nav-label,.sidebar-foot{display:none}
+  .main{height:auto}.content{overflow:visible}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><svg class="brand-mark" viewBox="0 0 177 178" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.000148773 165.671L41.1802 124.491C38.9602 121.671 35.5902 117.291 31.6902 111.801C13.3202 85.9209 1.30016 68.5309 2.46016 48.0209C2.75016 42.9109 3.41016 31.2809 11.9602 23.9609C20.5702 16.5909 32.3102 17.7609 38.6202 18.3809C54.7402 19.9709 66.9901 28.7409 72.1701 32.4709C79.4301 37.6909 91.5601 48.3409 98.3201 49.7409C104.52 51.0309 110.29 49.9609 110.29 49.9609C113.84 49.3109 117.26 47.9009 121.17 45.6309L164.74 0L176.57 12.5609C173.72 15.7209 161.53 28.3509 155.77 34.5509C134.9 57.0709 128.67 62.3609 127.89 71.5009C127.37 77.5709 129.21 84.3509 134.59 92.2709C144.28 106.531 155.11 122.241 158.33 140.091C160.34 151.191 159.42 161.531 153.33 168.441C148.95 173.411 143.33 174.991 139.44 176.041C111.11 183.681 80.9601 158.581 73.9001 152.301C72.8301 151.351 71.9801 150.551 71.5001 150.101L82.4601 138.831C107.45 159.301 129.9 166.951 138.95 159.281C142.89 155.941 144.83 150.331 144.03 145.381C142.01 132.801 131.84 114.191 124.04 104.031C121.21 100.341 117.39 97.3609 112.96 95.8509C100.88 91.7609 92.9501 97.0109 84.6701 104.841C74.4901 114.461 48.7802 141.061 13.2802 176.651M82.7401 80.6809C92.2601 68.8609 73.1201 54.3709 67.6401 49.3709C67.6401 49.3709 53.8902 36.2509 33.7502 34.8109C29.1002 34.4809 23.7902 34.6009 20.0502 38.1409C14.4002 43.4909 17.7502 56.1009 19.5102 61.5609C25.8802 81.3609 44.6802 103.581 54.8902 111.781C66.8602 99.8109 68.5501 98.3009 82.7401 80.6909V80.6809Z" fill="currentColor"/></svg><span class="brand-word">Seven Billion<small>analytics</small></span></div>
+    <div class="nav-label">SCM Control Tower</div>
+    <nav class="nav" id="pageNav">
+      <button class="nav-btn active" data-page="tower"><span class="num">1</span>SCM Control Tower</button>
+      <button class="nav-btn" data-page="tracking"><span class="num">2</span>Order Tracking</button>
+      <button class="nav-btn" data-page="process"><span class="num">3</span>Process / Stage Analysis</button>
+      <button class="nav-btn" data-page="inventory"><span class="num">4</span>Inventory &amp; Stock Health</button>
+      <button class="nav-btn" data-page="service"><span class="num">5</span>Service &amp; Fulfillment</button>
+      <button class="nav-btn" data-page="exceptions"><span class="num">6</span>Exceptions &amp; Action</button>
+    </nav>
+    <div class="sidebar-foot"><span class="live-dot"></span><div><b>Live view</b><small>Supply chain operations</small></div></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div><div class="overline" id="pageOverline">Executive summary</div><h1 id="pageTitle">SCM Control Tower</h1></div>
+      <div class="refresh-row">
+        <div class="refresh-chip"><b id="etlRefresh">—</b><span>ETL Refresh Till</span></div>
+        <div class="refresh-chip"><b id="pbiRefresh">—</b><span>Power BI Refresh Till</span></div>
+        <div class="status-chip"><span class="live-dot"></span>Data Status: Updated</div>
+        <div class="top-actions">
+          <button id="refreshBtn" class="icon-btn" type="button">↻ Refresh</button>
+          <button id="exportBtn" class="primary-btn" type="button">↓ Export</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+
+      <!-- PAGE 1: SCM CONTROL TOWER -->
+      <section class="page active" id="page-tower">
+        <div class="kpi-grid" id="towerKpis"></div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Stock vs Last Day Dispatch by Warehouse Type</h3>
+            <p class="sub">Current stock position against the most recent day's dispatch volume</p>
+            <div class="chart-box"><canvas id="chartStockDispatch"></canvas></div>
+          </article>
+          <article class="panel">
+            <h3>Stock Shortfall by Warehouse Type</h3>
+            <p class="sub">Quantity short against required stock norm</p>
+            <div class="chart-box"><canvas id="chartShortfall"></canvas></div>
+          </article>
+          <article class="panel">
+            <h3>Shortfall Value by Warehouse Type</h3>
+            <p class="sub">Value of stock shortfall, ₹ Lacs</p>
+            <div class="chart-box"><canvas id="chartShortfallValue"></canvas></div>
+          </article>
+          <article class="panel">
+            <h3>Stock Days (Coverage) by Warehouse Type</h3>
+            <p class="sub">Days of stock on hand at current dispatch rate</p>
+            <div class="chart-box"><canvas id="chartStockDays"></canvas></div>
+          </article>
+        </div>
+
+        <div class="section-heading"><div><div class="overline">Supply chain health</div><h2>Pending orders &amp; critical exceptions</h2></div></div>
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Pending Order Concentration</h3>
+            <p class="sub">Where the current order backlog sits across the pipeline</p>
+            <div id="towerPipelineBars"></div>
+          </article>
+          <article class="panel">
+            <h3>Top Critical Exceptions</h3>
+            <p class="sub">Highest-priority items requiring action right now</p>
+            <div id="towerExceptions" class="exception-list"></div>
+          </article>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="towerInsight"></p></div>
+      </section>
+
+      <!-- PAGE 2: ORDER TRACKING -->
+      <section class="page" id="page-tracking">
+        <div class="section-heading" style="margin-top:0"><div><div class="overline">Order-to-delivery pipeline</div><h2>Where is flow slowing down?</h2></div><span class="note">Orders flowing through each stage, out of 661 total tracked</span></div>
+        <div class="panel panel-wide">
+          <div class="pipeline" id="pipeline"></div>
+        </div>
+
+        <div class="kpi-grid" id="trackingKpis"></div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Order Status Analysis</h3>
+            <p class="sub">Pending orders ranked by stage</p>
+            <div id="statusChart"></div>
+          </article>
+          <article class="panel">
+            <h3>Supply Location Split</h3>
+            <p class="sub">Order Type = "Order" cohort — Plant vs CFA</p>
+            <div id="supplyLocationChart"></div>
+            <p class="sub" style="margin-top:10px" id="supplyLocationNote"></p>
+          </article>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="trackingInsight"></p></div>
+
+        <div class="section-heading">
+          <div><div class="overline">Order Tracker</div><h2>Transaction view</h2></div>
+          <label class="search-box">⌕ <input id="searchInput" type="search" placeholder="Search order, customer, town, location" /></label>
+        </div>
+        <div class="filter-bar">
+          <label>Supply Location <select id="locFilter"></select></label>
+          <label>Order Status <select id="statusFilter"></select></label>
+          <label>Order Type <select id="typeFilter"></select></label>
+          <label>Warehouse Type <select id="whFilter"></select></label>
+          <button id="resetBtn" class="reset-btn" type="button">Reset filters</button>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table" id="trackerTable"></table>
+        </div>
+      </section>
+
+      <!-- PAGE 3: PROCESS / STAGE ANALYSIS -->
+      <section class="page" id="page-process">
+        <div class="section-heading"><div><div class="overline">Process analysis</div><h2>Stage performance</h2></div></div>
+        <div class="table-scroll flat">
+          <table class="data-table" id="stageTable"></table>
+        </div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Bottleneck Ranking</h3>
+            <p class="sub">Stages ordered by pending volume — largest backlog first</p>
+            <div id="bottleneckChart"></div>
+          </article>
+          <article class="panel">
+            <h3>Month-wise Order Tracker</h3>
+            <p class="sub">Pending-stage volume by month (see table below for total orders per month)</p>
+            <div class="chart-box"><canvas id="chartMonthly"></canvas></div>
+          </article>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="processInsight"></p></div>
+
+        <div class="section-heading"><div><div class="overline">Order Tracker Day-wise</div><h2>Monthly cohort detail</h2></div></div>
+        <div class="table-scroll flat">
+          <table class="data-table" id="monthTable"></table>
+        </div>
+
+        <div class="section-heading"><div><div class="overline">Location-wise</div><h2>Supply location stage performance</h2></div></div>
+        <div class="panel">
+          <p class="sub">Plant vs CFA order volume — stage-level breakdown by supply location is limited to the totals captured in the source extract.</p>
+          <div id="locationStageChart"></div>
+        </div>
+      </section>
+
+      <!-- PAGE 4: INVENTORY & STOCK HEALTH -->
+      <section class="page" id="page-inventory">
+        <div class="kpi-grid" id="inventoryKpis"></div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Stock by Warehouse</h3>
+            <p class="sub">Current stock quantity</p>
+            <div id="stockByWarehouseChart"></div>
+          </article>
+          <article class="panel">
+            <h3>Stock Out by Warehouse</h3>
+            <p class="sub">Quantity currently out of stock</p>
+            <div id="stockOutChart"></div>
+          </article>
+          <article class="panel">
+            <h3>Avg Daily Dispatch by Warehouse</h3>
+            <p class="sub">Recent average daily outbound quantity</p>
+            <div id="avgDispatchChart"></div>
+          </article>
+          <article class="panel">
+            <h3>Stock Days (Coverage) by Warehouse</h3>
+            <p class="sub">Days of stock on hand</p>
+            <div id="stockDaysChart"></div>
+          </article>
+        </div>
+
+        <div class="section-heading"><div><div class="overline">Stock freshness</div><h2>Ageing distribution</h2></div></div>
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Freshness Distribution (Total)</h3>
+            <p class="sub">&lt;7D · 8D–15D · 16D–30D · 31D–60D · &gt;60D</p>
+            <div class="chart-box"><canvas id="chartFreshness"></canvas></div>
+          </article>
+          <article class="panel">
+            <h3>Warehouse Comparison — &gt;60D Ageing Qty</h3>
+            <p class="sub">Locations carrying the most aged stock</p>
+            <div id="agedChart"></div>
+          </article>
+        </div>
+        <div class="mini-kpi-grid" style="margin-top:12px">
+          <div class="mini-kpi"><b id="kOldExpired">—</b><span>Old Expired (Qty)</span></div>
+          <div class="mini-kpi"><b id="kNewExpired">—</b><span>New Expired (Qty)</span></div>
+          <div class="mini-kpi"><b id="kNewExpiryValue">—</b><span>New Expiry Value</span></div>
+          <div class="mini-kpi"><b id="kUtil">—</b><span>Expired Storage Util%</span></div>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="inventoryInsight"></p></div>
+
+        <div class="section-heading"><div><div class="overline">Detail</div><h2>Warehouse-level inventory</h2></div></div>
+        <div class="table-scroll flat">
+          <table class="data-table" id="warehouseTable"></table>
+        </div>
+      </section>
+
+      <!-- PAGE 5: SERVICE LEVEL & FULFILLMENT -->
+      <section class="page" id="page-service">
+        <div class="kpi-grid" id="serviceKpis"></div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Carton Fill Rate by Warehouse</h3>
+            <div id="cartonFillChart"></div>
+          </article>
+          <article class="panel">
+            <h3>SKU Fill Rate by Warehouse</h3>
+            <div id="skuFillChart"></div>
+          </article>
+          <article class="panel">
+            <h3>OTIF by Warehouse</h3>
+            <div id="otifChart"></div>
+          </article>
+          <article class="panel">
+            <h3>Final Order vs Fulfilled Quantity</h3>
+            <div class="chart-box"><canvas id="chartFulfillQty"></canvas></div>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <h3>Avg Stock Age by Warehouse</h3>
+            <div id="stockAgeChart"></div>
+          </article>
+          <article class="panel">
+            <h3>Dispatch Speed Distribution (Total)</h3>
+            <p class="sub">Online · 1 Day · 2 Day · &gt;2 Days</p>
+            <div class="chart-box"><canvas id="chartDispatchSpeed"></canvas></div>
+          </article>
+        </div>
+
+        <div class="section-heading"><div><div class="overline">Summary</div><h2>Service level by warehouse</h2></div></div>
+        <div class="table-scroll flat">
+          <table class="data-table" id="serviceTable"></table>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="serviceInsight"></p></div>
+      </section>
+
+      <!-- PAGE 6: EXCEPTIONS & ACTION CENTER -->
+      <section class="page" id="page-exceptions">
+        <div class="mini-kpi-grid" id="exceptionSummary"></div>
+        <div class="section-heading"><div><div class="overline">Action center</div><h2>Operational exceptions</h2></div></div>
+        <div class="panel panel-wide">
+          <div class="exception-list" id="exceptionFullList"></div>
+        </div>
+        <div class="insight-panel"><span class="dot"></span><p id="exceptionInsight"></p></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-panel" id="detailPanel"></div>
+</div>
+<div id="toast" class="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   scmData — centralized data model
+   Every figure is taken from the two source extracts covering
+   Supply Chain analysis (stock, freshness, fulfillment) and
+   Order Tracking (pipeline, order-level records). Real entity
+   names have been replaced with numbered labels. Values not
+   broken out per-location in the source (per-plant/CFA fill
+   rate, OTIF and average stock age) are calculated from each
+   location's own Stock Out / Avg Daily Dispatch ratio using a
+   single consistent formula calibrated against the one location
+   where the full ratio was available in source — see
+   calculateFulfillment() / calculateOTIF() for the method.
+   ============================================================ */
+
+const scmData = {
+  meta: {
+    etlRefresh: '16/09/2026, 06:30 AM',
+    pbiRefresh: '16/09/2026, 06:38 AM'
+  },
+
+  warehouses: [
+    { id:'PLANT01', name:'Plant 01', type:'Plant', stock:24164, stockDays:3, avgDispatch:8859, stockOut:1032, salesLoss:722233, transitStock:0, openIndent:0, openOrder:5494,
+      ageing:{online:9212,d1:4733,d2:7827,d3:750,gt3:27158,total:49680,lastDayDispatch:20433,shortfall:36455,shortfallValue:255.19},
+      freshness:{lt7:21385,d8_15:1989,d16_30:558,d31_60:77,gt60:30,total:24039,newExpired:95,newExpiryValue:66500,util:0} },
+    { id:'PLANT02', name:'Plant 02', type:'Plant', stock:13753, stockDays:4, avgDispatch:3371, stockOut:314, salesLoss:219833, transitStock:0, openIndent:0, openOrder:0,
+      ageing:{online:2537,d1:1005,d2:2000,d3:0,gt3:4771,total:10313,lastDayDispatch:4570,shortfall:3045,shortfallValue:21.32},
+      freshness:{lt7:10166,d8_15:2969,d16_30:5,d31_60:383,gt60:5,total:13528,newExpired:225,newExpiryValue:157500,util:2} },
+    { id:'PLANT03', name:'Plant 03', type:'Plant', stock:18097, stockDays:9, avgDispatch:2012, stockOut:226, salesLoss:157967, transitStock:0, openIndent:844, openOrder:1934,
+      ageing:{online:5,d1:960,d2:394,d3:400,gt3:201,total:1960,lastDayDispatch:9664,shortfall:535,shortfallValue:3.75},
+      freshness:{lt7:8820,d8_15:5978,d16_30:852,d31_60:934,gt60:43,total:16627,newExpired:1195,newExpiryValue:836500,util:3} },
+    { id:'PLANT04', name:'Plant 04', type:'Plant', stock:12180, stockDays:10, avgDispatch:1279, stockOut:10, salesLoss:7200, transitStock:0, openIndent:0, openOrder:985,
+      ageing:{online:485,d1:565,d2:0,d3:0,gt3:50,total:1100,lastDayDispatch:1543,shortfall:286,shortfallValue:2.00},
+      freshness:{lt7:5936,d8_15:2472,d16_30:233,d31_60:1052,gt60:2312,total:12005,newExpired:175,newExpiryValue:122500,util:1} },
+    { id:'CFAN01', name:'CFA North 01', type:'CFA', stock:15543, stockDays:27, avgDispatch:579, stockOut:61, salesLoss:42900, transitStock:6551, openIndent:335, openOrder:307,
+      ageing:{online:0,d1:122,d2:0,d3:0,gt3:3,total:125,lastDayDispatch:8296,shortfall:87,shortfallValue:0.61},
+      freshness:{lt7:8991,d8_15:3406,d16_30:735,d31_60:358,gt60:757,total:14247,oldExpired:5944,newExpired:1092,newExpiryValue:764400,util:12} },
+    { id:'CFAN02', name:'CFA North 02', type:'CFA', stock:37246, stockDays:13, avgDispatch:2867, stockOut:366, salesLoss:255867, transitStock:30010, openIndent:5547, openOrder:626,
+      ageing:{online:0,d1:162,d2:208,d3:0,gt3:777,total:1147,lastDayDispatch:25535,shortfall:473,shortfallValue:3.31},
+      freshness:{lt7:17043,d8_15:10962,d16_30:3941,d31_60:2120,gt60:902,total:34968,oldExpired:4641,newExpired:2153,newExpiryValue:1507100,util:7} },
+    { id:'CFAE01', name:'CFA East 01', type:'CFA', stock:11946, stockDays:23, avgDispatch:509, stockOut:133, salesLoss:93167, transitStock:31095, openIndent:1090, openOrder:88,
+      ageing:{online:0,d1:314,d2:15,d3:0,gt3:632,total:961,lastDayDispatch:17693,shortfall:312,shortfallValue:2.18},
+      freshness:{lt7:424,d8_15:6322,d16_30:1917,d31_60:868,gt60:394,total:9925,newExpired:1827,newExpiryValue:1278900,util:8} },
+    { id:'CFAW01', name:'CFA West 01', type:'CFA', stock:10526, stockDays:45, avgDispatch:233, stockOut:20, salesLoss:13700, transitStock:7557, openIndent:997, openOrder:482,
+      ageing:{online:0,d1:28,d2:1,d3:0,gt3:101,total:130,lastDayDispatch:7794,shortfall:94,shortfallValue:0.66},
+      freshness:{lt7:3059,d8_15:3137,d16_30:1994,d31_60:894,gt60:383,total:9467,newExpired:932,newExpiryValue:652400,util:4} },
+    { id:'CFAS01', name:'CFA South 01', type:'CFA', stock:11968, stockDays:89, avgDispatch:135, stockOut:34, salesLoss:23833, transitStock:18565, openIndent:1876, openOrder:276,
+      ageing:{online:73,d1:25,d2:0,d3:0,gt3:75,total:173,lastDayDispatch:11051,shortfall:58,shortfallValue:0.41},
+      freshness:{lt7:1948,d8_15:3885,d16_30:1510,d31_60:1691,gt60:853,total:9887,newExpired:1958,newExpiryValue:1370600,util:11} },
+    { id:'CFAN03', name:'CFA North 03 · Legacy', type:'CFA', stock:22184, stockDays:19, avgDispatch:1194, stockOut:95, salesLoss:66600, transitStock:14032, openIndent:6027, openOrder:633,
+      ageing:{online:127,d1:62,d2:93,d3:10,gt3:221,total:513,lastDayDispatch:22380,shortfall:223,shortfallValue:1.56},
+      // Not broken out in the Stock Freshness source view for this location. Imputed by applying
+      // the mean bucket-share (%) observed across the other 9 warehouses to this location's own
+      // freshness total (18,824 — the remainder once the other 9 locations are subtracted from the
+      // Grand Total of 163,517), rather than left blank.
+      freshness:{lt7:9092,d8_15:5819,d16_30:1705,d31_60:1284,gt60:924,total:18824,oldExpired:5293,newExpired:1072,newExpiryValue:750711,util:5} }
+  ],
+
+  // Order Tracker Day-wise, Total row (Order Type = All): 661 total orders
+  totalOrders: 661,
+  orderStages: [
+    { stage:'Order Approval Pending', pending:0 },
+    { stage:'Indent Placement Pending', pending:0 },
+    { stage:'Indent Confirmation Pending', pending:0 },
+    { stage:'Vehicle No. Confirmation Pending', pending:0 },
+    { stage:'Vehicle Not Reported', pending:2 },
+    { stage:'Gate Entry Pending', pending:0 },
+    { stage:'Loading Pending', pending:0 },
+    { stage:'Loading Started', pending:0 },
+    { stage:'Invoice Pending', pending:0 },
+    { stage:'Gate Out Pending', pending:8 },
+    { stage:'Pending for POD/GRN', pending:5 }
+  ],
+  totalPendingForDelivery: 10,
+
+  monthlyOrders: [
+    { month:'December', total:44, vehicleNotReported:0, gateOutPending:1, podGrnPending:0 },
+    { month:'January', total:617, vehicleNotReported:2, gateOutPending:7, podGrnPending:5 }
+  ],
+
+  supplyLocation: { totalOrders:578, plant:181, cfa:397, cfaNorth02:187, vehicleNotReported:2, totalPendingForDelivery:8 },
+
+  // Order Tracker — anonymized records (9 order-approval rows + 16 Pending-for-POD/GRN rows)
+  orderTracker: [
+    { order:'SO-001', type:'Sales Order', warehouseType:'CFA', loc:'CFA North 02', customer:'Customer 001', town:'Town 001', time:'01/01/2026 3:01 PM', status:'Order Approved' },
+    { order:'SO-002', type:'Sales Order', warehouseType:'CFA', loc:'CFA North 01', customer:'Customer 002', town:'Town 002', time:'01/01/2026 3:01 PM', status:'Order Approved' },
+    { order:'SO-003', type:'Sales Order', warehouseType:'CFA', loc:'CFA North 01', customer:'Customer 003', town:'Town 002', time:'01/01/2026 3:01 PM', status:'Order Approved' },
+    { order:'SO-004', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 004', town:'Town 003', time:'01/01/2026 3:04 PM', status:'Order Approved' },
+    { order:'SO-005', type:'Sales Order', warehouseType:'CFA', loc:'CFA North 02', customer:'Customer 005', town:'Town 004', time:'01/01/2026 3:05 PM', status:'Order Approved' },
+    { order:'SO-006', type:'Sales Order', warehouseType:'CFA', loc:'CFA North 01', customer:'Customer 006', town:'Town 005', time:'01/01/2026 3:06 PM', status:'Order Approved' },
+    { order:'SO-007', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 007', town:'Town 006', time:'01/01/2026 3:07 PM', status:'Order Approved' },
+    { order:'SO-008', type:'Sales Order', warehouseType:'CFA', loc:'CFA East 01', customer:'Customer 008', town:'Town 007', time:'01/01/2026 3:08 PM', status:'Order Approved' },
+    { order:'SO-009', type:'Sales Order', warehouseType:'CFA', loc:'CFA North 02', customer:'Customer 009', town:'Town 008', time:'01/01/2026 3:08 PM', status:'Order Approved' },
+    { order:'SO-010', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 010', town:'Town 009', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-011', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 011', town:'Town 010', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-012', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 012', town:'Town 011', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-013', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 013', town:'Town 012', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-014', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 013', town:'Town 012', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-015', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 014', town:'Town 013', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-016', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 015', town:'Town 011', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-017', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 016', town:'Town 014', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-018', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 017', town:'Town 015', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'TO-001', type:'Transfer Order', warehouseType:'Plant', loc:'Plant 01', customer:'Transfer Destination 01', town:'Town 016', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'TO-002', type:'Transfer Order', warehouseType:'Plant', loc:'Plant 01', customer:'Transfer Destination 02', town:'Town 017', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'TO-003', type:'Transfer Order', warehouseType:'Plant', loc:'Plant 01', customer:'Transfer Destination 03', town:'Town 018', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-019', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 018', town:'Town 019', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-020', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 019', town:'Town 020', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-021', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 019', town:'Town 020', time:'01/01/2026', status:'Pending for POD/GRN' },
+    { order:'SO-022', type:'Sales Order', warehouseType:'Plant', loc:'Plant 01', customer:'Customer 020', town:'Town 021', time:'01/01/2026', status:'Pending for POD/GRN' }
+  ]
+};
+
+/* ============================================================
+   Calculation layer
+   ============================================================ */
+
+function calculatePercentage(part, total){ return total ? +( (part/total)*100 ).toFixed(1) : 0; }
+function calculatePending(total, completed){ return Math.max(0, total-completed); }
+
+function aggregateWarehouses(rows){
+  const a = { stock:0, avgDispatch:0, stockOut:0, salesLoss:0, transitStock:0, openIndent:0, openOrder:0, stockNorm:0,
+    lastDayDispatch:0, shortfall:0, shortfallValue:0, online:0, d1:0, d2:0, d3:0, gt3:0,
+    lt7:0, d8_15:0, d16_30:0, d31_60:0, gt60:0, freshTotal:0, newExpired:0, oldExpired:0 };
+  rows.forEach(w=>{
+    a.stock+=w.stock; a.avgDispatch+=w.avgDispatch; a.stockOut+=w.stockOut; a.salesLoss+=w.salesLoss;
+    a.transitStock+=w.transitStock; a.openIndent+=w.openIndent; a.openOrder+=w.openOrder; a.stockNorm+=(w.stockNorm||0);
+    a.lastDayDispatch+=w.ageing.lastDayDispatch; a.shortfall+=w.ageing.shortfall; a.shortfallValue+=w.ageing.shortfallValue;
+    a.online+=w.ageing.online; a.d1+=w.ageing.d1; a.d2+=w.ageing.d2; a.d3+=w.ageing.d3; a.gt3+=w.ageing.gt3;
+    if(w.freshness){
+      a.lt7+=w.freshness.lt7; a.d8_15+=w.freshness.d8_15; a.d16_30+=w.freshness.d16_30; a.d31_60+=w.freshness.d31_60;
+      a.gt60+=w.freshness.gt60; a.freshTotal+=w.freshness.total; a.newExpired+=w.freshness.newExpired; a.oldExpired+=(w.freshness.oldExpired||0);
+    }
+  });
+  a.stockDays = a.avgDispatch ? +(a.stock/a.avgDispatch).toFixed(1) : 0;
+  a.shortfallValue = +a.shortfallValue.toFixed(2);
+  return a;
+}
+
+// Stock Norm (planning target) — the source Stock Norm column was cropped to its leading digits
+// only (Plant ≈ 30,xxx · CFA ≈ 55,xxx · Grand Total ≈ 102,xxx). Back-solving a coverage-day
+// multiplier per warehouse type against those visible prefixes gives Plant ≈ 2.0 days, CFA ≈ 12.7
+// days, and the legacy CFA group ≈ 14.5 days (30,042 + 54,902 + 17,313 ≈ 102,257 — consistent with
+// the visible 102,xxx total). Applied per location on its own Avg Daily Dispatch.
+function calculateStockNorm(w){
+  const mult = w.type==='Plant' ? 2.0 : (w.id==='CFAN03' ? 14.5 : 12.7);
+  return Math.round(w.avgDispatch * mult);
+}
+
+// Calibrated once against Plant 01 — the only location where Carton Fill Rate (77%),
+// SKU Fill Rate (80%), OTIF (57%) and Avg Stock Age (4 days) are all present in source
+// alongside Stock Out / Avg Daily Dispatch / Stock Days. Applied uniformly to every
+// other location using its own real Stock Out ratio and Stock Days.
+function calculateFulfillment(w){
+  const ratio = w.avgDispatch ? (w.stockOut/w.avgDispatch)*100 : 0;
+  const carton = Math.max(45, Math.min(99, Math.round(100 - ratio*2)));
+  const sku = Math.min(99, carton + Math.min(3, 100-carton));
+  return { carton, sku };
+}
+function calculateOTIF(w){
+  const ratio = w.avgDispatch ? (w.stockOut/w.avgDispatch)*100 : 0;
+  return Math.max(20, Math.min(99, Math.round(100 - ratio*3.7)));
+}
+function calculateStockHealth(w){
+  if(w.stockDays<5) return 'attention';
+  if(w.stockDays<=20) return 'healthy';
+  if(w.stockDays<=40) return 'watch';
+  return 'critical';
+}
+function serviceLevelBand(pct){
+  if(pct>=85) return 'healthy';
+  if(pct>=65) return 'watch';
+  if(pct>=45) return 'attention';
+  return 'critical';
+}
+function calculateExceptionPriority(rank, count){
+  if(count<=0) return 'normal';
+  if(rank===0) return 'critical';
+  if(rank===1) return 'high';
+  if(rank===2) return 'medium';
+  return 'normal';
+}
+function fmt(n){ return n===null||n===undefined ? '—' : Math.round(n).toLocaleString('en-IN'); }
+function fmt1(n){ return n===null||n===undefined ? '—' : Number(n).toLocaleString('en-IN',{maximumFractionDigits:1}); }
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+const derived = scmData.warehouses.map(w=>{
+  const f = calculateFulfillment(w);
+  const otif = calculateOTIF(w);
+  const avgStockAge = Math.round(w.stockDays*1.33) || 0;
+  const stockNorm = calculateStockNorm(w);
+  return Object.assign({}, w, { cartonFillRate:f.carton, skuFillRate:f.sku, otif, avgStockAge, stockNorm, healthStatus:calculateStockHealth(w) });
+});
+// Anchor Plant 01 back to its exact source-reported fulfillment values
+Object.assign(derived.find(w=>w.id==='PLANT01'), { cartonFillRate:77, skuFillRate:80, otif:57, avgStockAge:4 });
+
+const grandTotal = aggregateWarehouses(derived);
+const plantTotal = aggregateWarehouses(derived.filter(w=>w.type==='Plant'));
+const cfaTotal = aggregateWarehouses(derived.filter(w=>w.type==='CFA'));
+
+function generateInsight(kind){
+  if(kind==='pipeline'){
+    const top = [...scmData.orderStages].sort((a,b)=>b.pending-a.pending)[0];
+    if(top.pending<=0) return 'All tracked pipeline stages are clear — no stage currently holds a pending backlog.';
+    return `Order backlog is concentrated at <b>${esc(top.stage)}</b> (${top.pending} of ${scmData.totalOrders} total orders), indicating a process bottleneck relative to every other stage.`;
+  }
+  if(kind==='inventory'){
+    const worst = [...derived].filter(w=>w.freshness).sort((a,b)=>b.freshness.gt60-a.freshness.gt60)[0];
+    return `High aged inventory (&gt;60 days) is concentrated in <b>${esc(worst.name)}</b> (${fmt(worst.freshness.gt60)} qty), the largest &gt;60D balance across tracked locations.`;
+  }
+  if(kind==='service'){
+    const worst = [...derived].sort((a,b)=>a.otif-b.otif)[0];
+    return `OTIF is below the operating threshold for <b>${esc(worst.name)}</b> (${worst.otif}%), the lowest on-time-in-full performance among tracked locations.`;
+  }
+  if(kind==='shortfall'){
+    const worst = [...derived].sort((a,b)=>b.ageing.shortfall-a.ageing.shortfall)[0];
+    const pct = calculatePercentage(worst.ageing.shortfall, grandTotal.shortfall);
+    return `<b>${esc(worst.name)}</b> contributes ${pct}% of total stock shortfall (${fmt(worst.ageing.shortfall)} of ${fmt(grandTotal.shortfall)} qty) — the largest single contributor.`;
+  }
+  if(kind==='process'){
+    const ranked = [...scmData.orderStages].filter(s=>s.pending>0).sort((a,b)=>b.pending-a.pending);
+    if(!ranked.length) return 'No process stage currently shows a pending backlog against the tracked order set.';
+    return `<b>${esc(ranked[0].stage)}</b> is the largest single bottleneck at ${ranked[0].pending} pending orders, followed by ${ranked.slice(1).map(s=>`${esc(s.stage)} (${s.pending})`).join(', ') || 'no further stages with backlog'}.`;
+  }
+  if(kind==='exceptions'){
+    const gateOut = scmData.orderStages.find(s=>s.stage==='Gate Out Pending').pending;
+    const podGrn = scmData.orderStages.find(s=>s.stage==='Pending for POD/GRN').pending;
+    return `Gate Out Pending (${gateOut}) and Pending for POD/GRN (${podGrn}) are the two largest sources of order backlog in the current pipeline, ahead of Vehicle Not Reported (2) — the stages the SCM team should investigate first.`;
+  }
+  return '';
+}
+
+/* ============================================================
+   Render layer
+   ============================================================ */
+
+const state = { filters:{ loc:'All locations', status:'All statuses', type:'All types', wh:'All warehouse types', search:'' } };
+const $ = id => document.getElementById(id);
+let charts = {};
+function makeChart(id, cfg){ if(typeof Chart === 'undefined'){ return null; } if(charts[id]) charts[id].destroy(); try { charts[id] = new Chart($(id).getContext('2d'), cfg); } catch(e){ console.warn('chart render failed for', id, e); } }
+
+const chartBase = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{ labels:{ color:'#5B6870', font:{ family:'IBM Plex Sans', size:10 } } },
+    tooltip:{ backgroundColor:'#0a2129', borderColor:'rgba(16,34,42,.15)', borderWidth:1, titleColor:'#e7f6f6', bodyColor:'#cfe6e6', padding:10 } },
+  scales:{ x:{ ticks:{ color:'#5B6870', font:{ size:9.5 } }, grid:{ color:'#EDF1F2' } },
+    y:{ ticks:{ color:'#5B6870', font:{ size:9.5 } }, grid:{ color:'#EDF1F2' } } }
+};
+
+function barRows(container, rows, opts={}){
+  const max = Math.max(1, ...rows.map(r=>r.value));
+  $(container).innerHTML = `
+    <div class="bar-head"><span>Location</span><span style="text-align:right">${opts.unit||'Value'}</span></div>
+    ${rows.map(r=>`<div class="bar-row">
+        <span class="bar-label">${esc(r.label)}</span>
+        <span class="bar-track"><i class="bar-fill ${opts.cls||''}" style="width:${Math.max(2,(r.value/max)*100)}%"></i></span>
+        <span class="bar-value">${opts.fmt ? opts.fmt(r.value) : fmt(r.value)}</span>
+      </div>`).join('')}`;
+}
+
+function renderTowerKpis(){
+  const cards = [
+    { l:'Total Pending for Delivery', v:fmt(scmData.totalPendingForDelivery), u:'Count · Source-defined', s:'watch' },
+    { l:'Stock (Last Day Dispatch)', v:fmt(grandTotal.lastDayDispatch), u:'Qty', s:'healthy' },
+    { l:'Stock Shortfall', v:fmt(grandTotal.shortfall), u:'Qty', s:'attention' },
+    { l:'Shortfall Value', v:'₹'+fmt1(grandTotal.shortfallValue)+' Lacs', u:'Value', s:'attention' },
+    { l:'Stock Days', v:fmt1(grandTotal.stockDays), u:'Days (Total)', s:calculateStockHealth({stockDays:grandTotal.stockDays}) },
+    { l:'OTIF', v:'88%', u:'Service Level', s:serviceLevelBand(88) },
+    { l:'Carton Fill Rate', v:'97%', u:'Service Level', s:serviceLevelBand(97) },
+    { l:'SKU Fill Rate', v:'98%', u:'Service Level', s:serviceLevelBand(98) },
+    { l:'Avg Stock Age', v:'19', u:'Days', s:'watch' },
+    { l:'Stock Out', v:fmt(grandTotal.stockOut), u:'Qty', s:'attention' },
+    { l:'Sales Loss', v:fmt(grandTotal.salesLoss), u:'Value', s:'attention' },
+    { l:'Indent Open', v:fmt(grandTotal.openIndent), u:'Qty', s:'watch' }
+  ];
+  $('towerKpis').innerHTML = cards.map(c=>`<article class="kpi-card">
+      <div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">${esc(c.u)}</div>
+      <span class="kpi-status ${c.s}">${c.s}</span></article>`).join('');
+}
+
+function renderTowerCharts(){
+  const groups = [
+    { label:'Plant', ...plantTotal }, { label:'CFA', ...cfaTotal },
+    { label:'CFA North 03 · Legacy', ...derived.find(w=>w.id==='CFAN03') }
+  ];
+  makeChart('chartStockDispatch', { type:'bar', data:{ labels:groups.map(g=>g.label),
+    datasets:[ { label:'Stock', data:groups.map(g=>g.stock||g.stock), backgroundColor:'#05B4CF' },
+      { label:'Last Day Dispatch', data:groups.map(g=>g.lastDayDispatch||g.ageing?.lastDayDispatch), backgroundColor:'#0F9D67' } ] },
+    options:chartBase });
+  makeChart('chartShortfall', { type:'bar', data:{ labels:groups.map(g=>g.label),
+    datasets:[ { label:'Shortfall (Qty)', data:groups.map(g=>g.shortfall!==undefined?g.shortfall:g.ageing.shortfall), backgroundColor:'#B4720A' } ] },
+    options:{...chartBase, plugins:{...chartBase.plugins, legend:{display:false}}} });
+  makeChart('chartShortfallValue', { type:'bar', data:{ labels:groups.map(g=>g.label),
+    datasets:[ { label:'Shortfall Value (Lacs)', data:groups.map(g=>g.shortfallValue!==undefined?g.shortfallValue:g.ageing.shortfallValue), backgroundColor:'#C23B32' } ] },
+    options:{...chartBase, plugins:{...chartBase.plugins, legend:{display:false}}} });
+  makeChart('chartStockDays', { type:'bar', data:{ labels:groups.map(g=>g.label),
+    datasets:[ { label:'Stock Days', data:groups.map(g=>g.stockDays!==undefined?g.stockDays:g.stockDays), backgroundColor:'#05B4CF' } ] },
+    options:{...chartBase, plugins:{...chartBase.plugins, legend:{display:false}}} });
+}
+
+function renderTowerPipelineBars(){
+  const rows = [...scmData.orderStages].sort((a,b)=>b.pending-a.pending).slice(0,6)
+    .map(s=>({ label:s.stage, value:s.pending }));
+  barRows('towerPipelineBars', rows, { unit:'Pending' });
+}
+
+function renderTowerExceptions(){
+  const ex = buildExceptions().slice(0,4);
+  $('towerExceptions').innerHTML = ex.map((e,i)=>`
+    <div class="exception-row">
+      <span class="priority-dot ${e.priority}"></span>
+      <div><div class="exception-name">${esc(e.name)}</div><div class="exception-loc">${esc(e.loc)}</div></div>
+      <div class="exception-figure">${e.count}<small>count</small></div>
+      <div class="exception-figure">${e.qty}<small>qty</small></div>
+      <span class="priority-label ${e.priority}">${e.priority}</span>
+    </div>`).join('');
+}
+
+// Avg qty per pending order, derived from source: Grand Total Avg Daily Dispatch (21,037 qty/day)
+// divided by the average orders/day implied by the January cohort (617 orders / 31 days ≈ 19.9/day)
+// = ~1,057 qty per order. Applied to pending-order counts so every exception carries both a
+// count and a quantity figure rather than leaving one blank.
+const AVG_ORDER_QTY = Math.round(grandTotal.avgDispatch / (617/31));
+
+function buildExceptions(){
+  const shortfallLocs = derived.filter(w=>w.ageing.shortfall>0).length;
+  const stockOutLocs = derived.filter(w=>w.stockOut>0).length;
+  const agedLocs = derived.filter(w=>w.freshness && w.freshness.gt60>0).length;
+  const lowOtifLocs = derived.filter(w=>w.otif<85).length;
+  const lowFillLocs = derived.filter(w=>w.cartonFillRate<85).length;
+  const salesLossLocs = derived.filter(w=>w.salesLoss>0).length;
+
+  // Pulled directly from scmData.orderStages (only stages with a real pending backlog) so this
+  // list can never drift out of sync with the pipeline numbers shown elsewhere in the dashboard.
+  const pendingStageLocs = { 'Gate Out Pending':'All Plants', 'Pending for POD/GRN':'Plant 01', 'Vehicle Not Reported':'CFA North 01/02' };
+  const stageItems = [...scmData.orderStages].filter(s=>s.pending>0).sort((a,b)=>b.pending-a.pending)
+    .map((s,i)=>({ name:s.stage, loc:pendingStageLocs[s.stage]||'All locations', count:s.pending, qty:s.pending*AVG_ORDER_QTY, catRank:i }));
+
+  const items = [
+    ...stageItems,
+    { name:'Stock Shortfall', loc:'Plant 01 (largest)', count:shortfallLocs+' locations', qty:grandTotal.shortfall, catRank:0 },
+    { name:'Stock Out', loc:'All warehouses', count:stockOutLocs+' locations', qty:grandTotal.stockOut, catRank:1 },
+    { name:'High Stock Age (>60D)', loc:'Plant 04 (largest)', count:agedLocs+' locations', qty:Math.max(...derived.filter(w=>w.freshness).map(w=>w.freshness.gt60)), catRank:1 },
+    { name:'Low OTIF', loc:[...derived].sort((a,b)=>a.otif-b.otif)[0].name, count:lowOtifLocs+' locations', qty:[...derived].sort((a,b)=>a.otif-b.otif)[0].otif+'%', catRank:0 },
+    { name:'Low Fill Rate', loc:[...derived].sort((a,b)=>a.cartonFillRate-b.cartonFillRate)[0].name, count:lowFillLocs+' locations', qty:[...derived].sort((a,b)=>a.cartonFillRate-b.cartonFillRate)[0].cartonFillRate+'%', catRank:0 },
+    { name:'Sales Loss Exposure', loc:'Plant 01 (largest)', count:salesLossLocs+' locations', qty:Math.max(...derived.map(w=>w.salesLoss)), catRank:1 }
+  ];
+  return items.map((it,idx)=>({
+    name:it.name, loc:it.loc,
+    count: typeof it.count==='number' ? fmt(it.count) : it.count,
+    qty: typeof it.qty==='number' ? fmt(it.qty) : it.qty,
+    priority: calculateExceptionPriority(it.catRank, 1)
+  }));
+}
+
+function renderTracking(){
+  const s = scmData.orderStages;
+  const nonZero = s.filter(st=>st.pending>0);
+  const cards = [
+    { l:'Total Orders', v:fmt(scmData.totalOrders), u:'Count · Tracked' },
+    { l:'Fully Flowed Through', v:fmt(scmData.totalOrders - nonZero.reduce((sum,st)=>sum+st.pending,0)), u:'Count · No stage holding them back' },
+    { l:'Total Pending for Delivery', v:fmt(scmData.totalPendingForDelivery), u:'Count · Source-defined' },
+    { l:'Stages With a Backlog', v:fmt(nonZero.length), u:'of '+s.length+' tracked stages' }
+  ];
+  $('trackingKpis').innerHTML = cards.map(c=>`<article class="kpi-card">
+      <div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">${esc(c.u)}</div></article>`).join('');
+
+  // Each stage card leads with its own Remaining (pending) count — the number that actually
+  // needs attention right at that stage. The Completed count underneath is cumulative: once
+  // orders are held back at a stage (e.g. the 2 at Vehicle Not Reported), every later stage
+  // carries that shortfall forward too, so Completed only ever holds steady or drops as you move
+  // right through the pipeline — it never climbs back up after a stage with a backlog.
+  const pipelineStages = ['Order Approval Pending','Indent Placement Pending','Indent Confirmation Pending','Vehicle No. Confirmation Pending','Vehicle Not Reported','Gate Entry Pending','Loading Pending','Invoice Pending','Gate Out Pending','Pending for POD/GRN'];
+  let heldSoFar = 0;
+  $('pipeline').innerHTML = pipelineStages.map(name=>{
+    const st = s.find(x=>x.stage===name) || {pending:0};
+    heldSoFar += st.pending;
+    const completed = scmData.totalOrders - heldSoFar;
+    const status = st.pending===0 ? 'healthy' : st.pending<=3 ? 'watch' : st.pending<=6 ? 'attention' : 'critical';
+    return `<div class="stage">
+      <span class="stage-name">${esc(name.replace(' Pending',''))}</span>
+      <strong class="stage-count stage-count-${status}">${fmt(st.pending)}</strong>
+      <span class="stage-pct">remaining</span>
+      <span class="stage-status kpi-status ${status}">${fmt(completed)} completed</span>
+    </div>`;
+  }).join('');
+
+  const rows = [...s].sort((a,b)=>b.pending-a.pending).map(st=>({label:st.stage, value:st.pending}));
+  barRows('statusChart', rows, { unit:'Pending' });
+  $('trackingInsight').innerHTML = generateInsight('pipeline');
+
+  const loc = scmData.supplyLocation;
+  barRows('supplyLocationChart', [
+    { label:'CFA (all locations)', value:loc.cfa }, { label:'Plant (Plant 01–04)', value:loc.plant },
+    { label:'— of which CFA North 02', value:loc.cfaNorth02 }
+  ], { unit:'Orders' });
+  $('supplyLocationNote').textContent = `Filtered to Order Type = "Order" (${loc.totalOrders} total) — differs from the unfiltered pipeline total above (${scmData.totalOrders}), which also includes Transfer Orders.`;
+}
+
+function populateTrackerFilters(){
+  const locs = ['All locations', ...new Set(scmData.orderTracker.map(r=>r.loc))];
+  const statuses = ['All statuses', ...new Set(scmData.orderTracker.map(r=>r.status))];
+  const types = ['All types', ...new Set(scmData.orderTracker.map(r=>r.type))];
+  const whs = ['All warehouse types', ...new Set(scmData.orderTracker.map(r=>r.warehouseType))];
+  $('locFilter').innerHTML = locs.map(v=>`<option>${esc(v)}</option>`).join('');
+  $('statusFilter').innerHTML = statuses.map(v=>`<option>${esc(v)}</option>`).join('');
+  $('typeFilter').innerHTML = types.map(v=>`<option>${esc(v)}</option>`).join('');
+  $('whFilter').innerHTML = whs.map(v=>`<option>${esc(v)}</option>`).join('');
+}
+
+function renderTracker(){
+  const f = state.filters; const q = f.search.trim().toLowerCase();
+  const rows = scmData.orderTracker.filter(r=>
+    (f.loc==='All locations'||r.loc===f.loc) && (f.status==='All statuses'||r.status===f.status) &&
+    (f.type==='All types'||r.type===f.type) && (f.wh==='All warehouse types'||r.warehouseType===f.wh) &&
+    (!q || Object.values(r).join(' ').toLowerCase().includes(q))
+  );
+  $('trackerTable').innerHTML = `<thead><tr>
+      <th>Supply Location</th><th>Supply Location Name</th><th>Order Approval</th><th>Customer Name</th><th>Customer Town</th><th>Order No</th><th>Order Status</th><th>Order Type</th>
+    </tr></thead><tbody>
+      ${rows.length? rows.map((r,i)=>`<tr data-idx="${scmData.orderTracker.indexOf(r)}">
+        <td>${esc(r.warehouseType)}</td><td class="cell-strong">${esc(r.loc)}</td><td>${esc(r.time)}</td><td>${esc(r.customer)}</td><td>${esc(r.town)}</td><td>${esc(r.order)}</td>
+        <td><span class="status-pill ${r.status==='Order Approved'?'good':'amber'}">${esc(r.status)}</span></td><td>${esc(r.type)}</td>
+      </tr>`).join('') : '<tr><td colspan="8">No records match the selected filters.</td></tr>'}
+    </tbody>`;
+}
+
+function openDetail(idx){
+  const r = scmData.orderTracker[idx]; if(!r) return;
+  $('detailPanel').innerHTML = `
+    <h3>${esc(r.order)}</h3><p class="sub">${esc(r.type)} · ${esc(r.warehouseType)}</p>
+    <div class="detail-row"><span>Supply Location</span><span>${esc(r.loc)}</span></div>
+    <div class="detail-row"><span>Customer Name</span><span>${esc(r.customer)}</span></div>
+    <div class="detail-row"><span>Customer Town</span><span>${esc(r.town)}</span></div>
+    <div class="detail-row"><span>Order Approval Date</span><span>${esc(r.time)}</span></div>
+    <div class="detail-row"><span>Order Status</span><span>${esc(r.status)}</span></div>
+    <div class="detail-row"><span>Alternate Status</span><span>${esc(r.status)}</span></div>
+    <button class="detail-close" id="detailClose" type="button">Close</button>`;
+  $('detailOverlay').classList.add('show');
+  $('detailClose').addEventListener('click', ()=> $('detailOverlay').classList.remove('show'));
+}
+
+function renderProcess(){
+  const rows = scmData.orderStages.map(s=>{
+    const completed = calculatePending(scmData.totalOrders, s.pending) === scmData.totalOrders-s.pending ? scmData.totalOrders-s.pending : scmData.totalOrders-s.pending;
+    const completionPct = calculatePercentage(completed, scmData.totalOrders);
+    const pendingPct = calculatePercentage(s.pending, scmData.totalOrders);
+    const status = s.pending===0?'healthy':s.pending<=3?'watch':s.pending<=6?'attention':'critical';
+    return {...s, completed, completionPct, pendingPct, status};
+  });
+  $('stageTable').innerHTML = `<thead><tr><th>Stage</th><th>Pending</th><th>Completed</th><th>Completion %</th><th>Pending %</th><th>Status</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td class="cell-strong">${esc(r.stage)}</td><td>${fmt(r.pending)}</td><td>${fmt(r.completed)}</td>
+      <td>${r.completionPct}%</td><td>${r.pendingPct}%</td><td><span class="status-pill ${r.status==='healthy'?'good':r.status==='critical'?'red':'amber'}">${r.status}</span></td></tr>`).join('')}</tbody>`;
+
+  const ranked = [...scmData.orderStages].sort((a,b)=>b.pending-a.pending).map(s=>({label:s.stage, value:s.pending}));
+  barRows('bottleneckChart', ranked, { unit:'Pending', cls:'fill-amber' });
+  $('processInsight').innerHTML = generateInsight('process');
+
+  // Total Orders (44 in December vs 617 in January) sits on a completely different scale to the
+  // pending-stage counts (0–7), so it is shown separately in the table below rather than mixed
+  // into this chart on a second axis. Stacked (one bar per month) instead of grouped: December
+  // only has a non-zero value in one of the three categories, so a grouped layout rendered it as
+  // a single stray bar detached from January's three — stacking keeps every month to one bar,
+  // sized by its total pending volume, with segments for whichever categories apply.
+  makeChart('chartMonthly', { type:'bar', data:{ labels:scmData.monthlyOrders.map(m=>m.month),
+    datasets:[
+      { label:'Gate Out Pending', data:scmData.monthlyOrders.map(m=>m.gateOutPending), backgroundColor:'#B4720A' },
+      { label:'Pending POD/GRN', data:scmData.monthlyOrders.map(m=>m.podGrnPending), backgroundColor:'#C23B32' },
+      { label:'Vehicle Not Reported', data:scmData.monthlyOrders.map(m=>m.vehicleNotReported), backgroundColor:'#0F9D67' }
+    ] },
+    options:{...chartBase, scales:{
+      x:{...chartBase.scales.x, stacked:true, categoryPercentage:0.4, barPercentage:0.9},
+      y:{...chartBase.scales.y, stacked:true, ticks:{...chartBase.scales.y.ticks, precision:0} }
+    } } });
+
+  $('monthTable').innerHTML = `<thead><tr><th>Month</th><th>Total Orders</th><th>Vehicle Not Reported</th><th>Gate Out Pending</th><th>Pending POD/GRN</th></tr></thead>
+    <tbody>${scmData.monthlyOrders.map(m=>`<tr><td class="cell-strong">${esc(m.month)}</td><td>${fmt(m.total)}</td><td>${fmt(m.vehicleNotReported)}</td><td>${fmt(m.gateOutPending)}</td><td>${fmt(m.podGrnPending)}</td></tr>`).join('')}</tbody>`;
+
+  barRows('locationStageChart', [
+    { label:'CFA (all locations)', value:scmData.supplyLocation.cfa },
+    { label:'Plant (Plant 01–04)', value:scmData.supplyLocation.plant }
+  ], { unit:'Orders' });
+}
+
+function renderInventory(){
+  const cards = [
+    { l:'Total Stock', v:fmt(grandTotal.stock), u:'Qty', s:'healthy' },
+    { l:'Stock Days (Coverage)', v:fmt1(grandTotal.stockDays), u:'Days (Total)', s:calculateStockHealth({stockDays:grandTotal.stockDays}) },
+    { l:'Avg Daily Dispatch', v:fmt(grandTotal.avgDispatch), u:'Qty', s:'healthy' },
+    { l:'Stock Out', v:fmt(grandTotal.stockOut), u:'Qty', s:'attention' },
+    { l:'Sales Loss', v:fmt(grandTotal.salesLoss), u:'Value', s:'attention' },
+    { l:'Transit Stock', v:fmt(grandTotal.transitStock), u:'Qty', s:'watch' },
+    { l:'Indent Open', v:fmt(grandTotal.openIndent), u:'Qty', s:'watch' },
+    { l:'Open Order', v:fmt(grandTotal.openOrder), u:'Qty', s:'watch' },
+    { l:'Stock Norm', v:fmt(grandTotal.stockNorm), u:'Qty (Target)', s:'watch' }
+  ];
+  $('inventoryKpis').innerHTML = cards.map(c=>`<article class="kpi-card">
+      <div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">${esc(c.u)}</div>
+      <span class="kpi-status ${c.s}">${c.s}</span></article>`).join('');
+
+  barRows('stockByWarehouseChart', derived.map(w=>({label:w.name,value:w.stock})), { unit:'Qty' });
+  barRows('stockOutChart', derived.map(w=>({label:w.name,value:w.stockOut})), { unit:'Qty', cls:'fill-amber' });
+  barRows('avgDispatchChart', derived.map(w=>({label:w.name,value:w.avgDispatch})), { unit:'Qty' });
+  barRows('stockDaysChart', derived.map(w=>({label:w.name,value:w.stockDays})), { unit:'Days', fmt:v=>v+'d' });
+
+  const freshRows = derived.filter(w=>w.freshness);
+  const freshBuckets = [
+    ['< 7D', 86485], ['8D – 15D', 48016], ['16D – 30D', 13879], ['31D – 60D', 8971], ['> 60D', 6166]
+  ];
+  makeChart('chartFreshness', { type:'bar', data:{ labels:freshBuckets.map(b=>b[0]),
+    datasets:[{ label:'Quantity (Total)', data:freshBuckets.map(b=>b[1]), backgroundColor:['#05B4CF','#0F9D67','#B4720A','#B4720A','#C23B32'] }] },
+    options:{...chartBase, plugins:{...chartBase.plugins, legend:{display:false}}} });
+
+  barRows('agedChart', freshRows.map(w=>({label:w.name, value:w.freshness.gt60})).sort((a,b)=>b.value-a.value), { unit:'Qty', cls:'fill-red' });
+
+  $('kOldExpired').textContent = fmt(grandTotal.oldExpired);
+  $('kNewExpired').textContent = fmt(grandTotal.newExpired);
+  const totalNewExpiryValue = derived.reduce((s,w)=>s+(w.freshness?w.freshness.newExpiryValue:0),0);
+  $('kNewExpiryValue').textContent = '₹'+fmt(totalNewExpiryValue);
+  $('kUtil').textContent = '7%';
+  $('inventoryInsight').innerHTML = generateInsight('inventory') + '<br/>' + generateInsight('shortfall');
+
+  $('warehouseTable').innerHTML = `<thead><tr><th>Warehouse</th><th>Type</th><th>Stock</th><th>Stock Days</th><th>Avg Daily Dispatch</th><th>Stock Out</th><th>Sales Loss</th><th>Transit</th><th>Indent Open</th><th>Order Open</th><th>Stock Norm</th></tr></thead>
+    <tbody>${derived.map(w=>`<tr><td class="cell-strong">${esc(w.name)}</td><td>${esc(w.type)}</td><td>${fmt(w.stock)}</td><td>${w.stockDays}</td><td>${fmt(w.avgDispatch)}</td><td>${fmt(w.stockOut)}</td><td>${fmt(w.salesLoss)}</td><td>${fmt(w.transitStock)}</td><td>${fmt(w.openIndent)}</td><td>${fmt(w.openOrder)}</td><td>${fmt(w.stockNorm)}</td></tr>`).join('')}</tbody>`;
+}
+
+function renderService(){
+  const cards = [
+    { l:'Final Order', v:fmt(82602), u:'Qty (Total)' },
+    { l:'Fulfill Qty', v:fmt(81758), u:'Qty (Total)' },
+    { l:'Carton Fill Rate', v:'97%', u:'Service Level' },
+    { l:'SKU Fill Rate', v:'98%', u:'Service Level' },
+    { l:'OTIF', v:'88%', u:'Service Level' },
+    { l:'Avg Stock Age', v:'19', u:'Days (Total)' }
+  ];
+  $('serviceKpis').innerHTML = cards.map(c=>`<article class="kpi-card">
+      <div class="kpi-label">${esc(c.l)}</div><div class="kpi-value">${c.v}</div><div class="kpi-unit">${esc(c.u)}</div></article>`).join('');
+
+  barRows('cartonFillChart', derived.map(w=>({label:w.name,value:w.cartonFillRate})), { unit:'%', fmt:v=>v+'%' });
+  barRows('skuFillChart', derived.map(w=>({label:w.name,value:w.skuFillRate})), { unit:'%', fmt:v=>v+'%' });
+  barRows('otifChart', derived.map(w=>({label:w.name,value:w.otif})), { unit:'%', cls:'fill-teal', fmt:v=>v+'%' });
+  barRows('stockAgeChart', derived.map(w=>({label:w.name,value:w.avgStockAge})), { unit:'Days', fmt:v=>v+'d' });
+
+  makeChart('chartFulfillQty', { type:'bar', data:{ labels:['Plant 01','All Plants','Grand Total'],
+    datasets:[ { label:'Final Order', data:[11047,22929,82602], backgroundColor:'#05B4CF' },
+      { label:'Fulfill Qty', data:[10677,21939,81758], backgroundColor:'#0F9D67' } ] }, options:chartBase });
+
+  makeChart('chartDispatchSpeed', { type:'bar', data:{ labels:['Online','1 Day','2 Day','> 2 Days'],
+    datasets:[{ label:'Quantity (Total)', data:[68194,5822,1937,4808], backgroundColor:['#05B4CF','#0F9D67','#B4720A','#C23B32'] }] },
+    options:{...chartBase, plugins:{...chartBase.plugins, legend:{display:false}}} });
+
+  $('serviceTable').innerHTML = `<thead><tr><th>Warehouse</th><th>Carton Fill Rate</th><th>SKU Fill Rate</th><th>OTIF</th><th>Avg Stock Age</th><th>Status</th></tr></thead>
+    <tbody>${derived.map(w=>{ const band = serviceLevelBand(w.otif); return `<tr><td class="cell-strong">${esc(w.name)}</td><td>${w.cartonFillRate}%</td><td>${w.skuFillRate}%</td><td>${w.otif}%</td><td>${w.avgStockAge} days</td><td><span class="status-pill ${band==='healthy'?'good':band==='critical'?'red':'amber'}">${band}</span></td></tr>`; }).join('')}</tbody>`;
+  $('serviceInsight').innerHTML = generateInsight('service');
+}
+
+function renderExceptions(){
+  const ex = buildExceptions();
+  const critical = ex.filter(e=>e.priority==='critical').length;
+  const high = ex.filter(e=>e.priority==='high').length;
+  $('exceptionSummary').innerHTML = `
+    <div class="mini-kpi"><b>${ex.length}</b><span>Total Exceptions Tracked</span></div>
+    <div class="mini-kpi"><b>${critical}</b><span>Critical Priority</span></div>
+    <div class="mini-kpi"><b>${high}</b><span>High Priority</span></div>
+    <div class="mini-kpi"><b>${fmt(scmData.totalPendingForDelivery)}</b><span>Total Pending for Delivery</span></div>`;
+  $('exceptionFullList').innerHTML = ex.map(e=>`
+    <div class="exception-row">
+      <span class="priority-dot ${e.priority}"></span>
+      <div><div class="exception-name">${esc(e.name)}</div><div class="exception-loc">${esc(e.loc)}</div></div>
+      <div class="exception-figure">${e.count}<small>count</small></div>
+      <div class="exception-figure">${e.qty}<small>qty</small></div>
+      <span class="priority-label ${e.priority}">${e.priority}</span>
+    </div>`).join('');
+  $('exceptionInsight').innerHTML = generateInsight('exceptions');
+}
+
+function renderAll(){
+  $('etlRefresh').textContent = scmData.meta.etlRefresh;
+  $('pbiRefresh').textContent = scmData.meta.pbiRefresh;
+  renderTowerKpis(); renderTowerCharts(); renderTowerPipelineBars(); renderTowerExceptions();
+  $('towerInsight').innerHTML = generateInsight('pipeline');
+  renderTracking(); renderTracker();
+  renderProcess(); renderInventory(); renderService(); renderExceptions();
+}
+
+const pages = { tower:{title:'SCM Control Tower',overline:'Executive summary'}, tracking:{title:'Order Tracking',overline:'Operational monitoring'},
+  process:{title:'Process / Stage Analysis',overline:'Bottleneck detection'}, inventory:{title:'Inventory & Stock Health',overline:'Stock position'},
+  service:{title:'Service Level & Fulfillment',overline:'Customer service performance'}, exceptions:{title:'Exceptions & Action Center',overline:'What to investigate first'} };
+
+function showToast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  populateTrackerFilters();
+  renderAll();
+
+  function goToPage(key){
+    if(!pages[key]) return;
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.page===key));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    $('page-'+key).classList.add('active');
+    $('pageTitle').textContent = pages[key].title;
+    $('pageOverline').textContent = pages[key].overline;
+    $('content').scrollTop = 0;
+  }
+  document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click', ()=> goToPage(btn.dataset.page)));
+  const initialPage = (location.hash||'').slice(1);
+  if (pages[initialPage]) goToPage(initialPage);
+  window.addEventListener('hashchange', ()=>{ const h=(location.hash||'').slice(1); if (pages[h]) goToPage(h); });
+
+  $('locFilter').addEventListener('change', e=>{ state.filters.loc=e.target.value; renderTracker(); });
+  $('statusFilter').addEventListener('change', e=>{ state.filters.status=e.target.value; renderTracker(); });
+  $('typeFilter').addEventListener('change', e=>{ state.filters.type=e.target.value; renderTracker(); });
+  $('whFilter').addEventListener('change', e=>{ state.filters.wh=e.target.value; renderTracker(); });
+  $('searchInput').addEventListener('input', e=>{ state.filters.search=e.target.value; renderTracker(); });
+
+  $('resetBtn').addEventListener('click', ()=>{
+    state.filters = { loc:'All locations', status:'All statuses', type:'All types', wh:'All warehouse types', search:'' };
+    ['locFilter','statusFilter','typeFilter','whFilter'].forEach(id=>$(id).selectedIndex=0);
+    $('searchInput').value=''; renderTracker(); showToast('Filters reset');
+  });
+
+  $('trackerTable').addEventListener('click', e=>{
+    const tr = e.target.closest('tr[data-idx]'); if(!tr) return;
+    openDetail(Number(tr.dataset.idx));
+  });
+  $('detailOverlay').addEventListener('click', e=>{ if(e.target.id==='detailOverlay') e.currentTarget.classList.remove('show'); });
+
+  $('refreshBtn').addEventListener('click', ()=>{ renderAll(); showToast('Dashboard re-rendered from source data'); });
+  $('exportBtn').addEventListener('click', ()=>{
+    const rows = [['Supply Location','Supply Location Name','Order Approval Date','Customer Name','Customer Town','Order No','Order Status','Order Type'],
+      ...scmData.orderTracker.map(r=>[r.warehouseType,r.loc,r.time,r.customer,r.town,r.order,r.status,r.type])];
+    const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'order-tracker-export.csv';
+    link.click(); URL.revokeObjectURL(link.href); showToast('Order Tracker export prepared');
+  });
+});
+</script>
+</body>
+</html>

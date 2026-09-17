@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seven Billion Analytics | Finance Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F8F9; --panel:#FFFFFF; --line:#E4E9EC;
+  --ink:#0B0F12; --muted:#5B6870;
+  --blue:#05B4CF; --blue-dim:rgba(5,180,207,.08); --blue-dim-2:rgba(5,180,207,.16);
+  --green:#0F9D67; --green-dim:rgba(15,157,103,.09);
+  --amber:#B4720A; --amber-dim:rgba(180,114,10,.1);
+  --red:#C23B32; --red-dim:rgba(194,59,50,.09);
+  --serif:'Newsreader',serif; --sans:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --radius:12px; --shadow:0 2px 10px rgba(11,15,18,.05);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--ink);margin:0}
+button,select,input{font:inherit}
+button{cursor:pointer;border:none;background:none}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#D3DBDE;border-radius:6px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:236px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.sb-brand .mark{width:28px;height:28px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px var(--sans)}
+.sb-brand span{font:700 13px var(--sans);color:var(--ink)}
+.sb-section-label{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:0 10px;margin:0 0 8px}
+.sb-nav{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:2px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font:600 12.5px var(--sans);color:var(--muted);cursor:pointer}
+.sb-item svg{flex:none;width:17px;height:17px;stroke:var(--muted)}
+.sb-item:hover{background:var(--blue-dim)}
+.sb-item.active{background:var(--blue-dim-2);color:var(--blue)}
+.sb-item.active svg{stroke:var(--blue)}
+.sb-foot{margin-top:auto;padding-top:16px}
+.back-link{display:inline-flex;align-items:center;gap:6px;font:700 12px var(--sans);color:var(--blue);padding:8px 10px;border-radius:8px}
+.back-link:hover{background:var(--blue-dim)}
+
+.main{flex:1;min-width:0}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
+.topbar .titles h1{font-size:20px}
+.topbar .titles p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.topbar .meta{display:flex;gap:10px;flex-wrap:wrap}
+.meta-chip{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:600 10.5px var(--mono);color:var(--muted)}
+.meta-chip b{display:block;color:var(--ink);font-size:12px}
+
+.content{padding:24px 28px 60px}
+.page{display:none}
+.page.active{display:block}
+
+.filter-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.filter-chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:600 11.5px var(--sans);color:var(--muted);display:flex;align-items:center;gap:8px}
+.filter-chip b{color:var(--ink);font-weight:600}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
+.kpi .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kpi svg{width:16px;height:16px;stroke:var(--blue)}
+.kpi small{color:var(--muted);font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.3px}
+.kpi b{display:block;font:700 22px var(--mono);color:var(--ink)}
+.kpi .sub{font:600 10.5px var(--sans);margin-top:4px}
+.sub.up{color:var(--green)} .sub.down{color:var(--red)} .sub.flat{color:var(--muted)}
+
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:980px){.grid-2{grid-template-columns:1fr}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+.panel h3{font-size:14.5px;margin-bottom:2px}
+.panel .sub-t{color:var(--muted);font-size:11.5px;margin:0 0 14px}
+.panel .chart-box{position:relative;height:260px}
+.panel .chart-box.tall{height:320px}
+
+.section-heading{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 12px}
+.section-heading .ov{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--blue)}
+.section-heading h2{font-size:17px;margin-top:2px}
+
+table.dtable{width:100%;border-collapse:collapse;font-size:12px}
+table.dtable th{text-align:right;font:700 9.5px var(--mono);text-transform:uppercase;letter-spacing:.3px;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.dtable th:first-child,table.dtable td:first-child{text-align:left}
+table.dtable td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);white-space:nowrap}
+table.dtable tr.row-total td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
+table.dtable td:first-child{font-family:var(--sans);font-weight:500}
+.table-scroll{overflow-x:auto}
+
+.cell-status{display:inline-block;min-width:44px;padding:3px 7px;border-radius:6px;font-weight:700;font-size:11px}
+.st-good{background:var(--green-dim);color:var(--green)}
+.st-warn{background:var(--amber-dim);color:var(--amber)}
+.st-bad{background:var(--red-dim);color:var(--red)}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font:700 10px var(--mono);text-transform:uppercase}
+.badge-good{background:var(--green-dim);color:var(--green)}
+.badge-warn{background:var(--amber-dim);color:var(--amber)}
+.badge-bad{background:var(--red-dim);color:var(--red)}
+
+.insight{display:flex;gap:10px;align-items:flex-start;background:var(--blue-dim);border:1px solid var(--blue-dim-2);border-radius:10px;padding:12px 14px;margin-top:14px;font-size:12.5px;color:#0A5A66}
+.insight svg{flex:none;width:16px;height:16px;stroke:var(--blue);margin-top:1px}
+.insight b{color:#073E47}
+
+.bullet-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+.bullet-row:first-child{border-top:none}
+.bullet-label{width:150px;flex:none;font-size:12px;font-weight:500}
+.bullet-track{flex:1;height:16px;background:var(--bg);border-radius:6px;position:relative;overflow:hidden}
+.bullet-fill{height:100%;border-radius:6px}
+.bullet-target{position:absolute;top:0;bottom:0;width:3px;background:var(--ink)}
+.bullet-val{width:56px;flex:none;text-align:right;font-family:var(--mono);font-size:12px;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand"><div class="mark"><svg viewBox="0 0 177 178" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.000148773 165.671L41.1802 124.491C38.9602 121.671 35.5902 117.291 31.6902 111.801C13.3202 85.9209 1.30016 68.5309 2.46016 48.0209C2.75016 42.9109 3.41016 31.2809 11.9602 23.9609C20.5702 16.5909 32.3102 17.7609 38.6202 18.3809C54.7402 19.9709 66.9901 28.7409 72.1701 32.4709C79.4301 37.6909 91.5601 48.3409 98.3201 49.7409C104.52 51.0309 110.29 49.9609 110.29 49.9609C113.84 49.3109 117.26 47.9009 121.17 45.6309L164.74 0L176.57 12.5609C173.72 15.7209 161.53 28.3509 155.77 34.5509C134.9 57.0709 128.67 62.3609 127.89 71.5009C127.37 77.5709 129.21 84.3509 134.59 92.2709C144.28 106.531 155.11 122.241 158.33 140.091C160.34 151.191 159.42 161.531 153.33 168.441C148.95 173.411 143.33 174.991 139.44 176.041C111.11 183.681 80.9601 158.581 73.9001 152.301C72.8301 151.351 71.9801 150.551 71.5001 150.101L82.4601 138.831C107.45 159.301 129.9 166.951 138.95 159.281C142.89 155.941 144.83 150.331 144.03 145.381C142.01 132.801 131.84 114.191 124.04 104.031C121.21 100.341 117.39 97.3609 112.96 95.8509C100.88 91.7609 92.9501 97.0109 84.6701 104.841C74.4901 114.461 48.7802 141.061 13.2802 176.651M82.7401 80.6809C92.2601 68.8609 73.1201 54.3709 67.6401 49.3709C67.6401 49.3709 53.8902 36.2509 33.7502 34.8109C29.1002 34.4809 23.7902 34.6009 20.0502 38.1409C14.4002 43.4909 17.7502 56.1009 19.5102 61.5609C25.8802 81.3609 44.6802 103.581 54.8902 111.781C66.8602 99.8109 68.5501 98.3009 82.7401 80.6909V80.6809Z" fill="currentColor"/></svg></div><span>Finance</span></div>
+    <div class="sb-section-label">Control Tower</div>
+    <ul class="sb-nav">
+      <li class="sb-item active" data-page="tower" onclick="showPage('tower')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 4h10M7 4c4 0 6.5 1.6 6.5 4.5S11 13 7 13h6l-6.5 7"/></svg>
+        Overview
+      </li>
+    </ul>
+    <div class="sb-section-label">Reconciliation</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="recon" onclick="showPage('recon')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 7h13M7 7l3-3M7 7l3 3"/><path d="M17 17H4M17 17l-3-3M17 17l-3 3"/></svg>
+        Primary vs. Secondary
+      </li>
+      <li class="sb-item" data-page="risk" onclick="showPage('risk')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>
+        Channel Stock Risk
+      </li>
+    </ul>
+    <div class="sb-section-label">Targets</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="targets" onclick="showPage('targets')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
+        MT / DT Target
+      </li>
+    </ul>
+    <div class="sb-foot">
+      <a class="back-link" href="../../index.html">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        All departments
+      </a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="titles">
+        <h1 id="page-title">Finance Control Tower</h1>
+        <p id="page-sub">Primary vs. secondary sales, reconciled continuously — closing the gap between what left the factory and what actually sold through.</p>
+      </div>
+      <div class="meta">
+        <div class="meta-chip">PRIMARY INVOICE TILL<b>16-09-2026, 05:42 AM</b></div>
+        <div class="meta-chip">SECONDARY FEED TILL<b>15-09-2026</b></div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- TOWER -->
+      <section class="page active" id="page-tower">
+        <div class="kpi-grid" id="towerKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Primary vs. secondary, last 14 days</h3>
+            <p class="sub-t">Daily sales value (₹ Lac) — the gap between the two lines is channel stock moving in or out</p>
+            <div class="chart-box tall"><canvas id="reconTrend"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>MT / DT achievement</h3>
+            <p class="sub-t">vs. secondary-sales target, month-to-date</p>
+            <div id="targetBullets"></div>
+          </div>
+        </div>
+        <div class="insight">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2 2 20h20L12 2Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>
+          <div><b>North-East is building channel stock fastest</b> — ₹6.8L of primary sales this month didn't sell through, the widest gap of any zone. See Channel Stock Risk for the full list.</div>
+        </div>
+      </section>
+
+      <!-- RECON -->
+      <section class="page" id="page-recon">
+        <div class="filter-row">
+          <div class="filter-chip">Date <b>1–16 Sep 2026</b></div>
+          <div class="filter-chip">Channel <b>All</b></div>
+        </div>
+        <div class="kpi-grid" id="reconKpis"></div>
+        <div class="panel" style="margin-bottom:16px">
+          <h3>Primary vs. secondary, by zone</h3>
+          <p class="sub-t">₹ Lac, month-to-date</p>
+          <div class="chart-box tall"><canvas id="reconBar"></canvas></div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Ledger</div><h2>Reconciliation, by zone</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="reconTable"></table>
+        </div>
+      </section>
+
+      <!-- RISK -->
+      <section class="page" id="page-risk">
+        <div class="kpi-grid" id="riskKpis"></div>
+        <div class="panel" style="margin-bottom:16px">
+          <h3>Channel stock build-up, by zone</h3>
+          <p class="sub-t">Primary sold but not yet sold through, ranked by exposure</p>
+          <div class="chart-box tall"><canvas id="riskBar"></canvas></div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Ledger</div><h2>Zones flagged for follow-up</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="riskTable"></table>
+        </div>
+      </section>
+
+      <!-- TARGETS -->
+      <section class="page" id="page-targets">
+        <div class="kpi-grid" id="tgtKpis"></div>
+        <div class="section-heading" style="margin-top:0;"><div><div class="ov">Ledger</div><h2>MT / DT achievement, by zone</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="tgtTable"></table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const ICON = {
+  rupee: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 4h10M7 4c4 0 6.5 1.6 6.5 4.5S11 13 7 13h6l-6.5 7"/></svg>',
+  swap: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M7 7h13M7 7l3-3M7 7l3 3"/><path d="M17 17H4M17 17l-3-3M17 17l-3 3"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>',
+  target: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>'
+};
+function $(id){ return document.getElementById(id); }
+function fmt0(n){ return Number(n).toLocaleString('en-IN'); }
+function fmt1(n){ return Number(n).toLocaleString('en-IN',{minimumFractionDigits:1,maximumFractionDigits:1}); }
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+  Chart.defaults.color = '#5B6870';
+  Chart.defaults.borderColor = '#EDF1F2';
+}
+function safeChart(el, config){
+  if (typeof Chart === 'undefined') { return null; }
+  try { return new Chart(el, config); } catch (e) { console.warn('chart render failed', e); return null; }
+}
+const CBLUE='#05B4CF', CGREEN='#0F9D67', CAMBER='#B4720A', CRED='#C23B32';
+
+/* ---------------- DATA (illustrative-but-realistic, anonymized) ---------------- */
+
+const zones = [
+  { zone:'North', primary:68.2, secondary:71.4 },
+  { zone:'South', primary:41.5, secondary:36.2 },
+  { zone:'East', primary:52.8, secondary:49.1 },
+  { zone:'West', primary:38.6, secondary:41.8 },
+  { zone:'North-East', primary:22.4, secondary:15.6 },
+  { zone:'South-Central', primary:28.9, secondary:31.2 },
+  { zone:'Central', primary:34.1, secondary:29.8 },
+  { zone:'North-West', primary:25.9, secondary:23.5 }
+];
+zones.forEach(z => { z.gap = Math.round((z.primary - z.secondary)*10)/10; z.gapPct = Math.round(z.gap/z.primary*1000)/10; });
+
+const reconTrendDays = Array.from({length:14},(_,i)=>i+1);
+function seedRandom(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
+const rnd = seedRandom(29);
+const primaryTrend = reconTrendDays.map(d => Math.round((19.5 + Math.sin(d/2.6)*4 + rnd()*3)*10)/10);
+const secondaryTrend = reconTrendDays.map(d => Math.round((18.7 + Math.sin(d/3.1)*3.6 + rnd()*3)*10)/10);
+
+const targets = [
+  { channel:'Modern Trade (MT)', secondary:142.6, target:156.8 },
+  { channel:'Direct Trade (DT)', secondary:98.4, target:112.0 },
+  { channel:'E-Commerce', secondary:57.6, target:52.0 }
+];
+targets.forEach(t => { t.pct = Math.round(t.secondary/t.target*1000)/10; });
+
+const targetsByZone = zones.map(z => ({ zone:z.zone, mtTarget: Math.round(z.primary*0.42*10)/10, mtActual: Math.round(z.primary*0.42*(0.82+rnd()*0.28)*10)/10 }));
+targetsByZone.forEach(z => { z.pct = Math.round(z.mtActual/z.mtTarget*1000)/10; });
+
+/* ---------------- RENDER ---------------- */
+
+function kpiTile(icon,label,value,sub,subClass){
+  return `<div class="kpi"><div class="top">${ICON[icon]}<small>${label}</small></div><b>${value}</b>${sub?`<div class="sub ${subClass||''}">${sub}</div>`:''}</div>`;
+}
+
+function renderTower(){
+  const totP = zones.reduce((a,z)=>a+z.primary,0), totS = zones.reduce((a,z)=>a+z.secondary,0);
+  $('towerKpis').innerHTML = [
+    kpiTile('rupee','Primary Sales MTD','₹'+fmt1(totP)+'L','GT, all zones',''),
+    kpiTile('rupee','Secondary Sales MTD','₹'+fmt1(totS)+'L','sell-through, all zones',''),
+    kpiTile('swap','Primary/Secondary Gap', (totP>totS?'+':'')+fmt1(totP-totS)+'L','channel stock movement','down'),
+    kpiTile('target','MT Achievement', targets[0].pct+'%','vs. secondary target','down'),
+    kpiTile('target','DT Achievement', targets[1].pct+'%','vs. secondary target','down'),
+    kpiTile('alert','Zones Building Stock','5','primary > secondary','down')
+  ].join('');
+
+  safeChart($('reconTrend'), { type:'line', data:{ labels: reconTrendDays.map(d=>'D'+d), datasets:[
+    { label:'Primary', data: primaryTrend, borderColor:CBLUE, backgroundColor:'rgba(5,180,207,.06)', fill:true, tension:.35, pointRadius:0, borderWidth:2 },
+    { label:'Secondary', data: secondaryTrend, borderColor:CGREEN, backgroundColor:'rgba(15,157,103,.05)', fill:true, tension:.35, pointRadius:0, borderWidth:2 }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle'}}},
+    scales:{ x:{ grid:{display:false} }, y:{ title:{display:true,text:'₹ Lac'}, grid:{color:'#EDF1F2'} } } }});
+
+  const BULLET_SCALE = 130; // track represents 0-130% achievement, target line marks 100%
+  const targetLeftPct = Math.round(100/BULLET_SCALE*1000)/10;
+  $('targetBullets').innerHTML = targets.map(t=>{
+    const col = t.pct<85?CRED:t.pct<95?CAMBER:CGREEN;
+    const fillPct = Math.round(Math.min(t.pct,BULLET_SCALE)/BULLET_SCALE*1000)/10;
+    return `<div class="bullet-row"><div class="bullet-label">${t.channel}</div><div class="bullet-track"><div class="bullet-fill" style="width:${fillPct}%;background:${col}"></div><div class="bullet-target" style="left:${targetLeftPct}%"></div></div><div class="bullet-val">${t.pct}%</div></div>`;
+  }).join('');
+}
+
+function renderRecon(){
+  const totP = zones.reduce((a,z)=>a+z.primary,0), totS = zones.reduce((a,z)=>a+z.secondary,0);
+  $('reconKpis').innerHTML = [
+    kpiTile('rupee','Total Primary','₹'+fmt1(totP)+'L','1–16 Sep 2026',''),
+    kpiTile('rupee','Total Secondary','₹'+fmt1(totS)+'L','1–16 Sep 2026',''),
+    kpiTile('swap','Zones Reconciled','8','all zones',''),
+    kpiTile('alert','Largest Gap','North-East','−30% sell-through vs. primary','down')
+  ].join('');
+
+  safeChart($('reconBar'), { type:'bar', data:{ labels: zones.map(z=>z.zone), datasets:[
+    { label:'Primary', data: zones.map(z=>z.primary), backgroundColor:CBLUE },
+    { label:'Secondary', data: zones.map(z=>z.secondary), backgroundColor:CGREEN }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle'}}},
+    scales:{ x:{ grid:{display:false} }, y:{ title:{display:true,text:'₹ Lac'}, grid:{color:'#EDF1F2'} } } }});
+
+  let rows = '<thead><tr><th>Zone</th><th>Primary</th><th>Secondary</th><th>Gap</th><th>Gap %</th></tr></thead><tbody>';
+  zones.slice().sort((a,b)=>b.gapPct-a.gapPct).forEach(z=>{
+    const st = z.gapPct>15?'st-bad':z.gapPct>5?'st-warn':'st-good';
+    rows += `<tr><td>${z.zone}</td><td>₹${fmt1(z.primary)}L</td><td>₹${fmt1(z.secondary)}L</td><td>${z.gap>0?'+':''}₹${fmt1(z.gap)}L</td><td><span class="cell-status ${st}">${z.gapPct>0?'+':''}${z.gapPct}%</span></td></tr>`;
+  });
+  const t = zones.reduce((a,z)=>({primary:a.primary+z.primary,secondary:a.secondary+z.secondary}),{primary:0,secondary:0});
+  rows += `<tr class="row-total"><td>Total</td><td>₹${fmt1(t.primary)}L</td><td>₹${fmt1(t.secondary)}L</td><td>+₹${fmt1(t.primary-t.secondary)}L</td><td>${Math.round((t.primary-t.secondary)/t.primary*1000)/10}%</td></tr>`;
+  $('reconTable').innerHTML = rows + '</tbody>';
+}
+
+function renderRisk(){
+  const buildup = zones.filter(z=>z.gap>0).sort((a,b)=>b.gapPct-a.gapPct);
+  $('riskKpis').innerHTML = [
+    kpiTile('alert','Zones At Risk', String(buildup.length),'primary exceeds secondary','down'),
+    kpiTile('rupee','Total Exposure','₹'+fmt1(buildup.reduce((a,z)=>a+z.gap,0))+'L','unsold primary stock','down'),
+    kpiTile('target','Worst Zone', buildup[0].zone, '+'+buildup[0].gapPct+'% build-up','down'),
+    kpiTile('check','Zones Clear','3','secondary ≥ primary','up')
+  ].join('');
+
+  safeChart($('riskBar'), { type:'bar', data:{ labels: buildup.map(z=>z.zone), datasets:[{
+    data: buildup.map(z=>z.gapPct), backgroundColor: buildup.map(z=> z.gapPct>15?CRED:z.gapPct>5?CAMBER:CGREEN)
+  }]}, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ title:{display:true,text:'% of primary not yet sold through'}, grid:{color:'#EDF1F2'} }, y:{grid:{display:false}} } }});
+
+  let rows = '<thead><tr><th>Zone</th><th>Unsold Value</th><th>Build-up %</th><th>Action</th></tr></thead><tbody>';
+  buildup.forEach(z=>{
+    const badge = z.gapPct>15?'badge-bad':z.gapPct>5?'badge-warn':'badge-good';
+    const action = z.gapPct>15?'Hold next allocation':z.gapPct>5?'Monitor closely':'No action needed';
+    rows += `<tr><td>${z.zone}</td><td>₹${fmt1(z.gap)}L</td><td><span class="badge ${badge}">${z.gapPct}%</span></td><td style="text-align:left;font-family:var(--sans);font-weight:400">${action}</td></tr>`;
+  });
+  $('riskTable').innerHTML = rows + '</tbody>';
+}
+
+function renderTargets(){
+  $('tgtKpis').innerHTML = [
+    kpiTile('target','MT Achievement', targets[0].pct+'%','₹'+fmt1(targets[0].secondary)+'L of ₹'+fmt1(targets[0].target)+'L','down'),
+    kpiTile('target','DT Achievement', targets[1].pct+'%','₹'+fmt1(targets[1].secondary)+'L of ₹'+fmt1(targets[1].target)+'L','down'),
+    kpiTile('target','E-Commerce Achievement', targets[2].pct+'%','₹'+fmt1(targets[2].secondary)+'L of ₹'+fmt1(targets[2].target)+'L','up'),
+    kpiTile('check','Zones On Target', String(targetsByZone.filter(z=>z.pct>=95).length)+' of '+targetsByZone.length,'≥95% achievement','')
+  ].join('');
+
+  let rows = '<thead><tr><th>Zone</th><th>MT/DT Target</th><th>Actual</th><th>Achievement</th></tr></thead><tbody>';
+  targetsByZone.slice().sort((a,b)=>a.pct-b.pct).forEach(z=>{
+    const st = z.pct<85?'st-bad':z.pct<95?'st-warn':'st-good';
+    rows += `<tr><td>${z.zone}</td><td>₹${fmt1(z.mtTarget)}L</td><td>₹${fmt1(z.mtActual)}L</td><td><span class="cell-status ${st}">${z.pct}%</span></td></tr>`;
+  });
+  $('tgtTable').innerHTML = rows + '</tbody>';
+}
+
+const titles = {
+  tower:['Finance Control Tower','Primary vs. secondary sales, reconciled continuously — closing the gap between what left the factory and what actually sold through.'],
+  recon:['Primary vs. Secondary','Every zone’s primary billing measured against its actual sell-through.'],
+  risk:['Channel Stock Risk','Where primary sales are running ahead of sell-through — and what to do about it.'],
+  targets:['MT / DT Target','Modern Trade and Direct Trade achievement, measured against secondary sales, not just what left the factory.']
+};
+const rendered = {};
+const renderers = { tower:renderTower, recon:renderRecon, risk:renderRisk, targets:renderTargets };
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  $('page-'+id).classList.add('active');
+  document.querySelector(`.sb-item[data-page="${id}"]`).classList.add('active');
+  $('page-title').textContent = titles[id][0];
+  $('page-sub').textContent = titles[id][1];
+  if(!rendered[id]){ renderers[id](); rendered[id] = true; }
+}
+const __h = (location.hash||'').slice(1);
+showPage(titles[__h] ? __h : 'tower');
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (titles[h]) showPage(h); });
+</script>
+</body>
+</html>

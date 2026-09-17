@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seven Billion Analytics | FMCG Operations Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #F5F8FA;
+  --panel: #FFFFFF;
+  --line: #E3EAED;
+  --ink: #13343B;
+  --muted: #2E575D;
+  --blue: #05B4CF;
+  --blue-dim: rgba(5, 180, 207, 0.08);
+  --blue-dim-2: rgba(5, 180, 207, 0.14);
+  --amber: #C2740A;
+  --amber-dim: rgba(194, 116, 10, 0.09);
+  --green: #1A9A6B;
+  --green-dim: rgba(26, 154, 107, 0.1);
+  --mono: 'IBM Plex Sans', sans-serif;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --serif: 'Newsreader', serif;
+  --radius: 14px;
+  --shadow: 0 3px 14px rgba(16, 34, 42, 0.06);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.6 var(--sans); }
+button, select, input { font: inherit; }
+button { cursor: pointer; border: none; outline: none; background: none; }
+a { color: inherit; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #C7D3D7; border-radius: 6px; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 28px;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.brand-area { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 30px; height: 30px; color: var(--blue); flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-name { font: 800 15px var(--sans); color: var(--ink); }
+.proto-pill {
+  font: 700 10.5px var(--mono); letter-spacing: .3px; text-transform: uppercase;
+  color: var(--blue); background: var(--blue-dim);
+  padding: 5px 11px; border-radius: 999px; border: 1px solid var(--blue-dim-2);
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 80px; }
+
+.hero { text-align: center; max-width: 680px; margin: 0 auto 40px; }
+.hero h1 { font: 500 34px/1.2 var(--serif); letter-spacing: -0.3px; margin: 0 0 12px; color: var(--ink); }
+.hero p { color: var(--muted); font-size: 15px; margin: 0; }
+.hero-note {
+  margin-top: 16px; display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; color: var(--muted); background: var(--panel);
+  border: 1px solid var(--line); padding: 6px 12px; border-radius: 999px;
+}
+
+/* Subway — persistent metro-line navigation for the 8 live departments */
+.subway-section { margin: 0 0 44px; }
+.subway-scroll { overflow-x: auto; padding: 6px 4px 10px; }
+.subway-svg { display: block; margin: 0 auto; }
+.subway-station { cursor: pointer; }
+.stn-circle { fill: var(--panel); stroke: var(--blue-dim-2); stroke-width: 2; box-shadow: var(--shadow); transition: fill .15s ease, stroke .15s ease; }
+.subway-station:hover .stn-circle { stroke: var(--blue); }
+.subway-station.active .stn-circle { fill: var(--blue); stroke: var(--blue); }
+.stn-icon { stroke: var(--blue); transition: stroke .15s ease; }
+.subway-station.active .stn-icon { stroke: #fff; }
+.stn-label { fill: var(--muted); font: 700 9.5px var(--sans); text-transform: uppercase; letter-spacing: .3px; transition: fill .15s ease; }
+.subway-station:hover .stn-label { fill: var(--ink); }
+.subway-station.active .stn-label { fill: var(--ink); font-weight: 800; }
+.stn-caret { opacity: 0; transition: opacity .15s ease; }
+.subway-station.active .stn-caret { opacity: 1; }
+.subway-rail { stroke: var(--blue-dim-2); }
+.subway-rail-fg { stroke: var(--blue); stroke-dasharray: 5 6; opacity: .55; }
+
+/* Section headers */
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 16px; }
+.section-head h2 { font: 500 19px var(--serif); margin: 0; color: var(--ink); }
+.section-head span { color: var(--muted); font-size: 12.5px; }
+.section-block { margin-bottom: 44px; }
+.section-label {
+  font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); margin: 0 0 6px;
+}
+
+/* Tile grid */
+.tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 980px) { .tile-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .tile-grid { grid-template-columns: 1fr; } }
+
+.tile {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px; cursor: pointer; text-align: left;
+  box-shadow: var(--shadow); transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  display: flex; flex-direction: column; gap: 10px; width: 100%;
+}
+.tile:hover { transform: translateY(-3px); border-color: var(--blue-dim-2); box-shadow: 0 8px 22px rgba(16,34,42,0.1); }
+.tile-icon { color: var(--blue); width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.tile-icon svg { width: 100%; height: 100%; }
+.tile h3 { font-size: 14.5px; margin: 0; }
+.tile p { color: var(--muted); font-size: 12px; margin: 0; line-height: 1.5; }
+.tile-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+.pill {
+  font: 700 9.5px var(--mono); letter-spacing: .3px; text-transform: uppercase;
+  padding: 4px 8px; border-radius: 999px;
+}
+.pill-live { background: var(--blue); color: #fff; }
+.pill-preview { background: var(--blue-dim); color: var(--blue); }
+.pill-roadmap { background: var(--amber-dim); color: var(--amber); border: 1px dashed var(--amber); }
+.tile-arrow { color: var(--muted); font-size: 13px; }
+
+.tile.roadmap { background: #FBFCFC; border-style: dashed; }
+.roadmap-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 980px) { .roadmap-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .roadmap-grid { grid-template-columns: 1fr; } }
+.roadmap-grid .tile { padding: 14px; }
+.roadmap-grid .tile-icon { color: var(--amber); width: 20px; height: 20px; }
+.roadmap-grid h3 { font-size: 13px; }
+
+/* Section-card view — sub-sections inside one department */
+.dept-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 28px;
+  padding-bottom: 22px; border-bottom: 1px solid var(--line);
+}
+.dept-header .dept-icon {
+  width: 46px; height: 46px; border-radius: 12px; flex: none;
+  background: var(--blue-dim); color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+}
+.dept-header .dept-icon svg { width: 24px; height: 24px; }
+.dept-header h2 { font: 500 22px var(--serif); margin: 0 0 4px; color: var(--ink); }
+.dept-header p { color: var(--muted); font-size: 13px; margin: 0; max-width: 620px; }
+.dept-header .cta-btn { margin: 0 0 0 auto; flex: none; }
+
+.section-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 900px) { .section-card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .section-card-grid { grid-template-columns: 1fr; } }
+
+.section-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px; cursor: pointer; text-align: left; width: 100%;
+  box-shadow: var(--shadow); transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.section-card:hover { transform: translateY(-3px); border-color: var(--blue-dim-2); box-shadow: 0 8px 22px rgba(16,34,42,0.1); }
+.section-card .sec-num {
+  width: 24px; height: 24px; border-radius: 7px; flex: none;
+  background: var(--blue-dim); color: var(--blue); font: 700 11px var(--mono);
+  display: flex; align-items: center; justify-content: center;
+}
+.section-card h3 { font-size: 14px; margin: 0; }
+.section-card p { color: var(--muted); font-size: 12px; margin: 0; line-height: 1.5; }
+.section-card .tile-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+
+/* Detail view */
+.view-container { display: none; }
+.view-container.active { display: block; }
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 700 12.5px var(--sans); color: var(--blue);
+  margin-bottom: 18px; cursor: pointer;
+}
+.detail-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 30px; max-width: 760px; margin: 0 auto;
+}
+.detail-card h2 { font: 500 25px var(--serif); margin: 10px 0 8px; color: var(--ink); }
+.detail-card > p.desc { color: var(--muted); margin: 0 0 20px; max-width: 560px; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+@media (max-width: 640px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+.kpi-tile { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.kpi-tile b { display: block; font: 700 19px var(--mono); color: var(--blue); }
+.kpi-tile small { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .3px; }
+.kpi-tile.amber b { color: var(--amber); }
+
+.cta-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--blue); color: #fff; font: 700 13px var(--sans);
+  padding: 11px 18px; border-radius: 10px; margin-bottom: 22px;
+  transition: opacity .12s ease; text-decoration: none;
+}
+.cta-btn:hover { opacity: .88; }
+
+.step-list { list-style: none; margin: 0; padding: 0; }
+.step-list li {
+  display: flex; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line);
+  font-size: 13px; line-height: 1.55;
+}
+.step-list li:first-child { border-top: none; }
+.step-num {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--blue-dim); color: var(--blue); font: 700 11px var(--mono);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.callout {
+  margin-top: 22px; padding: 14px 16px; border-radius: 10px;
+  background: var(--amber-dim); border: 1px solid rgba(194,116,10,0.22);
+  font-size: 12.5px; color: #7A4E08; line-height: 1.6;
+}
+.callout b { color: #5c3a06; }
+
+/* Live iframe view */
+.iframe-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--panel); border: 1px solid var(--line); border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 12px 20px;
+}
+.iframe-toolbar .left { display: flex; align-items: center; gap: 14px; }
+.iframe-toolbar .dept-name { font: 700 13px var(--sans); color: var(--ink); }
+.dash-frame {
+  width: 100%; height: calc(100vh - 300px); min-height: 560px; border: 1px solid var(--line);
+  border-radius: 0 0 var(--radius) var(--radius); display: block; background: #06171d;
+  box-shadow: var(--shadow);
+}
+
+footer { text-align: center; color: var(--muted); font-size: 11.5px; padding: 30px 0 10px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand-area" onclick="showHome()" style="cursor:pointer;">
+    <div class="logo-icon"><svg viewBox="0 0 177 178" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.000148773 165.671L41.1802 124.491C38.9602 121.671 35.5902 117.291 31.6902 111.801C13.3202 85.9209 1.30016 68.5309 2.46016 48.0209C2.75016 42.9109 3.41016 31.2809 11.9602 23.9609C20.5702 16.5909 32.3102 17.7609 38.6202 18.3809C54.7402 19.9709 66.9901 28.7409 72.1701 32.4709C79.4301 37.6909 91.5601 48.3409 98.3201 49.7409C104.52 51.0309 110.29 49.9609 110.29 49.9609C113.84 49.3109 117.26 47.9009 121.17 45.6309L164.74 0L176.57 12.5609C173.72 15.7209 161.53 28.3509 155.77 34.5509C134.9 57.0709 128.67 62.3609 127.89 71.5009C127.37 77.5709 129.21 84.3509 134.59 92.2709C144.28 106.531 155.11 122.241 158.33 140.091C160.34 151.191 159.42 161.531 153.33 168.441C148.95 173.411 143.33 174.991 139.44 176.041C111.11 183.681 80.9601 158.581 73.9001 152.301C72.8301 151.351 71.9801 150.551 71.5001 150.101L82.4601 138.831C107.45 159.301 129.9 166.951 138.95 159.281C142.89 155.941 144.83 150.331 144.03 145.381C142.01 132.801 131.84 114.191 124.04 104.031C121.21 100.341 117.39 97.3609 112.96 95.8509C100.88 91.7609 92.9501 97.0109 84.6701 104.841C74.4901 114.461 48.7802 141.061 13.2802 176.651M82.7401 80.6809C92.2601 68.8609 73.1201 54.3709 67.6401 49.3709C67.6401 49.3709 53.8902 36.2509 33.7502 34.8109C29.1002 34.4809 23.7902 34.6009 20.0502 38.1409C14.4002 43.4909 17.7502 56.1009 19.5102 61.5609C25.8802 81.3609 44.6802 103.581 54.8902 111.781C66.8602 99.8109 68.5501 98.3009 82.7401 80.6909V80.6809Z" fill="currentColor"/></svg></div>
+    <span class="brand-name">Seven Billion Analytics</span>
+  </div>
+  <span class="proto-pill">● Live Prototype</span>
+</header>
+
+<!-- Persistent shell: hero + subway stay visible across every state -->
+<div class="wrap" style="padding-bottom:0;">
+  <section class="hero">
+    <h1>Your Operating Cycle, in One Place</h1>
+    <p>How we connect Sales, Supply Chain, Production and Finance into a single control tower for FMCG &amp; CPG manufacturers — click any stage below to see how it runs.</p>
+    <div class="hero-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px;"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Illustrative, anonymized data — built to show the shape of what a real deployment looks like</div>
+  </section>
+
+  <nav class="subway-section" aria-label="Operating cycle stages">
+    <div class="subway-scroll">
+      <div class="subway-svg" id="subway"><!-- rendered by JS --></div>
+    </div>
+  </nav>
+</div>
+
+<!-- STAGE: swaps between home / roadmap detail / live dashboard -->
+<main id="view-home" class="view-container active">
+  <div class="wrap" style="padding-top:0;">
+    <div class="section-block">
+      <div class="section-head">
+        <h2>Departments</h2>
+        <span>Click a tile — or a stage above — to see what's inside</span>
+      </div>
+      <div class="tile-grid" id="tile-grid"><!-- rendered by JS --></div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-head">
+        <h2>What We Build Next</h2>
+        <span>Scoped and ready — not yet live</span>
+      </div>
+      <div class="roadmap-grid" id="roadmap-grid"><!-- rendered by JS --></div>
+    </div>
+  </div>
+  <footer>© Seven Billion Analytics — FMCG &amp; CPG operations, one control tower.</footer>
+</main>
+
+<!-- STAGE: roadmap detail -->
+<main id="view-detail" class="view-container">
+  <div class="wrap" style="padding-top:0;">
+    <span class="back-link" onclick="showHome()">← All departments</span>
+    <div class="detail-card" id="detail-card"><!-- rendered by JS --></div>
+  </div>
+  <footer>© Seven Billion Analytics — FMCG &amp; CPG operations, one control tower.</footer>
+</main>
+
+<!-- STAGE: section cards for one department -->
+<main id="view-sections" class="view-container">
+  <div class="wrap" style="padding-top:0;">
+    <span class="back-link" onclick="showHome()">← All departments</span>
+    <div class="dept-header" id="dept-header"><!-- rendered by JS --></div>
+    <div class="section-card-grid" id="section-card-grid"><!-- rendered by JS --></div>
+  </div>
+  <footer>© Seven Billion Analytics — FMCG &amp; CPG operations, one control tower.</footer>
+</main>
+
+<!-- STAGE: live embedded dashboard -->
+<main id="view-live" class="view-container">
+  <div class="wrap" style="padding-top:0; padding-bottom:16px;">
+    <div class="iframe-toolbar">
+      <div class="left">
+        <span class="back-link" style="margin:0;" onclick="showSections(currentDept)">← <span id="live-back-label">Sections</span></span>
+        <span class="dept-name" id="live-dept-name"></span>
+      </div>
+      <span class="proto-pill">● Live</span>
+    </div>
+    <iframe id="dash-frame" class="dash-frame" src="about:blank"></iframe>
+  </div>
+</main>
+
+<script>
+const ICONS = {
+  sales: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  inventory: '<path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  production: '<path d="M3 21V9l6 4V9l6 4V9l6 4v8H3Z"/><path d="M3 21h18"/>',
+  wms: '<path d="M3 9.5 12 3l9 6.5V21H3V9.5Z"/><path d="M9 21v-7h6v7"/>',
+  scm: '<rect x="1" y="7" width="13" height="10" rx="1"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="19" r="1.6"/><circle cx="17.5" cy="19" r="1.6"/>',
+  tms: '<circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8 19h7a3 3 0 0 0 3-3v-1a3 3 0 0 0-3-3H9a3 3 0 0 1-3-3v-1a3 3 0 0 1 3-3h7"/>',
+  quality: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/>',
+  finance: '<path d="M7 4h10M7 4c4 0 6.5 1.6 6.5 4.5S11 13 7 13h6l-6.5 7"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.3 2"/>',
+  filetext: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5c2.5.3 4.5 2.5 4.5 5.5"/>',
+  clipboard: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="M9 13l2 2 4-4"/>',
+  message: '<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.2 0-2.4-.3-3.4-.8L3 21l1.8-6.1a8.5 8.5 0 1 1 16.2-3.4Z"/>'
+};
+function iconSvg(key, size) {
+  size = size || 22;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[key] || ''}</svg>`;
+}
+
+const departments = [
+  { id:'sales', icon:'sales', title:'Sales', kind:'real', live:true, src:'work/sales/sales.html', liveLabel:'Sales Dashboard',
+    desc:'Slices the sales number by team, state, channel, brand and SKU so a shortfall traces to one cause.',
+    sections:[
+      { id:'tower', label:'Sales Control Tower', desc:'Primary vs. secondary sales, target achievement and FG coverage — the executive summary.' },
+      { id:'performance', label:'Sales Performance', desc:'Primary, secondary and collection trend by team.' },
+      { id:'target', label:'Target / SO_ASM', desc:'Target cascaded down to every SO and ASM, with achievement and gap.' },
+      { id:'product', label:'Product Analysis', desc:'Brand and SKU-level breakdown of what’s selling and what’s lagging.' },
+      { id:'channel', label:'Channel & Region', desc:'Sales split by channel and zone to isolate where a shortfall is coming from.' },
+      { id:'fg', label:'FG Coverage', desc:'Finished-goods stock coverage behind every order, by region and class.' },
+      { id:'insights', label:'Sales Insights', desc:'Auto-surfaced call-outs on what to investigate first.' }
+    ],
+    steps:[
+      'Target is cascaded — corporate target splits by channel, state, CFA, team.',
+      'Orders are booked daily — SOs/ASMs book against retailers & distributors.',
+      'Availability is checked — order checked against FG Stock from Inventory Planning.',
+      'Achievement is tracked — booked sales rolled up vs. targets.',
+      'Coverage is calculated — Achieved ÷ Target refreshed at every level.',
+      'Gaps are flagged — shortfalls surface to ASM/RM for correction.',
+      'Primary sales closes the loop — invoiced order becomes the Primary Sales figure for Finance.'
+    ],
+    kpiTiles:[
+      { label:'Primary Sales MTD', value:'₹320.7L' },
+      { label:'Target Achievement', value:'99%' },
+      { label:'FG Coverage (Avg)', value:'79%' },
+      { label:'Secondary Sales MTD', value:'₹506.8L' }
+    ] },
+  { id:'inventory-planning', icon:'inventory', title:'Inventory Planning', kind:'real', live:true, src:'work/inventory/inventory.html', liveLabel:'Inventory Dashboard',
+    desc:'Sits between Production and Sales, watching RM/PM and FG coverage for both shortage and excess at once.',
+    sections:[
+      { id:'tower', label:'Overview', desc:'RM/PM & FG coverage, stock-out risk and overstock across all zones.' },
+      { id:'rmpm', label:'RM/PM Coverage', desc:'Forecast, receipt and consumption of raw & packing material, by plant.' },
+      { id:'fg', label:'FG Stock Coverage', desc:'Finished-goods coverage against the days-of-stock norm, by SKU and zone.' },
+      { id:'oos', label:'Stock Out & Sales Loss', desc:'Where and when stock-outs are costing real sales, day by day.' },
+      { id:'fresh', label:'Freshness & Ageing', desc:'Batch ageing, ABC classification and expiry exposure.' },
+      { id:'exceptions', label:'Exceptions & Action', desc:'Every SKU × location flagged for stock-out, overstock or near-expiry risk.' }
+    ],
+    steps:[
+      'Demand and supply are pulled together — forecast/pipeline vs. RM/PM & FG stock from WMS.',
+      'Coverage is calculated — RM/PM and FG Stock Coverage in days, SKU & location.',
+      'Risk is classified — below threshold = Stock Out risk; above = Over Stock.',
+      'Replenishment is raised — at-risk SKUs trigger a request to Production Planning.',
+      'Rebalancing is raised — transfer requests between CFAs/warehouses.',
+      'Root cause is tracked — FG Out of Stock incidents traced back to source.'
+    ],
+    kpiTiles:[
+      { label:'RM/PM Stock Coverage', value:'8 days' },
+      { label:'FG Stock Coverage', value:'12 days' },
+      { label:'SKUs at Stock-Out Risk', value:'14' },
+      { label:'SKUs Overstocked', value:'9' }
+    ] },
+  { id:'production', icon:'production', title:'Production', kind:'real', live:true, src:'work/production/production.html', liveLabel:'Production Dashboard',
+    desc:'Watches whether RM/PM on hand, factory capacity and the approved plan all agree.',
+    sections:[
+      { id:'tower', label:'Overview', desc:'Capacity, plan adherence and material yield across all plants.' },
+      { id:'plan', label:'Plan Adherence', desc:'Actual output tracked against the approved plan, by plant.' },
+      { id:'yield', label:'Yield & BOM', desc:'Actual material consumption against the standard bill of materials.' },
+      { id:'feasibility', label:'Feasibility & Capacity', desc:'Whether next week’s demand can be produced, given capacity and manpower.' }
+    ],
+    steps:[
+      'Demand is consolidated — Sales forecast & confirmed order pipeline roll into the weekly plan.',
+      'Material position is checked — Inventory Planning shares RM/PM stock vs. BOM requirement.',
+      'Feasibility is run — capacity, manpower and equipment checked against requirement.',
+      'Plan is released or escalated — finalized to shop floor, or shortfall escalated to Procurement.',
+      'Shop floor executes — production runs batch by batch or shift by shift.',
+      'Actuals are logged — Plan Adherence and BOM U/S Actual compared.',
+      'Finished goods move on — handed to warehouse with a GRN, closing the loop to Inventory Planning.'
+    ],
+    kpiTiles:[
+      { label:'RM/PM Coverage', value:'6.2 days' },
+      { label:'Plan Adherence', value:'91%' },
+      { label:'Capacity Utilization', value:'78%' },
+      { label:'BOM Usage vs. Standard', value:'+2.1%' }
+    ] },
+  { id:'wms', icon:'wms', title:'WMS', kind:'real', live:true, src:'work/wms/wms.html', liveLabel:'WMS Dashboard',
+    desc:'Covers receiving, put-away, picking, packing, dispatch and internal movement so system stock matches the floor.',
+    sections:[
+      { id:'tower', label:'Overview', desc:'Receiving, put-away, picking, packing and dispatch in one funnel.' },
+      { id:'inbound', label:'Inbound & Put-away', desc:'From gate entry to shelf — speed and accuracy of received stock.' },
+      { id:'pick', label:'Picking & Packing', desc:'Fulfilment accuracy and speed, from pick list to packed carton.' },
+      { id:'capacity', label:'Warehouse Capacity', desc:'Storage utilization across the network — where space is running out.' }
+    ],
+    steps:[
+      'Inbound — RM/PM or FG physically received at the gate against a GRN/PO.',
+      'Put-away — received stock moves from dock to its storage bin.',
+      'Inventory ledger updates — system stock position matched to the shelf.',
+      'Picking — pick list generated on order release, stock pulled from bin.',
+      'Packing — picked stock packed to dispatch requirement with documentation.',
+      'Outbound / Dispatch — packed stock handed off (this is SCM’s "Loading").',
+      'Stock Movement — internal transfers between bins/warehouses logged & reconciled.'
+    ],
+    kpiTiles:[
+      { label:'Warehouse Fill Rate', value:'96%' },
+      { label:'Put-away TAT', value:'3.1 hrs' },
+      { label:'Picking Accuracy', value:'99.2%' },
+      { label:'Ledger Variance', value:'0.4%' }
+    ] },
+  { id:'scm', icon:'scm', title:'SCM – Order to Delivery', kind:'real', live:true, src:'work/scm Dashboard/index.html', liveLabel:'SCM Dashboard',
+    desc:'Follows one order through all handoffs so a delay shows up at the exact stage causing it.',
+    sections:[
+      { id:'tower', label:'SCM Control Tower', desc:'End-to-end order-to-delivery view, with OTIF and fill rate front and center.' },
+      { id:'tracking', label:'Order Tracking', desc:'Live status of every order across all nine order-to-delivery stages.' },
+      { id:'process', label:'Process / Stage Analysis', desc:'The delivery pipeline visualized stage by stage to spot the bottleneck.' },
+      { id:'inventory', label:'Inventory & Stock Health', desc:'Stock position feeding dispatch, tracked in days of cover.' },
+      { id:'service', label:'Service & Fulfillment', desc:'OTIF, carton fill rate and delivery TAT against target.' },
+      { id:'exceptions', label:'Exceptions & Action', desc:'Orders stuck, delayed or blocked, flagged for action.' }
+    ],
+    steps:[
+      'Order Approval — Sales/Credit checks credit limit and scheme validity.',
+      'Indent Placement — a transport indent is raised for the approved order.',
+      'Indent Confirmation — the transporter/TMS confirms it can be fulfilled.',
+      'Vehicle No. Confirmation — a specific vehicle is assigned and logged.',
+      'Vehicle Reporting & Gate Entry — vehicle reports, logged in at the gate.',
+      'Loading — warehouse loads goods against the order.',
+      'Invoice & Gate Out — Finance invoices once loading is confirmed; vehicle exits.',
+      'Transit & CFA Receipt — TMS tracks in transit; CFA receives and raises GRN.',
+      'POD & Delivery — proof of delivery collected; order & delivery TAT calculated.'
+    ],
+    kpiTiles:[
+      { label:'Total Pending Delivery', value:'8' },
+      { label:'OTIF', value:'88%' },
+      { label:'Carton Fill Rate', value:'97%' },
+      { label:'Stock Days', value:'8.4' }
+    ] },
+  { id:'tms', icon:'tms', title:'TMS – Transport', kind:'real', live:true, src:'work/tms/tms.html', liveLabel:'TMS Dashboard',
+    desc:'Tracks live location, trip performance and indent turnaround, and flags wasted "garbage trips."',
+    sections:[
+      { id:'tower', label:'Live Trip Board', desc:'Live location and status for every vehicle currently on the road.' },
+      { id:'analytics', label:'Trip Analytics', desc:'Duration, distance and delay across the network, route by route.' },
+      { id:'indent', label:'Indent & Transporter SLA', desc:'How reliably each transporter fulfills an indent within window.' },
+      { id:'garbage', label:'Garbage Trips', desc:'Trips flagged duplicate, invalid or incomplete — and what they cost.' }
+    ],
+    steps:[
+      'Indent is received — from SCM’s order-to-delivery flow.',
+      'Vehicle is sourced — from owned fleet or the open market.',
+      'Movement is tracked live — reporting → gate-out → delivery.',
+      'Trip is closed and logged — duration, distance, delay vs. planned TAT.',
+      'Trip is audited — duplicate/invalid/incomplete flagged as a Garbage Trip.',
+      'Performance rolls up — fulfilment rate & TAT aggregate into Indent Analytics.'
+    ],
+    kpiTiles:[
+      { label:'Trips in Transit', value:'62' },
+      { label:'On-Time Trip %', value:'88%' },
+      { label:'Avg Indent TAT', value:'5.4 hrs' },
+      { label:'Garbage Trips', value:'3.2%' }
+    ] },
+  { id:'quality', icon:'quality', title:'Quality', kind:'real', live:true, src:'work/quality/quality.html', liveLabel:'Quality Dashboard',
+    desc:'Tracks rejections at the gate and returns from customers or CFAs.',
+    sections:[
+      { id:'tower', label:'Overview', desc:'What’s failing at the gate, what’s returning from the field, and the trend.' },
+      { id:'rejection', label:'Inbound & Outbound Rejection', desc:'Every lot held at the gate before it becomes a shortage or complaint.' },
+      { id:'batch', label:'Batch Trend', desc:'First-inspection pass rate by plant, and every batch on hold.' },
+      { id:'returns', label:'Returns & Complaints', desc:'What’s coming back from the field, why, and from where.' }
+    ],
+    steps:[
+      'Inbound is inspected — incoming RM/PM checked against spec before a GRN.',
+      'Non-conforming input is rejected — logged and returned to the supplier.',
+      'Outbound is inspected — finished goods sampled before or at loading.',
+      'Non-conforming output is held — failing stock stopped before dispatch.',
+      'Returns are received — customer/CFA returns logged with a reason code.',
+      'Trend is rolled up — rejection & return rates aggregated for review.'
+    ],
+    kpiTiles:[
+      { label:'Inbound Rejection', value:'1.8%' },
+      { label:'Outbound Rejection', value:'0.9%' },
+      { label:'Returns MTD', value:'₹4.6L' },
+      { label:'Return Rate', value:'0.6%' }
+    ] },
+  { id:'finance', icon:'finance', title:'Finance', kind:'real', live:true, src:'work/finance/finance.html', liveLabel:'Finance Dashboard',
+    desc:'Tracks primary vs. secondary sales, closing the gap between what left the factory and what actually sold through.',
+    sections:[
+      { id:'tower', label:'Overview', desc:'Primary vs. secondary sales, reconciled continuously.' },
+      { id:'recon', label:'Primary vs. Secondary', desc:'Every zone’s primary billing measured against actual sell-through.' },
+      { id:'risk', label:'Channel Stock Risk', desc:'Where primary sales are running ahead of sell-through.' },
+      { id:'targets', label:'MT / DT Target', desc:'Modern Trade and Direct Trade achievement against secondary sales.' }
+    ],
+    steps:[
+      'Primary sales is captured — every SCM invoice lands automatically as Primary Sales (GT).',
+      'Secondary sales is captured — distributor/retailer sell-out feeds in.',
+      'The two are reconciled — primary vs. secondary compared for channel build-up or drain.',
+      'Targets are tracked — MT/DT achievement measured against secondary sales.',
+      'Variance is flagged — primary-sold-not-through raised as overstock risk.',
+      'Reporting is consolidated — a single financial view released to leadership.'
+    ],
+    kpiTiles:[
+      { label:'Primary Sales MTD', value:'₹210.4L' },
+      { label:'Secondary Sales MTD', value:'₹198.2L' },
+      { label:'Primary/Secondary Gap', value:'+6.2%' },
+      { label:'MT/DT Achievement', value:'94%' }
+    ] }
+];
+
+const roadmap = [
+  { id:'trade-marketing', icon:'target', title:'Trade Marketing & Schemes',
+    desc:'Owns scheme design, budget and ROI — the lever Sales pulls today without anyone tracking what it costs or returns.',
+    steps:[
+      'Scheme is designed — discount/scheme structure proposed against a target SKU, channel or period.',
+      'Budget is approved — scheme cost estimated and cleared against the trade spend budget.',
+      'Scheme is activated — pushed live in the DMS, visible to Sales at order booking.',
+      'Redemption is tracked — scheme usage measured against booked orders in real time.',
+      'ROI is closed out — incremental sales vs. scheme cost measured after the period ends.'
+    ],
+    kpiTiles:[
+      { label:'Active Schemes', value:'18' },
+      { label:'Trade Spend MTD', value:'₹34.2L' },
+      { label:'Redemption Rate', value:'71%' },
+      { label:'Scheme ROI', value:'2.4x' }
+    ],
+    hint:'Referenced twice inside Sales’ own steps — "scheme validity" gates order approval, "scheme push" is the fix for a shortfall.' },
+  { id:'stock-freshness', icon:'clock', title:'Stock Freshness / Expiry',
+    desc:'Owns shelf-life risk — ageing, near-expiry and write-off exposure across plant and CFA stock.',
+    steps:[
+      'Batches are aged — every SKU/batch bucketed by days-in-stock (fresh / ageing / near-expiry / expired).',
+      'Risk is flagged — near-expiry stock above threshold surfaces to Sales/SCM for priority dispatch.',
+      'Priority dispatch is triggered — ageing stock routed to demand before FIFO breaks down.',
+      'Write-off is booked — expired stock that couldn’t move is logged as a loss and reconciled with Finance.'
+    ],
+    kpiTiles:[
+      { label:'Near-Expiry Stock', value:'₹18.6L' },
+      { label:'Expired (MTD)', value:'₹3.1L' },
+      { label:'Avg Stock Age', value:'14 days' },
+      { label:'FIFO Compliance', value:'91%' }
+    ],
+    hint:'The kind of live system Inventory Planning already draws from tracks ageing buckets and expired value in detail — this gives it its own owner and dashboard.' },
+  { id:'procurement', icon:'filetext', title:'Procurement & Vendor Mgmt',
+    desc:'Owns the vendor side of RM/PM supply — sourcing, PO issuance and vendor delivery performance.',
+    steps:[
+      'Vendor panel is maintained — approved vendors per RM/PM category with rate contracts.',
+      'PO is raised — triggered by Inventory Planning’s replenishment request, against agreed lead time.',
+      'Vendor confirms & ships — PO acknowledged, advance shipment notice raised.',
+      'GRN closes the loop — Quality inspects on arrival, WMS receives, PO reconciled against invoice.',
+      'Vendor performance rolls up — on-time delivery, rate variance and reject rate scored per vendor.'
+    ],
+    kpiTiles:[
+      { label:'Vendor OTD', value:'82%' },
+      { label:'Open POs', value:'37' },
+      { label:'Avg Lead Time', value:'9.4 days' },
+      { label:'Rate Variance', value:'+1.3%' }
+    ],
+    hint:'Production’s own step names "Procurement" as the escalation path for a material shortfall — this is the function that closes that loop.' },
+  { id:'maintenance', icon:'gear', title:'Plant Maintenance',
+    desc:'Owns machine uptime and breakdown response — the "equipment availability" Production’s feasibility check depends on.',
+    steps:[
+      'Preventive schedule is maintained — maintenance windows planned per line against the production calendar.',
+      'Breakdown is logged — unplanned stoppage captured with cause code and line/asset ID.',
+      'Response is dispatched — engineering team assigned, repair started against an SLA clock.',
+      'Line is restored — downtime closed, cause and fix documented.',
+      'OEE rolls up — availability, performance and quality rate aggregate per line, per week.'
+    ],
+    kpiTiles:[
+      { label:'OEE', value:'74%' },
+      { label:'Unplanned Downtime', value:'6.1%' },
+      { label:'MTTR', value:'2.3 hrs' },
+      { label:'PM Compliance', value:'89%' }
+    ],
+    hint:'Production’s feasibility check cites "equipment availability" as an input — machine uptime has no owner of its own today.' },
+  { id:'hr', icon:'users', title:'HR / Workforce Planning',
+    desc:'Owns shift and manpower planning for the shop floor — the other feasibility input Production leans on.',
+    steps:[
+      'Shift plan is set — headcount per line, per shift, matched to the production plan.',
+      'Attendance is tracked — daily present/absent/leave logged against the shift plan.',
+      'Gaps are filled — shortfall covered by redeployment or contract labor before the shift starts.',
+      'Productivity rolls up — output per manshift tracked per line.'
+    ],
+    kpiTiles:[
+      { label:'Shift Fill Rate', value:'96%' },
+      { label:'Absenteeism', value:'4.2%' },
+      { label:'Contract Labor Ratio', value:'31%' },
+      { label:'Output / Manshift', value:'142 cases' }
+    ],
+    hint:'Same pattern as Maintenance — "manpower" is a feasibility input to Production, never a tracked function of its own.' },
+  { id:'compliance', icon:'clipboard', title:'Regulatory & Food-Safety',
+    desc:'Owns statutory and food-safety compliance — licensing, audits and certifications — running alongside Quality rather than inside it.',
+    steps:[
+      'Licenses & certifications are tracked — statutory approvals monitored for renewal.',
+      'Internal audit is scheduled — plant/warehouse self-audits run against a compliance checklist.',
+      'External audit is hosted — regulator or certification-body visits tracked to closure.',
+      'CAPA is closed out — any finding gets a corrective action with an owner and a due date.'
+    ],
+    kpiTiles:[
+      { label:'Licenses Active', value:'14/14' },
+      { label:'Open CAPAs', value:'3' },
+      { label:'Last Audit Score', value:'94%' },
+      { label:'Next Renewal Due', value:'22 days' }
+    ],
+    hint:'Quality only covers gate-level rejections and physical returns — statutory/food-safety compliance runs as a separate discipline in practice.' },
+  { id:'crm', icon:'message', title:'Customer Complaints / CRM',
+    desc:'Owns service-type complaints — billing, delivery experience, short-supply — that never touch a physical return.',
+    steps:[
+      'Complaint is logged — raised by a customer, CFA or field team, tagged by type and severity.',
+      'Complaint is routed — assigned to the owning function (Finance for billing, SCM for delivery, etc.).',
+      'Resolution is tracked — SLA clock runs until the complaint is closed with the customer.',
+      'Trend is rolled up — complaint volume and root cause aggregated for review.'
+    ],
+    kpiTiles:[
+      { label:'Open Complaints', value:'22' },
+      { label:'Avg Resolution Time', value:'1.8 days' },
+      { label:'SLA Compliance', value:'87%' },
+      { label:'Repeat Complaint Rate', value:'6%' }
+    ],
+    hint:'Quality’s "Returns" only captures product physically coming back — service-type complaints have no channel of their own today.' }
+];
+
+function hideAllViews() {
+  document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+}
+
+/* ---- Subway: persistent metro-line nav for the 8 live departments ---- */
+function renderSubway() {
+  const host = document.getElementById('subway');
+  const n = departments.length;
+  const spacing = 128;
+  const marginX = 56;
+  const width = spacing * (n - 1) + marginX * 2;
+  const height = 108;
+  const cy = 34;
+  const x0 = marginX, x1 = marginX + spacing * (n - 1);
+
+  let svg = `<svg class="subway-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="Eight-stage operating cycle from Sales through Finance — click a stage to open its dashboard">`;
+  svg += `<line class="subway-rail" x1="${x0}" y1="${cy}" x2="${x1}" y2="${cy}" stroke-width="3" stroke-linecap="round"></line>`;
+  svg += `<line class="subway-rail-fg" x1="${x0}" y1="${cy}" x2="${x1}" y2="${cy}" stroke-width="2" stroke-linecap="round"></line>`;
+
+  departments.forEach((d, i) => {
+    const cx = marginX + spacing * i;
+    const label = (d.title.split('–')[0] || d.title).trim();
+    svg += `<g class="subway-station" data-id="${d.id}" onclick="selectDepartment('${d.id}')" transform="translate(${cx},0)">
+      <circle class="stn-circle" cx="0" cy="${cy}" r="22"></circle>
+      <svg class="stn-icon" x="-11" y="${cy - 11}" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[d.icon] || ''}</svg>
+      <path class="stn-caret" d="M-5 ${cy + 29} L5 ${cy + 29} L0 ${cy + 35} Z" fill="var(--blue)"></path>
+      <text class="stn-label" x="0" y="${cy + 51}" text-anchor="middle">${label}</text>
+    </g>`;
+  });
+  svg += `</svg>`;
+  host.innerHTML = svg;
+}
+
+function setSubwayActive(id) {
+  document.querySelectorAll('.subway-station').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+}
+
+/* ---- Tiles ---- */
+function renderTiles() {
+  document.getElementById('tile-grid').innerHTML = departments.map(d => `
+    <button class="tile" onclick="selectDepartment('${d.id}')">
+      <div class="tile-icon">${iconSvg(d.icon, 24)}</div>
+      <h3>${d.title}</h3>
+      <p>${d.desc}</p>
+      <div class="tile-foot">
+        <span class="pill pill-live">Live Dashboard</span>
+        <span class="tile-arrow">→</span>
+      </div>
+    </button>
+  `).join('');
+
+  document.getElementById('roadmap-grid').innerHTML = roadmap.map(d => `
+    <button class="tile roadmap" onclick="showRoadmapDetail('${d.id}')">
+      <div class="tile-icon">${iconSvg(d.icon, 20)}</div>
+      <h3>${d.title}</h3>
+      <div class="tile-foot">
+        <span class="pill pill-roadmap">Roadmap</span>
+        <span class="tile-arrow">→</span>
+      </div>
+    </button>
+  `).join('');
+}
+
+/* ---- Navigation ---- */
+function showHome() {
+  hideAllViews();
+  document.getElementById('view-home').classList.add('active');
+  setSubwayActive(null);
+  window.location.hash = '';
+}
+
+function showRoadmapDetail(id) {
+  const node = roadmap.find(d => d.id === id);
+  if (!node) return;
+  hideAllViews();
+  document.getElementById('view-detail').classList.add('active');
+  setSubwayActive(null);
+
+  const kpiHtml = `<div class="kpi-row">${node.kpiTiles.map(t => `
+    <div class="kpi-tile amber"><b>${t.value}</b><small>${t.label}</small></div>`).join('')}</div>`;
+
+  const stepsHtml = `<ol class="step-list">${node.steps.map((s, i) => `
+    <li><span class="step-num">${i + 1}</span><span>${s}</span></li>`).join('')}</ol>`;
+
+  const hintHtml = node.hint ? `<div class="callout"><b>Why this is next:</b> ${node.hint}</div>` : '';
+
+  document.getElementById('detail-card').innerHTML = `
+    <span class="pill pill-roadmap">Roadmap</span>
+    <h2>${node.title}</h2>
+    <p class="desc">${node.desc}</p>
+    ${kpiHtml}
+    ${stepsHtml}
+    ${hintHtml}
+  `;
+  window.location.hash = 'roadmap-' + id;
+}
+
+let currentDept = null;
+
+/* ---- Section cards: the sub-sections inside one department ---- */
+function selectDepartment(id) {
+  showSections(id);
+}
+
+function showSections(id) {
+  const dept = departments.find(d => d.id === id);
+  if (!dept) return;
+  currentDept = id;
+  hideAllViews();
+  document.getElementById('view-sections').classList.add('active');
+  setSubwayActive(id);
+
+  document.getElementById('dept-header').innerHTML = `
+    <div class="dept-icon">${iconSvg(dept.icon, 24)}</div>
+    <div>
+      <h2>${dept.title}</h2>
+      <p>${dept.desc}</p>
+    </div>
+    <a class="cta-btn" href="#" onclick="event.preventDefault(); openSection('${id}', '${dept.sections[0].id}')">Open Full Dashboard →</a>
+  `;
+
+  document.getElementById('section-card-grid').innerHTML = (dept.sections || []).map((s, i) => `
+    <button class="section-card" onclick="openSection('${id}', '${s.id}')">
+      <span class="sec-num">${i + 1}</span>
+      <h3>${s.label}</h3>
+      <p>${s.desc}</p>
+      <div class="tile-foot">
+        <span class="pill pill-live">Open</span>
+        <span class="tile-arrow">→</span>
+      </div>
+    </button>
+  `).join('');
+
+  window.location.hash = 'sections-' + id;
+}
+
+function openSection(deptId, sectionId) {
+  const dept = departments.find(d => d.id === deptId);
+  if (!dept || !dept.src) return;
+  currentDept = deptId;
+  hideAllViews();
+  document.getElementById('view-live').classList.add('active');
+  document.getElementById('dash-frame').src = dept.src + '#' + sectionId;
+  document.getElementById('live-dept-name').textContent = dept.liveLabel || dept.title;
+  document.getElementById('live-back-label').textContent = dept.title + ' sections';
+  setSubwayActive(deptId);
+  window.location.hash = 'live-' + deptId + '-' + sectionId;
+}
+
+renderSubway();
+renderTiles();
+
+function routeFromHash() {
+  const hash = window.location.hash.replace('#', '');
+  if (hash.startsWith('live-')) {
+    const rest = hash.replace('live-', '');
+    const sepIdx = rest.lastIndexOf('-');
+    const deptId = sepIdx > -1 ? rest.slice(0, sepIdx) : rest;
+    const sectionId = sepIdx > -1 ? rest.slice(sepIdx + 1) : null;
+    const dept = departments.find(d => d.id === deptId);
+    if (dept && sectionId && dept.sections && dept.sections.some(s => s.id === sectionId)) {
+      openSection(deptId, sectionId);
+    } else if (dept) {
+      openSection(deptId, dept.sections[0].id);
+    } else {
+      showHome();
+    }
+  }
+  else if (hash.startsWith('sections-')) showSections(hash.replace('sections-', ''));
+  else if (hash.startsWith('roadmap-')) showRoadmapDetail(hash.replace('roadmap-', ''));
+  else showHome();
+}
+
+window.addEventListener('load', routeFromHash);
+window.addEventListener('hashchange', routeFromHash);
+</script>
+
+</body>
+</html>

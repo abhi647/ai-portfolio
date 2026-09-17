@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seven Billion Analytics | Production Control Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F6F8F9; --panel:#FFFFFF; --line:#E4E9EC;
+  --ink:#0B0F12; --muted:#5B6870;
+  --blue:#05B4CF; --blue-dim:rgba(5,180,207,.08); --blue-dim-2:rgba(5,180,207,.16);
+  --green:#0F9D67; --green-dim:rgba(15,157,103,.09);
+  --amber:#B4720A; --amber-dim:rgba(180,114,10,.1);
+  --red:#C23B32; --red-dim:rgba(194,59,50,.09);
+  --serif:'Newsreader',serif; --sans:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --radius:12px; --shadow:0 2px 10px rgba(11,15,18,.05);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--ink);margin:0}
+button,select,input{font:inherit}
+button{cursor:pointer;border:none;background:none}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#D3DBDE;border-radius:6px}
+
+.app{display:flex;min-height:100vh}
+.sidebar{width:236px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.sb-brand .mark{width:28px;height:28px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px var(--sans)}
+.sb-brand span{font:700 13px var(--sans);color:var(--ink)}
+.sb-section-label{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:0 10px;margin:0 0 8px}
+.sb-nav{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:2px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font:600 12.5px var(--sans);color:var(--muted);cursor:pointer}
+.sb-item svg{flex:none;width:17px;height:17px;stroke:var(--muted)}
+.sb-item:hover{background:var(--blue-dim)}
+.sb-item.active{background:var(--blue-dim-2);color:var(--blue)}
+.sb-item.active svg{stroke:var(--blue)}
+.sb-foot{margin-top:auto;padding-top:16px}
+.back-link{display:inline-flex;align-items:center;gap:6px;font:700 12px var(--sans);color:var(--blue);padding:8px 10px;border-radius:8px}
+.back-link:hover{background:var(--blue-dim)}
+
+.main{flex:1;min-width:0}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
+.topbar .titles h1{font-size:20px}
+.topbar .titles p{margin:2px 0 0;color:var(--muted);font-size:12px}
+.topbar .meta{display:flex;gap:10px;flex-wrap:wrap}
+.meta-chip{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:600 10.5px var(--mono);color:var(--muted)}
+.meta-chip b{display:block;color:var(--ink);font-size:12px}
+
+.content{padding:24px 28px 60px}
+.page{display:none}
+.page.active{display:block}
+
+.filter-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.filter-chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:600 11.5px var(--sans);color:var(--muted);display:flex;align-items:center;gap:8px}
+.filter-chip b{color:var(--ink);font-weight:600}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
+.kpi .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kpi svg{width:16px;height:16px;stroke:var(--blue)}
+.kpi small{color:var(--muted);font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.3px}
+.kpi b{display:block;font:700 22px var(--mono);color:var(--ink)}
+.kpi .sub{font:600 10.5px var(--sans);margin-top:4px}
+.sub.up{color:var(--green)} .sub.down{color:var(--red)} .sub.flat{color:var(--muted)}
+
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+@media(max-width:980px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+.panel h3{font-size:14.5px;margin-bottom:2px}
+.panel .sub-t{color:var(--muted);font-size:11.5px;margin:0 0 14px}
+.panel .chart-box{position:relative;height:260px}
+.panel .chart-box.tall{height:320px}
+.panel .chart-box.short{height:190px}
+
+.section-heading{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 12px}
+.section-heading .ov{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;color:var(--blue)}
+.section-heading h2{font-size:17px;margin-top:2px}
+
+table.dtable{width:100%;border-collapse:collapse;font-size:12px}
+table.dtable th{text-align:right;font:700 9.5px var(--mono);text-transform:uppercase;letter-spacing:.3px;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.dtable th:first-child,table.dtable td:first-child{text-align:left}
+table.dtable td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);white-space:nowrap}
+table.dtable tr.row-total td{font-weight:700;border-top:2px solid var(--line);border-bottom:none}
+table.dtable tr.row-group td{font-weight:600;background:#FAFBFC}
+table.dtable td:first-child{font-family:var(--sans);font-weight:500}
+.table-scroll{overflow-x:auto}
+
+.cell-status{display:inline-block;min-width:44px;padding:3px 7px;border-radius:6px;font-weight:700;font-size:11px}
+.st-good{background:var(--green-dim);color:var(--green)}
+.st-warn{background:var(--amber-dim);color:var(--amber)}
+.st-bad{background:var(--red-dim);color:var(--red)}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font:700 10px var(--mono);text-transform:uppercase}
+.badge-good{background:var(--green-dim);color:var(--green)}
+.badge-warn{background:var(--amber-dim);color:var(--amber)}
+.badge-bad{background:var(--red-dim);color:var(--red)}
+
+.insight{display:flex;gap:10px;align-items:flex-start;background:var(--blue-dim);border:1px solid var(--blue-dim-2);border-radius:10px;padding:12px 14px;margin-top:14px;font-size:12.5px;color:#0A5A66}
+.insight svg{flex:none;width:16px;height:16px;stroke:var(--blue);margin-top:1px}
+.insight b{color:#073E47}
+
+.legend-row{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px}
+.legend-row span{display:inline-flex;align-items:center;gap:6px}
+.legend-dot{width:9px;height:9px;border-radius:3px}
+
+.progress-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.progress-row:first-child{border-top:none}
+.progress-row .plabel{width:150px;flex:none;font-size:12px;font-weight:500}
+.progress-track{flex:1;height:8px;background:var(--bg);border-radius:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:6px}
+.progress-val{width:48px;flex:none;text-align:right;font-family:var(--mono);font-size:12px;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand"><div class="mark"><svg viewBox="0 0 177 178" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0.000148773 165.671L41.1802 124.491C38.9602 121.671 35.5902 117.291 31.6902 111.801C13.3202 85.9209 1.30016 68.5309 2.46016 48.0209C2.75016 42.9109 3.41016 31.2809 11.9602 23.9609C20.5702 16.5909 32.3102 17.7609 38.6202 18.3809C54.7402 19.9709 66.9901 28.7409 72.1701 32.4709C79.4301 37.6909 91.5601 48.3409 98.3201 49.7409C104.52 51.0309 110.29 49.9609 110.29 49.9609C113.84 49.3109 117.26 47.9009 121.17 45.6309L164.74 0L176.57 12.5609C173.72 15.7209 161.53 28.3509 155.77 34.5509C134.9 57.0709 128.67 62.3609 127.89 71.5009C127.37 77.5709 129.21 84.3509 134.59 92.2709C144.28 106.531 155.11 122.241 158.33 140.091C160.34 151.191 159.42 161.531 153.33 168.441C148.95 173.411 143.33 174.991 139.44 176.041C111.11 183.681 80.9601 158.581 73.9001 152.301C72.8301 151.351 71.9801 150.551 71.5001 150.101L82.4601 138.831C107.45 159.301 129.9 166.951 138.95 159.281C142.89 155.941 144.83 150.331 144.03 145.381C142.01 132.801 131.84 114.191 124.04 104.031C121.21 100.341 117.39 97.3609 112.96 95.8509C100.88 91.7609 92.9501 97.0109 84.6701 104.841C74.4901 114.461 48.7802 141.061 13.2802 176.651M82.7401 80.6809C92.2601 68.8609 73.1201 54.3709 67.6401 49.3709C67.6401 49.3709 53.8902 36.2509 33.7502 34.8109C29.1002 34.4809 23.7902 34.6009 20.0502 38.1409C14.4002 43.4909 17.7502 56.1009 19.5102 61.5609C25.8802 81.3609 44.6802 103.581 54.8902 111.781C66.8602 99.8109 68.5501 98.3009 82.7401 80.6909V80.6809Z" fill="currentColor"/></svg></div><span>Production</span></div>
+    <div class="sb-section-label">Control Tower</div>
+    <ul class="sb-nav">
+      <li class="sb-item active" data-page="tower" onclick="showPage('tower')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 21V9l6 4V9l6 4V9l6 4v8H3Z"/><path d="M3 21h18"/></svg>
+        Overview
+      </li>
+    </ul>
+    <div class="sb-section-label">Execution</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="plan" onclick="showPage('plan')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/><path d="M7.5 13.5l2.5 2.5 6-6"/></svg>
+        Plan Adherence
+      </li>
+      <li class="sb-item" data-page="yield" onclick="showPage('yield')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 20V10M4 10l4-6 4 6M10 20v-7M10 13l4-5 4 5M18 20v-3"/></svg>
+        Yield &amp; BOM
+      </li>
+    </ul>
+    <div class="sb-section-label">Planning</div>
+    <ul class="sb-nav">
+      <li class="sb-item" data-page="feasibility" onclick="showPage('feasibility')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>
+        Feasibility &amp; Capacity
+      </li>
+    </ul>
+    <div class="sb-foot">
+      <a class="back-link" href="../../index.html">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        All departments
+      </a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="titles">
+        <h1 id="page-title">Production Control Tower</h1>
+        <p id="page-sub">Capacity, plan adherence and material yield across all plants — the feasibility check that gates every production run.</p>
+      </div>
+      <div class="meta">
+        <div class="meta-chip">SHIFT CLOSED<b>16-09-2026, 06:00 AM</b></div>
+        <div class="meta-chip">BOM REFRESH<b>16-09-2026, 05:30 AM</b></div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- TOWER -->
+      <section class="page active" id="page-tower">
+        <div class="kpi-grid" id="towerKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Capacity utilization, by plant</h3>
+            <p class="sub-t">Actual output vs. installed capacity, month-to-date</p>
+            <div id="utilBars"></div>
+          </div>
+          <div class="panel">
+            <h3>Plan adherence, last 14 days</h3>
+            <p class="sub-t">Actual production as % of the daily plan</p>
+            <div class="chart-box tall"><canvas id="adherenceTrend"></canvas></div>
+          </div>
+        </div>
+        <div class="insight">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2 2 20h20L12 2Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>
+          <div><b>Plant — South Zone</b> is running 13 points below its planned utilization this month, the widest gap in the network — see Plan Adherence for the day-by-day breakdown of what's driving it.</div>
+        </div>
+      </section>
+
+      <!-- PLAN ADHERENCE -->
+      <section class="page" id="page-plan">
+        <div class="filter-row">
+          <div class="filter-chip">Date <b>1–16 Sep 2026</b></div>
+          <div class="filter-chip">Company <b>All Plants</b></div>
+        </div>
+        <div class="kpi-grid" id="planKpis"></div>
+        <div class="panel" style="margin-bottom:16px">
+          <h3>Plan vs. actual production, by plant</h3>
+          <p class="sub-t">Cases produced, month-to-date</p>
+          <div class="chart-box tall"><canvas id="planBar"></canvas></div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Plant ledger</div><h2>Capacity, dispatch &amp; loadability</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="planTable"></table>
+        </div>
+      </section>
+
+      <!-- YIELD -->
+      <section class="page" id="page-yield">
+        <div class="filter-row">
+          <div class="filter-chip">Date <b>1–16 Sep 2026</b></div>
+          <div class="filter-chip">Basis <b>Gross</b></div>
+        </div>
+        <div class="kpi-grid" id="yieldKpis"></div>
+        <div class="panel" style="margin-bottom:16px">
+          <h3>Material usage vs. standard (BOM)</h3>
+          <p class="sub-t">Variance from the standard BOM requirement — positive means more material used than the recipe calls for</p>
+          <div class="chart-box tall"><canvas id="bomDiverging"></canvas></div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Detail</div><h2>Excess usage, by material</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="yieldTable"></table>
+        </div>
+      </section>
+
+      <!-- FEASIBILITY -->
+      <section class="page" id="page-feasibility">
+        <div class="kpi-grid" id="feasKpis"></div>
+        <div class="grid-2">
+          <div class="panel">
+            <h3>Next week's requirement vs. available capacity</h3>
+            <p class="sub-t">Cases, by plant</p>
+            <div class="chart-box tall"><canvas id="capBar"></canvas></div>
+          </div>
+          <div class="panel">
+            <h3>Feasibility inputs</h3>
+            <p class="sub-t">Manpower and equipment availability, by plant</p>
+            <div id="feasBars"></div>
+          </div>
+        </div>
+        <div class="section-heading"><div><div class="ov">Check</div><h2>Feasibility by plant, next week</h2></div></div>
+        <div class="panel table-scroll">
+          <table class="dtable" id="feasTable"></table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const ICON = {
+  factory: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 21V9l6 4V9l6 4V9l6 4v8H3Z"/><path d="M3 21h18"/></svg>',
+  gauge: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-3"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>',
+  flask: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 3h6M10 3v6l-5.5 9a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3"/></svg>',
+  truck: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="1" y="7" width="13" height="10" rx="1"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="19" r="1.6"/><circle cx="17.5" cy="19" r="1.6"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 16.3h.01"/></svg>'
+};
+function $(id){ return document.getElementById(id); }
+function fmt0(n){ return Number(n).toLocaleString('en-IN'); }
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.font.family = "'IBM Plex Sans', sans-serif";
+  Chart.defaults.color = '#5B6870';
+  Chart.defaults.borderColor = '#EDF1F2';
+}
+function safeChart(el, config){
+  if (typeof Chart === 'undefined') { console.warn('Chart.js not loaded'); return null; }
+  try { return new Chart(el, config); } catch (e) { console.warn('chart render failed', e); return null; }
+}
+const CBLUE='#05B4CF', CGREEN='#0F9D67', CAMBER='#B4720A', CRED='#C23B32';
+
+/* ---------------- DATA (illustrative-but-realistic, anonymized) ---------------- */
+
+const plants = [
+  { name:'Plant — North Zone', capacity:24000, plan:19800, actual:18200, plannedUtil:82, actualUtil:76, dispatch:17600, dispatchAdh:97, loadability:81.2, opening:52000 },
+  { name:'Plant — East Zone',  capacity:15000, plan:12400, actual:11900, plannedUtil:83, actualUtil:79, dispatch:11200, dispatchAdh:94, loadability:76.8, opening:31000 },
+  { name:'Plant — Central Zone', capacity:9000, plan:7600, actual:7900, plannedUtil:84, actualUtil:88, dispatch:7500, dispatchAdh:95, loadability:88.4, opening:18400 },
+  { name:'Plant — South Zone', capacity:6200, plan:5100, actual:4300, plannedUtil:82, actualUtil:69, dispatch:4100, dispatchAdh:81, loadability:71.5, opening:12800 }
+];
+
+const adherenceTrendDays = Array.from({length:14},(_,i)=>i+1);
+function seedRandom(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
+const rnd = seedRandom(17);
+const adherenceSeries = adherenceTrendDays.map(d => Math.round(94 + Math.sin(d/2.5)*5 - (d>10?6:0) + rnd()*4));
+
+const materials = [
+  { name:'Corn Meal', standard:100, actual:102.4 },
+  { name:'Corn Flour', standard:100, actual:97.8 },
+  { name:'Potato Flakes', standard:100, actual:104.1 },
+  { name:'Pellet Base', standard:100, actual:99.2 },
+  { name:'Suji', standard:100, actual:91.4 },
+  { name:'Bran', standard:100, actual:96.7 },
+  { name:'Edible Oil', standard:100, actual:108.9 },
+  { name:'Flavour Premix', standard:100, actual:111.3 }
+];
+materials.forEach(m => { m.variance = Math.round((m.actual - m.standard)*10)/10; m.excessQty = Math.round(Math.abs(m.variance)*38.4); m.excessValue = Math.round(m.excessQty * (m.name==='Flavour Premix'?820: m.name==='Edible Oil'?96: 22)); });
+
+const feasibility = [
+  { plant:'Plant — North Zone', required:21200, capacity:24000, manpower:96, equipment:94, status:'Feasible' },
+  { plant:'Plant — East Zone', required:13800, capacity:15000, manpower:91, equipment:97, status:'Feasible' },
+  { plant:'Plant — Central Zone', required:8900, capacity:9000, manpower:88, equipment:99, status:'At Risk' },
+  { plant:'Plant — South Zone', required:5600, capacity:6200, manpower:79, equipment:86, status:'At Risk' }
+];
+
+/* ---------------- RENDER ---------------- */
+
+function kpiTile(icon,label,value,sub,subClass){
+  return `<div class="kpi"><div class="top">${ICON[icon]}<small>${label}</small></div><b>${value}</b>${sub?`<div class="sub ${subClass||''}">${sub}</div>`:''}</div>`;
+}
+function statusFor(pct,goodMin,warnMin){ if(pct<warnMin) return 'bad'; if(pct<goodMin) return 'warn'; return 'good'; }
+
+function renderTower(){
+  const totalCap = plants.reduce((a,p)=>a+p.capacity,0);
+  const totalActual = plants.reduce((a,p)=>a+p.actual,0);
+  const avgAdh = Math.round(plants.reduce((a,p)=>a+ (p.actual/p.plan*100),0)/plants.length);
+  $('towerKpis').innerHTML = [
+    kpiTile('factory','Capacity Utilization', Math.round(totalActual/totalCap*100)+'%','across 4 plants',''),
+    kpiTile('check','Plan Adherence', avgAdh+'%','▼ 3pts vs last week','down'),
+    kpiTile('gauge','Total Production', fmt0(totalActual)+' cs','MTD, all plants',''),
+    kpiTile('flask','BOM Variance','+5.1%','vs standard recipe','down'),
+    kpiTile('truck','Dispatch Adherence','93%','MTD average','up'),
+    kpiTile('alert','Plants At Risk','2','of 4, next week','down')
+  ].join('');
+
+  $('utilBars').innerHTML = plants.map(p=>{
+    const pct = Math.round(p.actual/p.capacity*100);
+    const col = pct<60?CRED:pct<75?CAMBER:CGREEN;
+    return `<div class="progress-row"><div class="plabel">${p.name}</div><div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div><div class="progress-val">${pct}%</div></div>`;
+  }).join('');
+
+  safeChart($('adherenceTrend'), { type:'line', data:{ labels: adherenceTrendDays.map(d=>'D'+d), datasets:[{
+    data: adherenceSeries, borderColor:CBLUE, backgroundColor:'rgba(5,180,207,.08)', fill:true, tension:.35, pointRadius:0, borderWidth:2
+  },{
+    data: adherenceTrendDays.map(()=>100), borderColor:'#C7D1D5', borderDash:[4,4], pointRadius:0, borderWidth:1.4
+  }]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+    scales:{ x:{ grid:{display:false} }, y:{ min:70,max:110, grid:{color:'#EDF1F2'}, title:{display:true,text:'% of plan'} } } }});
+}
+
+function renderPlan(){
+  const totalDispatchAdh = Math.round(plants.reduce((a,p)=>a+p.dispatchAdh,0)/plants.length);
+  const avgLoadability = (plants.reduce((a,p)=>a+p.loadability,0)/plants.length).toFixed(1);
+  $('planKpis').innerHTML = [
+    kpiTile('factory','Total Capacity', fmt0(plants.reduce((a,p)=>a+p.capacity,0))+' cs','installed, all plants',''),
+    kpiTile('check','Total Plan', fmt0(plants.reduce((a,p)=>a+p.plan,0))+' cs','MTD',''),
+    kpiTile('gauge','Total Actual', fmt0(plants.reduce((a,p)=>a+p.actual,0))+' cs','MTD',''),
+    kpiTile('truck','Dispatch Adherence', totalDispatchAdh+'%','network average',''),
+    kpiTile('flask','Avg Loadability', avgLoadability,'vehicle fill index','')
+  ].join('');
+
+  safeChart($('planBar'), { type:'bar', data:{ labels: plants.map(p=>p.name), datasets:[
+    { label:'Plan', data: plants.map(p=>p.plan), backgroundColor:'#CDEEF4' },
+    { label:'Actual', data: plants.map(p=>p.actual), backgroundColor: plants.map(p=> p.actual>=p.plan?CGREEN:CAMBER) }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle'}}},
+    scales:{ x:{ grid:{display:false} }, y:{ title:{display:true,text:'Cases'}, grid:{color:'#EDF1F2'} } } }});
+
+  let rows = '<thead><tr><th>Plant</th><th>Capacity</th><th>Plan</th><th>Actual</th><th>Utilization</th><th>Dispatch</th><th>Dispatch Adh.</th><th>Loadability</th></tr></thead><tbody>';
+  plants.forEach(p=>{
+    const st = statusFor(p.actualUtil,80,65);
+    rows += `<tr><td>${p.name}</td><td>${fmt0(p.capacity)}</td><td>${fmt0(p.plan)}</td><td>${fmt0(p.actual)}</td><td><span class="cell-status ${st==='bad'?'st-bad':st==='warn'?'st-warn':'st-good'}">${p.actualUtil}%</span></td><td>${fmt0(p.dispatch)}</td><td>${p.dispatchAdh}%</td><td>${p.loadability}</td></tr>`;
+  });
+  const t = plants.reduce((a,p)=>({capacity:a.capacity+p.capacity,plan:a.plan+p.plan,actual:a.actual+p.actual,dispatch:a.dispatch+p.dispatch}),{capacity:0,plan:0,actual:0,dispatch:0});
+  rows += `<tr class="row-total"><td>Total</td><td>${fmt0(t.capacity)}</td><td>${fmt0(t.plan)}</td><td>${fmt0(t.actual)}</td><td>${Math.round(t.actual/t.capacity*100)}%</td><td>${fmt0(t.dispatch)}</td><td>${totalDispatchAdh}%</td><td>${avgLoadability}</td></tr>`;
+  $('planTable').innerHTML = rows + '</tbody>';
+}
+
+function renderYield(){
+  const overCount = materials.filter(m=>m.variance>3).length;
+  const totalExcessValue = materials.reduce((a,m)=>a+ (m.variance>0?m.excessValue:0), 0);
+  $('yieldKpis').innerHTML = [
+    kpiTile('flask','Materials Tracked','8','raw material lines',''),
+    kpiTile('alert','Over Standard >3%', String(overCount),'need root-cause review','down'),
+    kpiTile('gauge','Excess Value MTD','₹'+(totalExcessValue/100000).toFixed(2)+'L','vs. standard BOM cost','down'),
+    kpiTile('check','Avg Variance','+'+(materials.reduce((a,m)=>a+m.variance,0)/materials.length).toFixed(1)+'%','across tracked materials','')
+  ].join('');
+
+  safeChart($('bomDiverging'), { type:'bar', data:{ labels: materials.map(m=>m.name), datasets:[{
+    data: materials.map(m=>m.variance),
+    backgroundColor: materials.map(m=> Math.abs(m.variance)<3?CGREEN : m.variance>0?CRED:CAMBER)
+  }]}, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{ callbacks:{ label:(c)=> (c.raw>0?'+':'')+c.raw+'% vs. standard' } } },
+    scales:{ x:{ title:{display:true,text:'Variance from standard BOM (%)'}, grid:{color:'#EDF1F2'} }, y:{grid:{display:false}} } }});
+
+  let rows = '<thead><tr><th>Material</th><th>Standard</th><th>Actual</th><th>Variance</th><th>Excess Qty (kg)</th><th>Excess Value</th></tr></thead><tbody>';
+  materials.slice().sort((a,b)=>Math.abs(b.variance)-Math.abs(a.variance)).forEach(m=>{
+    const st = Math.abs(m.variance)<3?'st-good': Math.abs(m.variance)<7?'st-warn':'st-bad';
+    rows += `<tr><td>${m.name}</td><td>${m.standard}%</td><td>${m.actual}%</td><td><span class="cell-status ${st}">${m.variance>0?'+':''}${m.variance}%</span></td><td>${fmt0(m.excessQty)}</td><td>₹${fmt0(m.excessValue)}</td></tr>`;
+  });
+  $('yieldTable').innerHTML = rows + '</tbody>';
+}
+
+function renderFeasibility(){
+  const atRisk = feasibility.filter(f=>f.status==='At Risk').length;
+  $('feasKpis').innerHTML = [
+    kpiTile('factory','Total Requirement', fmt0(feasibility.reduce((a,f)=>a+f.required,0))+' cs','next week, forecast',''),
+    kpiTile('gauge','Total Available Capacity', fmt0(feasibility.reduce((a,f)=>a+f.capacity,0))+' cs','installed, all plants',''),
+    kpiTile('check','Avg Manpower Availability', Math.round(feasibility.reduce((a,f)=>a+f.manpower,0)/feasibility.length)+'%','vs. required shift strength',''),
+    kpiTile('alert','Plants At Risk', String(atRisk),'manpower or equipment short','down')
+  ].join('');
+
+  safeChart($('capBar'), { type:'bar', data:{ labels: feasibility.map(f=>f.plant), datasets:[
+    { label:'Required', data: feasibility.map(f=>f.required), backgroundColor:'#CDEEF4' },
+    { label:'Available Capacity', data: feasibility.map(f=>f.capacity), backgroundColor:CBLUE }
+  ]}, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle'}}},
+    scales:{ x:{ grid:{display:false} }, y:{ title:{display:true,text:'Cases'}, grid:{color:'#EDF1F2'} } } }});
+
+  $('feasBars').innerHTML = feasibility.flatMap(f => [
+    { label:f.plant+' — Manpower', v:f.manpower },
+    { label:f.plant+' — Equipment', v:f.equipment }
+  ]).map(r=>{
+    const col = r.v<85?CRED:r.v<92?CAMBER:CGREEN;
+    return `<div class="progress-row"><div class="plabel">${r.label}</div><div class="progress-track"><div class="progress-fill" style="width:${r.v}%;background:${col}"></div></div><div class="progress-val">${r.v}%</div></div>`;
+  }).join('');
+
+  let rows = '<thead><tr><th>Plant</th><th>Required</th><th>Capacity</th><th>Manpower</th><th>Equipment</th><th>Status</th></tr></thead><tbody>';
+  feasibility.forEach(f=>{
+    const badge = f.status==='Feasible'?'badge-good':f.status==='At Risk'?'badge-warn':'badge-bad';
+    rows += `<tr><td>${f.plant}</td><td>${fmt0(f.required)}</td><td>${fmt0(f.capacity)}</td><td>${f.manpower}%</td><td>${f.equipment}%</td><td><span class="badge ${badge}">${f.status}</span></td></tr>`;
+  });
+  $('feasTable').innerHTML = rows + '</tbody>';
+}
+
+const titles = {
+  tower:['Production Control Tower','Capacity, plan adherence and material yield across all plants — the feasibility check that gates every production run.'],
+  plan:['Plan Adherence','How closely actual output tracked the approved production plan, by plant.'],
+  yield:['Yield & BOM','Actual raw-material consumption against the standard bill of materials, by ingredient.'],
+  feasibility:['Feasibility & Capacity','Whether next week’s demand can actually be produced, given capacity, manpower and equipment.']
+};
+const rendered = {};
+const renderers = { tower:renderTower, plan:renderPlan, yield:renderYield, feasibility:renderFeasibility };
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+  $('page-'+id).classList.add('active');
+  document.querySelector(`.sb-item[data-page="${id}"]`).classList.add('active');
+  $('page-title').textContent = titles[id][0];
+  $('page-sub').textContent = titles[id][1];
+  if(!rendered[id]){ renderers[id](); rendered[id] = true; }
+}
+const __h = (location.hash||'').slice(1);
+showPage(titles[__h] ? __h : 'tower');
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (titles[h]) showPage(h); });
+</script>
+</body>
+</html>
