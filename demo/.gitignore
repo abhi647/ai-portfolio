@@ -1,0 +1,4 @@
+node_modules/
+output/*/frames/
+output/*/voice/
+output/**/*-voiced.mp4

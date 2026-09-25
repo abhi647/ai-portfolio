@@ -1,0 +1,70 @@
+{
+  "video": "stakeholder",
+  "duration": 77.65,
+  "scenes": [
+    {
+      "id": "S01",
+      "title": "Intro",
+      "narration": "Now let us look at AI Portfolio Recommendation from the Stakeholder side: the view for investment committee members, clients, or anyone who needs to review results without changing them.",
+      "start": 0.28,
+      "end": 12.78,
+      "estNarration": 12.5
+    },
+    {
+      "id": "S02",
+      "title": "Sign in as Stakeholder",
+      "narration": "Stakeholders sign in the same way. Enter a name, and pick the Stakeholder role, which is read-only.",
+      "start": 12.78,
+      "end": 20.63,
+      "estNarration": 7.7
+    },
+    {
+      "id": "S03",
+      "title": "Portfolio view",
+      "narration": "The header switches to Portfolio View, and the badge confirms you are signed in as a Stakeholder. You are looking at the same project the Admin set up.",
+      "start": 20.63,
+      "end": 32.73,
+      "estNarration": 12.1
+    },
+    {
+      "id": "S04",
+      "title": "Key numbers",
+      "narration": "The key numbers are all here: growth, drawdown, risk-adjusted return, and how many buy, hold and sell signals are active right now.",
+      "start": 32.73,
+      "end": 42.44,
+      "estNarration": 9.7
+    },
+    {
+      "id": "S05",
+      "title": "Read-only by design",
+      "narration": "What is missing is intentional. There are no quick actions to run backtests, change scenarios or create projects, so the numbers you review cannot be altered by accident.",
+      "start": 42.44,
+      "end": 54.54,
+      "estNarration": 12.1
+    },
+    {
+      "id": "S06",
+      "title": "Personalise",
+      "narration": "Viewers can still personalise their experience, like switching to dark mode for a late-night review.",
+      "start": 54.54,
+      "end": 61.44,
+      "estNarration": 6.9
+    },
+    {
+      "id": "S07",
+      "title": "Sign out",
+      "narration": "When you are done, sign out from the top right. The session ends, and you are back at the login screen.",
+      "start": 61.44,
+      "end": 70.74,
+      "estNarration": 9.3
+    },
+    {
+      "id": "S08",
+      "title": "Outro",
+      "narration": "That is the Stakeholder view: clear, read-only access to the portfolio. Thanks for watching.",
+      "start": 70.74,
+      "end": 77.25,
+      "estNarration": 6.5
+    }
+  ]
+}

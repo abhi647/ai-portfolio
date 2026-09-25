@@ -1,0 +1,23 @@
+Welcome to AI Portfolio Recommendation: a private, browser-based workspace for building and reviewing equity portfolios on Indian markets. In this walkthrough, we will sign in as an Admin and set up a project from scratch. <break time="0.9s" />
+
+First, notice the Local Mode note. The app runs entirely in your browser. Price data, projects and settings are stored on your device, and nothing is sent to a server. <break time="0.9s" />
+
+To sign in, enter a name, then choose a role. The Admin role has full access: creating projects, loading data and running analysis. Then click Continue. <break time="0.9s" />
+
+With no project yet, the dashboard offers two ways to start: create a new project, or import an existing project bundle. We will create a new one. <break time="0.9s" />
+
+Project setup is a guided, four-step wizard. Step one: give the project a name. <break time="0.9s" />
+
+Normally, step two is where you upload three CSV files: daily price data, a sector mapping, and your benchmark index. Each file is checked right in the browser, with row counts, errors and warnings. For this demo, we will load the built-in sample of ten large-cap Indian stocks. <break time="0.9s" />
+
+Step three sets the benchmark used to measure alpha. NIFTY 50 is filled in by default, so we can move on. <break time="0.9s" />
+
+Step four is a final review: project name, benchmark, the number of price records, and the stocks covered. Everything looks right, so let us create the project. <break time="0.9s" />
+
+And we land on the portfolio dashboard. The top row shows the headline numbers at a glance: compound annual growth, maximum drawdown, the Sortino ratio for risk-adjusted return, and the number of active signals, split into buy, hold and sell. <break time="0.9s" />
+
+Below that are the equity curve and sector exposure panels, which fill in once analysis runs. As an Admin, you also get quick actions to run a backtest, build a what-if scenario, or generate a report. <break time="0.9s" />
+
+The sidebar is your map to every module: signals, portfolio, risk, backtesting, simulation and reports. It collapses to give charts more room, and light or dark themes are one click away. <break time="1.2s" />
+
+That is the Admin workflow: from sign-in to a live project in about a minute, with all of your data staying on your own device.

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Demo recorder (plain Node scripts, not app code).
+    "demo/**",
   ]),
 ]);
 

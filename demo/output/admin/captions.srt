@@ -1,0 +1,47 @@
+1
+00:00:00,280 --> 00:00:15,180
+Welcome to AI Portfolio Recommendation: a private, browser-based workspace for building and reviewing equity portfolios on Indian markets. In this walkthrough, we will sign in as an Admin and set up a project from scratch.
+
+2
+00:00:15,180 --> 00:00:28,080
+First, notice the Local Mode note. The app runs entirely in your browser. Price data, projects and settings are stored on your device, and nothing is sent to a server.
+
+3
+00:00:28,090 --> 00:00:39,390
+To sign in, enter a name, then choose a role. The Admin role has full access: creating projects, loading data and running analysis. Then click Continue.
+
+4
+00:00:39,390 --> 00:00:51,090
+With no project yet, the dashboard offers two ways to start: create a new project, or import an existing project bundle. We will create a new one.
+
+5
+00:00:51,090 --> 00:00:57,590
+Project setup is a guided, four-step wizard. Step one: give the project a name.
+
+6
+00:00:57,600 --> 00:01:17,700
+Normally, step two is where you upload three CSV files: daily price data, a sector mapping, and your benchmark index. Each file is checked right in the browser, with row counts, errors and warnings. For this demo, we will load the built-in sample of ten large-cap Indian stocks.
+
+7
+00:01:17,700 --> 00:01:27,000
+Step three sets the benchmark used to measure alpha. NIFTY 50 is filled in by default, so we can move on.
+
+8
+00:01:27,000 --> 00:01:38,700
+Step four is a final review: project name, benchmark, the number of price records, and the stocks covered. Everything looks right, so let us create the project.
+
+9
+00:01:38,720 --> 00:01:55,620
+And we land on the portfolio dashboard. The top row shows the headline numbers at a glance: compound annual growth, maximum drawdown, the Sortino ratio for risk-adjusted return, and the number of active signals, split into buy, hold and sell.
+
+10
+00:01:55,620 --> 00:02:10,920
+Below that are the equity curve and sector exposure panels, which fill in once analysis runs. As an Admin, you also get quick actions to run a backtest, build a what-if scenario, or generate a report.
+
+11
+00:02:10,930 --> 00:02:24,230
+The sidebar is your map to every module: signals, portfolio, risk, backtesting, simulation and reports. It collapses to give charts more room, and light or dark themes are one click away.
+
+12
+00:02:24,560 --> 00:02:35,460
+That is the Admin workflow: from sign-in to a live project in about a minute, with all of your data staying on your own device.

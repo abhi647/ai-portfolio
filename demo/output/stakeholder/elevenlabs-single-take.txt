@@ -1,0 +1,15 @@
+Now let us look at AI Portfolio Recommendation from the Stakeholder side: the view for investment committee members, clients, or anyone who needs to review results without changing them. <break time="0.9s" />
+
+Stakeholders sign in the same way. Enter a name, and pick the Stakeholder role, which is read-only. <break time="1.0s" />
+
+The header switches to Portfolio View, and the badge confirms you are signed in as a Stakeholder. You are looking at the same project the Admin set up. <break time="0.9s" />
+
+The key numbers are all here: growth, drawdown, risk-adjusted return, and how many buy, hold and sell signals are active right now. <break time="0.9s" />
+
+What is missing is intentional. There are no quick actions to run backtests, change scenarios or create projects, so the numbers you review cannot be altered by accident. <break time="0.9s" />
+
+Viewers can still personalise their experience, like switching to dark mode for a late-night review. <break time="0.9s" />
+
+When you are done, sign out from the top right. The session ends, and you are back at the login screen. <break time="0.9s" />
+
+That is the Stakeholder view: clear, read-only access to the portfolio. Thanks for watching.
