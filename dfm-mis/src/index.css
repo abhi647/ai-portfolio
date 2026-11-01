@@ -1,0 +1,38 @@
+@import "./overtrue-theme.css";
+@import "@fontsource-variable/mona-sans";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme inline {
+  --font-sans: "Mona Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+body { font-size: 14px; }
+
+/* Instrument surfaces (overtrue/ui visual language) */
+@utility surface-card {
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  background: var(--color-card);
+  color: var(--color-card-foreground);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.1);
+}
+.dark .surface-card { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.5); }
+
+@utility surface-lit {
+  background-image: radial-gradient(120% 70% at 50% -10%, color-mix(in oklab, var(--color-primary) 9%, transparent), transparent 65%);
+}
+
+@utility inset-panel {
+  border-radius: var(--radius-xl);
+  background: color-mix(in oklab, var(--color-muted) 40%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-border) 60%, transparent);
+}
+
+.scrollbar-thin { scrollbar-width: thin; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.animate-rise { animation: rise .5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) { .animate-rise { animation: none; } }
