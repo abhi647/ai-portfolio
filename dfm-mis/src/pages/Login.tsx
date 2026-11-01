@@ -87,6 +87,10 @@ export default function Login() {
       <BrandPanel />
 
       <main className="relative flex flex-col px-5 py-6 sm:px-10">
+        <div className="relative -mx-5 -mt-6 mb-2 h-40 overflow-hidden sm:-mx-10 lg:hidden">
+          <img src="/brand/dfm-factory.webp" alt="CRAX Rings on a DFM Foods production line" className="size-full object-cover" />
+          <div aria-hidden className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,var(--color-background)_100%)]" />
+        </div>
         <div className="flex items-center justify-between">
           <div className="lg:invisible"><BrandMark /></div>
           <Button variant="ghost" size="icon-sm" aria-label="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
@@ -205,19 +209,23 @@ function BrandPanel() {
   const wk = series.slice(-7).reduce((a, b) => a + b, 0), pw = series.slice(-14, -7).reduce((a, b) => a + b, 0);
   return (
     <aside className="relative hidden overflow-hidden bg-[#0b0d12] p-10 text-white lg:flex lg:flex-col dark">
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_20%_0%,color-mix(in_oklab,var(--color-primary)_35%,transparent),transparent_70%),radial-gradient(60%_50%_at_100%_100%,color-mix(in_oklab,var(--color-chart-2)_18%,transparent),transparent_70%)]" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(white_1px,transparent_1px),linear-gradient(90deg,white_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(70%_60%_at_50%_40%,black,transparent)]" />
-      <div className="relative"><BrandMark inverted /></div>
+      <img src="/brand/dfm-factory.webp" alt="" aria-hidden className="pointer-events-none absolute inset-0 size-full scale-105 object-cover" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(8_10_14/0.55)_0%,rgb(8_10_14/0.35)_30%,rgb(8_10_14/0.82)_62%,rgb(8_10_14/0.96)_100%)]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_50%_at_10%_0%,rgb(226_0_26/0.28),transparent_70%)]" />
+      <div className="relative flex items-center justify-between">
+        <BrandMark inverted />
+        <span className="rounded-full bg-black/35 px-3 py-1 text-[11px] text-white/80 ring-1 ring-white/15 backdrop-blur">Inside a DFM Foods plant · CRAX Rings</span>
+      </div>
 
       <div className="relative mt-auto max-w-[520px]">
-        <StatusBadge variant="info" live className="mb-5">Live from Traqo TMS · DMS · ERP</StatusBadge>
+        <span className="mb-5 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20 backdrop-blur"><span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />Live from Traqo TMS · DMS · ERP</span>
         <h2 className="m-0 text-[44px] leading-[1.05] font-semibold tracking-[-0.045em]">
           Every truck, order<br />and rupee — <span className="text-primary">in one view.</span>
         </h2>
         <p className="m-0 mt-4 max-w-md text-[15px] leading-6 text-white/65">Supply, sales and finance analytics for DFM Foods. Spot delays before they cost you, and drill from any number to the trip behind it.</p>
 
         <div className="mt-9 grid grid-cols-[1.2fr_1fr] gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] backdrop-blur">
+          <div className="rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] backdrop-blur">
             <div className="flex items-center justify-between text-xs text-white/60">
               <span className="inline-flex items-center gap-1.5"><IconTruckDelivery className="size-4" /> Dispatches · last 7 days</span>
               <span className="tabular-nums">{fmtN(pw)} prior week</span>
@@ -225,7 +233,7 @@ function BrandPanel() {
             <div className="mt-1 text-3xl font-semibold tracking-[-0.035em] tabular-nums"><NumberTicker value={wk} animateOnMount /></div>
             <Sparkline data={series} className="mt-2 h-14" color="var(--color-primary)" />
           </div>
-          <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] backdrop-blur">
+          <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-black/35 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] backdrop-blur">
             <span className="text-xs text-white/60">Active trips right now</span>
             <div className="text-3xl font-semibold tracking-[-0.035em] tabular-nums"><NumberTicker value={active.length} animateOnMount /></div>
             <DistributionBar segments={segs} showLegend={false} />

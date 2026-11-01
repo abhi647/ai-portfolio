@@ -4,6 +4,28 @@ import { ComposedChart } from "@/components/overtrue/composed-chart";
 import { MONTHS } from "@/data/data";
 import { fmtN } from "@/data/format";
 import { cn } from "@/lib/utils";
+import { useAutoInsight } from "./kit";
+
+const pts = (v: number) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1) + " pts";
+
+/** Biggest share shift between the last two months, phrased as a one-line takeaway. */
+function stackInsight(data: Record<string, unknown>[], series: { key: string; label: string }[], good?: string[], bad?: string[]) {
+  if (series.length < 2 || data.length < 2) return null;
+  const tot = (r: Record<string, unknown>) => series.reduce((a, s) => a + (Number(r[s.key]) || 0), 0);
+  const cur = data[data.length - 1], prev = data[data.length - 2];
+  const tc = tot(cur), tp = tot(prev);
+  if (!tc || !tp) return null;
+  let best = series[0], delta = 0;
+  for (const s of series) {
+    const d = (Number(cur[s.key]) / tc - Number(prev[s.key]) / tp) * 100;
+    if (Math.abs(d) > Math.abs(delta)) { delta = d; best = s; }
+  }
+  const share = (Number(cur[best.key]) / tc) * 100;
+  const tone = good?.includes(best.label) ? (delta >= 0 ? "positive" : "negative") : bad?.includes(best.label) ? (delta >= 0 ? "negative" : "positive") : "neutral";
+  const totals = data.map(tot);
+  const peak = totals.indexOf(Math.max(...totals.slice(0, -1)));
+  return `{{metric:${best.label}|${share.toFixed(1)}%|neutral}} of ${MONTHS[MONTHS.length - 1].label} (MTD), the biggest mix shift at {{metric:|${pts(delta)}|${tone}}} vs ${MONTHS[MONTHS.length - 2].label}. Highest full month: ${MONTHS[peak].label}.`;
+}
 
 export interface Cat<T> { label: string; color: string; pred: (r: T) => boolean }
 
@@ -20,12 +42,13 @@ export function monthly<T extends { mk: string }>(rows: T[], cats: Cat<T>[], agg
 }
 
 export function MonthlyStack<T extends { mk: string }>({
-  rows, cats, agg, fmt = fmtN, axis, onDrill, height = "h-72", stacked = true, type = "bar",
+  rows, cats, agg, fmt = fmtN, axis, onDrill, height = "h-72", stacked = true, type = "bar", good, bad,
 }: {
   rows: T[]; cats: Cat<T>[]; agg?: (rs: T[]) => number; fmt?: (v: number) => string; axis?: (v: number) => string;
-  onDrill?: (label: string, rows: T[]) => void; height?: string; stacked?: boolean; type?: "bar" | "line" | "area";
+  onDrill?: (label: string, rows: T[]) => void; height?: string; stacked?: boolean; type?: "bar" | "line" | "area"; good?: string[]; bad?: string[];
 }) {
   const m = monthly(rows, cats, agg);
+  useAutoInsight(stackInsight(m.data, m.series, good, bad));
   return (
     <TrendChart
       data={m.data}
@@ -48,12 +71,24 @@ export function MonthlyStack<T extends { mk: string }>({
 
 /** Stacked monthly bars with a percentage line on the right axis. */
 export function MonthlyWithRate<T extends { mk: string }>({
-  rows, cats, rate, rateLabel, onDrill, height = "h-72", fmt = fmtN,
+  rows, cats, rate, rateLabel, onDrill, height = "h-72", fmt = fmtN, higherIsBetter = true,
 }: {
-  rows: T[]; cats: Cat<T>[]; rate: (rs: T[]) => number | null; rateLabel: string; onDrill?: (label: string, rows: T[]) => void; height?: string; fmt?: (v: number) => string;
+  rows: T[]; cats: Cat<T>[]; rate: (rs: T[]) => number | null; rateLabel: string; onDrill?: (label: string, rows: T[]) => void; height?: string; fmt?: (v: number) => string; higherIsBetter?: boolean;
 }) {
   const m = monthly(rows, cats);
   const data = m.data.map((d, i) => ({ ...d, rate: rate(rows.filter((r) => r.mk === MONTHS[i].key)) }));
+  const pairs = data.map((d, i) => ({ v: d.rate, m: MONTHS[i].label })).filter((x): x is { v: number; m: string } => x.v != null);
+  const rates = pairs.map((x) => x.v);
+  let text: string | null = null;
+  if (rates.length >= 3) {
+    const last = rates[rates.length - 1];
+    const base = rates.slice(0, -1).reduce((a, b) => a + b, 0) / (rates.length - 1);
+    const d = last - base;
+    const best = rates.indexOf(higherIsBetter ? Math.max(...rates) : Math.min(...rates));
+    const tone = Math.abs(d) < 0.3 ? "neutral" : (d > 0) === higherIsBetter ? "positive" : "negative";
+    text = `${rateLabel} is {{metric:${MONTHS[MONTHS.length - 1].label}|${last.toFixed(1)}%|neutral}}, {{metric:|${pts(d)}|${tone}}} against the prior 5-month average. Best month: ${pairs[best]?.m}.`;
+  }
+  useAutoInsight(text);
   return (
     <ComposedChart
       data={data}

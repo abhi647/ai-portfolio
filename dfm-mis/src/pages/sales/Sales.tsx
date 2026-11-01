@@ -9,6 +9,8 @@ import { DonutChart } from "@/components/overtrue/donut-chart";
 import { Treemap } from "@/components/overtrue/treemap";
 import { DeltaBadge } from "@/components/overtrue/delta-badge";
 import { SegmentedMeter } from "@/components/overtrue/segmented-meter";
+import { StackedAreaChart } from "@/components/overtrue/stacked-area-chart";
+import { InsightLine } from "@/components/app/kit";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/select";
@@ -78,6 +80,9 @@ function SalesKpis({ range, cmp, cmpLabel }: SP) {
           <span className="text-muted-foreground tabular-nums">MTD {cr(mc.mtd.sales)} of {cr(mc.mTarget)} · need {cr(mc.required)}/day vs {cr(mc.runRate)}/day today</span>
         </div>
         <SegmentedMeter value={pctv(mc.mtd.sales, mc.mTarget)} zones={[{ label: "Behind", from: 0, to: 70, color: C.bad }, { label: "Catching up", from: 70, to: 90, color: C.warn }, { label: "On pace", from: 90, to: 100, color: C.good }]} showLabels showMarker tickFormatter={(v) => v + "%"} />
+        <InsightLine text={mc.required > mc.runRate
+          ? `To hit target, daily sales must rise to {{metric:${cr(mc.required)}/day|+${pct(mc.required - mc.runRate, mc.runRate, 0)}|negative}} for the last ${mc.daysLeft} days. The month-end push typically adds ~30%, so the gap is ${mc.required / mc.runRate > 1.3 ? "unlikely to close without a scheme" : "closable"}.`
+          : `On pace: current run-rate {{metric:${cr(mc.runRate)}/day|ahead|positive}} already exceeds what is needed.`} />
       </div>
     </>
   );
@@ -106,7 +111,8 @@ function HierTable({ title, nodes, cmpLabel, range }: { title: string; nodes: Sa
     );
   };
   return (
-    <Panel title={title} description={`Click a row to drill down · ${fd(range[0])} → ${fd(range[1])}`}
+    <Panel title={title} description={`Click a row to drill down · ${fd(range[0])} → ${fd(range[1])}`} span={12}
+      insight={(() => { const gap = [...nodes].sort((a, b) => (b.target - b.sales) - (a.target - a.sales))[0]; const gr = [...nodes].sort((a, b) => b.sales / (b.cmp || 1) - a.sales / (a.cmp || 1))[0]; return `{{metric:${gap.label}|${cr(Math.max(0, gap.target - gap.sales))} gap|negative}} is the largest shortfall to target; {{metric:${gr.label}|+${pct(gr.sales - gr.cmp, gr.cmp)}|positive}} is growing fastest vs ${cmpLabel}.`; })()}
       actions={<div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setOpen(new Set(allKeys))}>Expand all</Button><Button size="sm" variant="ghost" onClick={() => setOpen(new Set())}>Collapse</Button></div>}>
       <div className="overflow-x-auto rounded-xl ring-1 ring-border/60">
         <Table>
@@ -151,10 +157,12 @@ function Team({ range, cmp, cmpLabel, preset }: SP & { preset: string }) {
   return (
     <>
       <Grid>
-        <Panel title="Zone achievement" description="Bar = achievement · tick = 100% · bands at 85% / 95%" info="A bullet chart shows actual vs target in a compact row per zone — clearer than side-by-side bars.">
+        <Panel span={5} title="Zone achievement" description="Bar = achievement · tick = 100% · bands at 85% / 95%"
+          insight={(() => { const z = [...nodes].sort((a, b) => a.sales / a.target - b.sales / b.target); return `Only {{metric:${nodes.filter((n) => n.sales >= n.target * 0.95).length} of ${nodes.length} zones|≥ 95%|neutral}} are near target. ${z[0].label.split(" – ")[0]} lags at {{metric:|${pct(z[0].sales, z[0].target, 0)}|negative}}.`; })()} info="A bullet chart shows actual vs target in a compact row per zone — clearer than side-by-side bars.">
           <BulletChart tone="status" items={nodes.map((n) => ({ id: n.key, label: n.label.split(" – ")[0], sublabel: `${cr(n.sales)} of ${cr(n.target)}`, value: n.sales / n.target, target: 1, ranges: [0.85, 0.95, 1.15] as [number, number, number], max: 1.2 }))} valueFormatter={(v) => (v * 100).toFixed(0) + "%"} />
         </Panel>
-        <Panel title="Daily sales vs target pace" description={preset === "month" || preset === "last_month" || preset === "week" ? "Selected period" : "Last 30 days"}>
+        <Panel span={7} title="Daily sales vs target pace" description={preset === "month" || preset === "last_month" || preset === "week" ? "Selected period" : "Last 30 days"}
+          insight={(() => { const above = daily.filter((d) => d.sales >= d.target).length; return `Sales beat the daily pace on {{metric:${above} of ${daily.length} days|${pct(above, daily.length, 0)}|${above / daily.length >= 0.5 ? "positive" : "negative"}}}; Sundays and the first 3 days of the month drag the average.`; })()}>
           <ComposedChart data={daily} xKey="day" showYAxis showLegend yFormatter={crAxis} className="h-72"
             series={[{ key: "sales", label: "Sales", type: "bar" }, { key: "target", label: "Daily target pace", type: "line", dashed: true, color: C.c3 }]} />
           <Foot>Month-end push is visible in the last 5 days of each month; Sundays dip.</Foot>
@@ -162,10 +170,10 @@ function Team({ range, cmp, cmpLabel, preset }: SP & { preset: string }) {
       </Grid>
       <HierTable title="Team-wise sales · Zone › Region › ASM" nodes={nodes} cmpLabel={cmpLabel} range={range} />
       <Grid>
-        <Panel title="Top 5 ASMs" description="By achievement %">
+        <Panel title="Top 5 ASMs" description="By achievement %" insight={`${leader.filter((x) => x.ach >= 100).length} of ${leader.length} ASMs are at or above target; {{metric:${leader[0].a.name}|${leader[0].ach.toFixed(1)}%|positive}} leads.`}>
           <BarList data={leader.slice(0, 5).map((x) => ({ name: `${x.a.name} · ${x.a.region}`, value: x.ach }))} color={C.good} valueFormatter={(v) => v.toFixed(1) + "%"} />
         </Panel>
-        <Panel title="Bottom 5 ASMs" description="Need support before month-end">
+        <Panel title="Bottom 5 ASMs" description="Need support before month-end" insight={`Bottom 5 are ${cr(sum(leader.slice(-5), (x) => Math.max(0, x.t - x.s)))} short combined — ${pct(sum(leader.slice(-5), (x) => Math.max(0, x.t - x.s)), sum(leader, (x) => Math.max(0, x.t - x.s)), 0)} of the company’s total gap.`}>
           <BarList data={leader.slice(-5).map((x) => ({ name: `${x.a.name} · ${x.a.region}`, value: x.ach }))} sortOrder="ascending" color={C.bad} valueFormatter={(v) => v.toFixed(1) + "%"} />
         </Panel>
       </Grid>
@@ -177,14 +185,24 @@ function Team({ range, cmp, cmpLabel, preset }: SP & { preset: string }) {
 function Brand({ range, cmp, cmpLabel }: SP) {
   const nodes = brandNodes(range, cmp);
   const growth = nodes.map((n) => ({ brand: n.label.replace("CRAX ", ""), cur: n.sales, prev: n.cmp }));
+  const trend = MONTHS.map((m) => { const r: Range = [m.date, new Date(Math.min(+new Date(m.date.getFullYear(), m.date.getMonth() + 1, 0), +range[1]))]; const ns = brandNodes(r, r); return { month: m.label, ...Object.fromEntries(ns.map((n, i) => ["b" + i, Math.round(n.sales)])) } as Record<string, string | number>; });
+  const small = nodes.flatMap((n) => n.children!).filter((c) => c.label === "₹5 Pack");
+  const fastest = [...nodes].sort((a, b) => b.sales / b.cmp - a.sales / a.cmp)[0];
   return (
     <>
       <Grid>
-        <Panel title="Brand × pack mix" description="Area = sales. Click a brand to see its packs." info="A treemap shows both levels of the hierarchy at once — a doughnut can only show one.">
+        <Panel span={7} title="Brand × pack mix" description="Area = sales. Click a brand to see its packs."
+          insight={`{{metric:₹5 packs|${pct(sum(small, "sales"), sum(nodes, "sales"), 0)}|neutral}} of brand sales — a price-point business. ${nodes[0].label} is the anchor at ${pct(nodes[0].sales, sum(nodes, "sales"), 0)}.`} info="A treemap shows both levels of the hierarchy at once — a doughnut can only show one.">
           <Treemap data={nodes.map((n, i) => ({ id: n.key, label: n.label, color: PALETTE[i], children: n.children!.map((c) => ({ id: c.key, label: c.label, value: c.sales })) }))} valueFormatter={(v) => cr(v)} height={340} rootLabel="All brands" />
         </Panel>
-        <Panel title={`Brand sales vs ${cmpLabel}`}>
+        <Panel span={5} title={`Brand sales vs ${cmpLabel}`} insight={`{{metric:${fastest.label}|+${pct(fastest.sales - fastest.cmp, fastest.cmp)}|positive}} is growing fastest vs ${cmpLabel}.`}>
           <TrendChart data={growth} xKey="brand" type="bar" showLegend showYAxis yFormatter={crAxis} className="h-[340px]" series={[{ key: "cur", label: "Current", color: C.c1 }, { key: "prev", label: cmpLabel, color: C.muted }]} />
+        </Panel>
+      </Grid>
+      <Grid>
+        <Panel span={12} title="Brand share trend · last 6 months" description="100% stacked — how each brand’s share of sales is moving" info="A 100% stacked area shows share shifts that absolute bars hide."
+          insight={(() => { const tot = (r: Record<string, unknown>) => nodes.reduce((a, _, i) => a + Number(r["b" + i]), 0); const sh = nodes.map((n, i) => ({ n, d: (Number(trend[5]["b" + i]) / tot(trend[5]) - Number(trend[0]["b" + i]) / tot(trend[0])) * 100 })).sort((a, b) => b.d - a.d); return `{{metric:${sh[0].n.label}|${sh[0].d >= 0 ? "+" : ""}${sh[0].d.toFixed(1)} pts|positive}} gained the most share since ${MONTHS[0].label}; {{metric:${sh[sh.length - 1].n.label}|${sh[sh.length - 1].d.toFixed(1)} pts|negative}} lost the most.`; })()}>
+          <StackedAreaChart data={trend} index="month" stack="expand" height={260} showLegend valueFormatter={(v) => cr(v)} series={nodes.map((n, i) => ({ key: "b" + i, label: n.label, color: PALETTE[i] }))} />
         </Panel>
       </Grid>
       <HierTable title="Brand-wise sales · Brand › Pack" nodes={nodes} cmpLabel={cmpLabel} range={range} />
@@ -196,20 +214,29 @@ function Brand({ range, cmp, cmpLabel }: SP) {
 function Channel({ range, cmp, cmpLabel, compare }: SP & { compare: string }) {
   const nodes = channelNodes(range, cmp, compare);
   const tot = sum(nodes, "sales");
+  const trend = MONTHS.map((m) => { const r: Range = [m.date, new Date(Math.min(+new Date(m.date.getFullYear(), m.date.getMonth() + 1, 0), +range[1]))]; const ns = channelNodes(r, r, compare); return { month: m.label, ...Object.fromEntries(ns.map((n, i) => ["c" + i, Math.round(n.sales)])) } as Record<string, string | number>; });
+  const ecom = nodes.find((n) => n.label.startsWith("E-"))!;
   const subs = nodes.flatMap((n) => n.children!.map((c) => ({ name: c.label, value: c.cmp ? (c.sales / c.cmp - 1) * 100 : 0 }))).sort((a, b) => b.value - a.value);
   return (
     <>
       <Grid>
-        <Panel title="Channel mix" description="Share of secondary sales">
+        <Panel span={5} title="Channel mix" description="Share of secondary sales"
+          insight={`General trade is still {{metric:${pct(nodes[0].sales, tot, 0)}|of sales|neutral}}; e-com & q-comm is {{metric:${pct(ecom.sales, tot, 1)}|+${pct(ecom.sales - ecom.cmp, ecom.cmp, 0)} vs ${cmpLabel}|positive}}.`}>
           <DonutChart data={nodes.map((n, i) => ({ name: n.label, value: n.sales, color: PALETTE[i] }))} valueFormatter={(v) => cr(v)} centerLabel="Total" centerValue={cr(tot)} legendPosition="right" className="h-72" />
         </Panel>
-        <Panel title={`Channel sales vs ${cmpLabel}`} info="Quick-commerce (Blinkit, Zepto, Instamart) is the fastest-growing sub-channel.">
+        <Panel span={7} title={`Channel sales vs ${cmpLabel}`} insight={(() => { const w = [...nodes].sort((a, b) => a.sales / a.cmp - b.sales / b.cmp)[0]; return `{{metric:${w.label}|${pct(w.sales - w.cmp, w.cmp)}|${w.sales >= w.cmp ? "neutral" : "negative"}}} is the slowest channel vs ${cmpLabel}.`; })()} info="Quick-commerce (Blinkit, Zepto, Instamart) is the fastest-growing sub-channel.">
           <TrendChart data={nodes.map((n) => ({ ch: n.label.replace(" & ", " / "), cur: n.sales, prev: n.cmp }))} xKey="ch" type="bar" showLegend showYAxis yFormatter={crAxis} className="h-72" series={[{ key: "cur", label: "Current", color: C.c1 }, { key: "prev", label: cmpLabel, color: C.muted }]} />
         </Panel>
       </Grid>
-      <Panel title="Fastest-growing sub-channels" description={`Growth vs ${cmpLabel}`}>
+      <Grid>
+      <Panel span={7} title="Channel share trend · last 6 months" description="100% stacked area of each channel’s share"
+        insight={`E-com & q-comm share moved from {{metric:${MONTHS[0].label}|${pct(Number(trend[0].c2), nodes.reduce((a, _, i) => a + Number(trend[0]["c" + i]), 0))}|neutral}} to {{metric:${MONTHS[5].label}|${pct(Number(trend[5].c2), nodes.reduce((a, _, i) => a + Number(trend[5]["c" + i]), 0))}|positive}}.`}>
+        <StackedAreaChart data={trend} index="month" stack="expand" height={260} showLegend valueFormatter={(v) => cr(v)} series={nodes.map((n, i) => ({ key: "c" + i, label: n.label, color: PALETTE[i] }))} />
+      </Panel>
+      <Panel span={5} title="Fastest-growing sub-channels" description={`Growth vs ${cmpLabel}`} insight={subs.length ? `{{metric:${subs[0].name}|+${subs[0].value.toFixed(1)}%|positive}} leads growth — quick-commerce accounts dominate the top of this list.` : null}>
         <BarList data={subs.slice(0, 8).map((s) => ({ name: s.name, value: Math.max(0, s.value) }))} color={C.good} valueFormatter={(v) => "+" + v.toFixed(1) + "%"} />
       </Panel>
+      </Grid>
       <HierTable title="Channel-wise sales · Channel › Sub-channel" nodes={nodes} cmpLabel={cmpLabel} range={range} />
     </>
   );
@@ -253,7 +280,7 @@ function Builder({ range }: { range: Range }) {
         </div>
         {b.chart === "donut" && (b.metric === "ach" || b.dim === "month") ? <p className="m-0 mt-3 text-xs text-amber-700 dark:text-amber-400">Tip: a donut only makes sense for parts of a whole — try a bar chart for {b.metric === "ach" ? "percentages" : "trends"}.</p> : null}
       </Panel>
-      <Panel title={`${mLabel} by ${b.dim}`}>
+      <Panel span={12} title={`${mLabel} by ${b.dim}`} insight={(() => { const sorted = [...data].sort((x, y) => y.v - x.v); return sorted.length ? `Highest: {{metric:${sorted[0].l}|${fmt(sorted[0].v)}|positive}} · lowest: {{metric:${sorted[sorted.length - 1].l}|${fmt(sorted[sorted.length - 1].v)}|negative}}. Spread of ${(sorted[0].v / (sorted[sorted.length - 1].v || 1)).toFixed(1)}×.` : null; })()}>
         {b.chart === "donut" ? (
           <DonutChart data={data.map((d, i) => ({ name: d.l, value: d.v, color: PALETTE[i % PALETTE.length] }))} valueFormatter={(v) => fmt(v)} legendPosition="right" className="h-80" />
         ) : (

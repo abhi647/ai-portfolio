@@ -14,7 +14,7 @@ import { ModulePage } from "@/components/app/module";
 import { DataTable, KpiRow, Num, Panel, Pill, Stat, type Col } from "@/components/app/kit";
 import { useApp } from "@/state/app";
 import { ACCESS, NOW, syncRuns, type SyncRun, type User } from "@/data/data";
-import { DAY, fdt, fmtN, initials } from "@/data/format";
+import { DAY, fdt, fmtN, initials, pct } from "@/data/format";
 
 export default function Settings() {
   const { tab = "users" } = useParams();
@@ -148,7 +148,8 @@ function Sync() {
         <Stat label="In process" value={syncRuns.filter((r) => r.status === "in_process").length} />
         <Stat label="Failed" value={syncRuns.filter((r) => r.status === "failed").length} hint="Auto-retried next cycle" />
       </KpiRow>
-      <Panel title="Sync health by table" description="Last 6 runs, oldest → newest">
+      <Panel title="Sync health by table" description="Last 6 runs, oldest → newest"
+        insight={`{{metric:${pct(syncRuns.filter((r) => r.status === "completed").length, syncRuns.length, 0)}|success rate|positive}} across ${tables.length} tables. The one failure was a 300 s timeout on fact_SecondarySales_DMS — the largest table (${fmtN(412300)} rows), so consider incremental sync for it.`}>
         <div className="grid gap-4 md:grid-cols-2">
           {tables.map((t) => {
             const rs = syncRuns.filter((r) => r.table === t).slice().reverse();

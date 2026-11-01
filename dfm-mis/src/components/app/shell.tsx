@@ -51,7 +51,7 @@ export function AppShell() {
     <SidebarProvider>
       <Sidebar collapsible="icon">
         <SidebarHeader className="px-3 pt-4 pb-2">
-          <Link to="/" className="flex items-center rounded-md p-1 group-data-[collapsible=icon]:p-0"><BrandMark className="group-data-[collapsible=icon]:[&>span:last-child]:hidden" /></Link>
+          <Link to="/" className="flex items-center rounded-md p-1 group-data-[collapsible=icon]:p-0"><BrandMark className="group-data-[collapsible=icon]:[&>span:last-child]:hidden group-data-[collapsible=icon]:[&>img]:h-7" /></Link>
         </SidebarHeader>
         <SidebarContent className="scrollbar-thin">
           {groups.map((g) => (

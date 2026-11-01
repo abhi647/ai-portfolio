@@ -16,6 +16,7 @@ export const MODULES: NavModule[] = [
     description: "Trip hygiene, costing, payments, detention & transporters",
     tabs: [
       { id: "live", label: "Live trips", description: "Every trip not yet ePOD-closed, by stage" },
+      { id: "timeline", label: "Trip timeline", description: "Gantt of every active trip and its legs against plan" },
       { id: "dispatch", label: "Dispatch tracker", description: "Date-wise dispatches by plant" },
       { id: "inside", label: "Vehicle ageing", description: "Inside plant, in transit and at destination" },
       { id: "hygiene", label: "Trip hygiene", description: "Order mix, tracking, fleet mix and completion" },

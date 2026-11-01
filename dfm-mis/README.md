@@ -19,12 +19,21 @@ Sign in with any email, then enter any 6-digit code. **Autofill demo code** fill
 | --- | --- | --- |
 | Sign-in | `/login` | Split-screen layout with a live data preview, email → OTP flow, paste-to-fill code boxes, resend timer, "trust this device", SSO shortcut, return-to-requested-page |
 | Overview | `/` | Greeting, 4 KPI cards with sparklines, a **Needs attention** feed built from live data, trip pipeline, sales pace, zone bullet chart, dashboard launcher |
-| Trip analytics | `/trips/:view` | 11 views: live trips, dispatch, vehicle ageing, hygiene, costing, payments, detention, transporters, destinations, accuracy, cash discount |
-| Order analytics | `/orders/:view` | 7 views: live orders, destination tracker, indents and auctions, planning, dedicated fleet, OTIF, e-com appointments |
+| Trip analytics | `/trips/:view` | 12 views, including a **Gantt trip timeline** (plan vs actual per leg), plus live trips, dispatch, vehicle ageing, hygiene, costing, payments, detention, transporters, destinations, accuracy and cash discount |
+| Order analytics | `/orders/:view` | 7 views: live orders, destination tracker, indents and auctions, planning, dedicated fleet (with a **Gantt vehicle schedule**), OTIF, e-com appointments |
 | Sales | `/sales/:view` | Team, brand and channel hierarchies vs target; period and comparison controls; build-your-own view |
 | CFA throughput | `/cfa` | CFA × date heatmap, ranking, daily trend |
 | E-com P&L | `/pnl` | Gross-to-margin waterfall, expandable P&L, margin trends |
 | Settings (admin) | `/settings/:view` | User access toggles and add-user dialog, refresh schedule, OTIF thresholds (used live across the app), sync health, metric definitions |
+
+### Insights and layout
+
+- **An insight on every chart.** Each chart panel ends with a one-line takeaway built from the data, with highlighted metrics. Monthly charts generate it automatically (biggest mix shift, rate against the 5-month average); other charts have hand-written rules (bottlenecks, worst lanes, idle vehicles, savings).
+- **Today's briefing.** The Overview has a briefing card (overtrue/ui `InsightCard`) that streams in a summary with linked sources.
+- **Bento layout.** Pages use a 12-column grid with panels sized to their content: wide trends, narrow rankings, full-width flows.
+- **Sticky toolbar.** View tabs and a compact chip-style filter bar with saved views (overtrue/ui `FilterBar`) stay pinned while you scroll.
+- **More chart types.** Gantt (trip timeline, dedicated vehicle schedule), Sankey (plant → fleet → distance, OTIF outcome flow), radar (transporter scorecard), 100% stacked area (brand and channel share), calendar heatmap (dispatches per day), dot plot (gate-outs by hour) and stacked area (indents vs auctions).
+- **Brand.** The CRAX logo sits in the app shell. The sign-in page uses a DFM Foods production-line photo, and the Overview hero uses the CRAX range banner. Both images come from DFM Foods' official site, crax.in, and live in `public/brand/`.
 
 ### Making it easier to use than the prototype
 

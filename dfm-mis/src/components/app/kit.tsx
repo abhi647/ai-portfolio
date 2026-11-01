@@ -1,6 +1,7 @@
 /* App-level compositions built only from overtrue/ui components and its visual language. */
 import * as React from "react";
-import { IconDownload, IconInfoCircle } from "@tabler/icons-react";
+import { IconDownload, IconInfoCircle, IconSparkles } from "@tabler/icons-react";
+import { parseInsight } from "@/components/overtrue/insight-card";
 import { cn } from "@/lib/utils";
 import { SectionCard } from "@/components/overtrue/section-card";
 import { KpiCard } from "@/components/overtrue/kpi-card";
@@ -17,41 +18,86 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /* ---------------------------------- Panel --------------------------------- */
+const SPAN: Record<number, string> = {
+  3: "lg:col-span-3", 4: "lg:col-span-4", 5: "lg:col-span-5", 6: "lg:col-span-6", 7: "lg:col-span-7",
+  8: "lg:col-span-8", 9: "lg:col-span-9", 12: "lg:col-span-12",
+};
+
+/** Charts inside a Panel can publish an auto-generated insight; an explicit `insight` prop wins. */
+const InsightCtx = React.createContext<((text: string | null) => void) | null>(null);
+export function useAutoInsight(text: string | null) {
+  const set = React.useContext(InsightCtx);
+  React.useEffect(() => { set?.(text); }, [set, text]);
+}
+
 export function Panel({
-  title, description, actions, children, className, contentClassName, wide, info,
+  title, description, actions, children, className, contentClassName, wide, info, span = 6, insight,
 }: {
   title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode;
-  className?: string; contentClassName?: string; wide?: boolean; info?: string;
+  className?: string; contentClassName?: string; wide?: boolean; info?: string; span?: 3 | 4 | 5 | 6 | 7 | 8 | 9 | 12;
+  /** One-line takeaway. Supports {{metric:Label|+4.2%|positive}} tokens. */
+  insight?: string | null;
 }) {
+  const [auto, setAuto] = React.useState<string | null>(null);
+  const text = insight === undefined ? auto : insight;
   return (
-    <SectionCard
-      title={title ? (
-        <span className="inline-flex items-center gap-1.5">
-          {title}
-          {info ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" aria-label="How this is calculated" className="text-muted-foreground hover:text-foreground">
-                  <IconInfoCircle className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs leading-5">{info}</TooltipContent>
-            </Tooltip>
-          ) : null}
-        </span>
-      ) : undefined}
-      description={description}
-      actions={actions}
-      className={cn(wide && "lg:col-span-2", "animate-rise", className)}
-      contentClassName={cn("p-5", contentClassName)}
-    >
-      {children}
-    </SectionCard>
+    <InsightCtx.Provider value={setAuto}>
+      <SectionCard
+        title={title ? (
+          <span className="inline-flex items-center gap-1.5">
+            {title}
+            {info ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label="How this is calculated" className="text-muted-foreground hover:text-foreground">
+                    <IconInfoCircle className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs leading-5">{info}</TooltipContent>
+              </Tooltip>
+            ) : null}
+          </span>
+        ) : undefined}
+        description={description}
+        actions={actions}
+        className={cn(SPAN[wide ? 12 : span], "flex flex-col animate-rise", className)}
+        contentClassName={cn("flex flex-1 flex-col p-5", contentClassName)}
+      >
+        <div className="min-w-0 flex-1">{children}</div>
+        {text ? <InsightLine text={text} /> : null}
+      </SectionCard>
+    </InsightCtx.Provider>
   );
 }
 
+/** Renders an insight sentence with metric tokens, using the overtrue/ui InsightCard token grammar. */
+export function InsightLine({ text, className }: { text: string; className?: string }) {
+  return (
+    <div data-slot="panel-insight" className={cn("mt-4 flex items-start gap-2.5 rounded-xl bg-[color-mix(in_oklab,var(--color-primary)_6%,transparent)] px-3.5 py-2.5 text-[13px] leading-5 ring-1 ring-inset ring-[color-mix(in_oklab,var(--color-primary)_14%,transparent)]", className)}>
+      <IconSparkles className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+      <p className="m-0 min-w-0"><span className="sr-only">Insight: </span>{renderInsight(text)}</p>
+    </div>
+  );
+}
+
+export function renderInsight(text: string) {
+  return parseInsight(text).map((seg, i) => {
+    if (typeof seg === "string") return <React.Fragment key={i}>{seg}</React.Fragment>;
+    const tone = seg.tone;
+    return (
+      <span key={i} className="whitespace-nowrap">
+        <span className="font-semibold text-foreground">{seg.label}</span>
+        {seg.value ? (
+          <span className={cn("ml-1 rounded-md px-1.5 py-px text-xs font-semibold tabular-nums",
+            tone === "positive" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : tone === "negative" ? "bg-rose-500/10 text-rose-700 dark:text-rose-400" : "bg-muted text-foreground")}>{seg.value}</span>
+        ) : null}
+      </span>
+    );
+  });
+}
+
 export function Grid({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("grid grid-cols-1 gap-5 lg:grid-cols-2", className)}>{children}</div>;
+  return <div className={cn("grid grid-cols-1 gap-5 lg:grid-cols-12", className)}>{children}</div>;
 }
 
 export function KpiRow({ children, className }: { children: React.ReactNode; className?: string }) {

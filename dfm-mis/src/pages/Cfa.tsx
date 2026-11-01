@@ -6,10 +6,10 @@ import { FilterBar, inF, opts, type FilterValues } from "@/components/app/filter
 import { DataTable, Foot, Grid, KpiRow, Panel, Stat, Toggle, type Col } from "@/components/app/kit";
 import { usePersistentState } from "@/state/app";
 import { CFAS, cfaQty, today0 } from "@/data/data";
-import { DAY, fdDay, fdShort, fmtN } from "@/data/format";
+import { DAY, fdDay, fdShort, fmtN, pct } from "@/data/format";
 
 export default function Cfa() {
-  const [f, setF] = usePersistentState<FilterValues>("cfa.filters", {});
+  const [f, setF] = usePersistentState<FilterValues>("cfa.filters.v2", []);
   const [win, setWin] = usePersistentState<"7" | "15" | "30">("cfa.window", "15");
   const n = +win;
   const days = Array.from({ length: n }, (_, i) => new Date(+today0 - (n - 1 - i) * DAY));
@@ -50,15 +50,18 @@ export default function Cfa() {
         <Stat label="Top CFA" value={list.length ? list[topIdx][0].replace("CFA ", "") : "—"} hint={fmtN(Math.max(...tot, 0)) + " cases"} />
         <Stat label="Peak day" value={fdShort(days[peak])} hint={fmtN(dayTot[peak]) + " cases"} />
       </KpiRow>
-      <Panel title="CFA × date throughput" description="Darker = more cases dispatched. Hover a cell for the exact figure." info="A heatmap reads 10 CFAs × 15+ days at a glance — a 10-colour stacked bar can’t.">
+      <Panel title="CFA × date throughput" description="Darker = more cases dispatched. Hover a cell for the exact figure."
+        insight={list.length ? `{{metric:${list[topIdx][0].replace("CFA ", "")}|${pct(tot[topIdx], grand, 0)}|neutral}} moves the most volume. The last 4 days of each month run ~30% hotter — plan CFA labour and trucks for the month-end surge.` : null} info="A heatmap reads 10 CFAs × 15+ days at a glance — a 10-colour stacked bar can’t.">
         <HeatmapChart rows={rows.map((r) => ({ label: r.cfa.replace("CFA ", ""), values: r.vals }))} columns={days.map((d) => fdDay(d))} valueFormatter={(v) => fmtN(v) + " cases"} columnLabelEvery={n > 15 ? 3 : 1} maxCellHeight={30} scale="sqrt" />
       </Panel>
-      <Grid className="lg:grid-cols-[1.6fr_1fr]">
-        <Panel title="Daily dispatch · all selected CFAs" description="Bars: cases · line: 7-day working-day average">
+      <Grid>
+        <Panel span={7} title="Daily dispatch · all selected CFAs"
+          insight={`Throughput is {{metric:${fmtN(grand / work)} cases/day|${prev ? ((grand / prev - 1) * 100 >= 0 ? "+" : "") + ((grand / prev - 1) * 100).toFixed(1) + "%" : "–"}|${grand >= prev ? "positive" : "negative"}}} vs the previous ${n} days; peak was ${fdShort(days[peak])}.`} description="Bars: cases · line: 7-day working-day average">
           <ComposedChart data={trend} xKey="day" showYAxis showLegend yFormatter={(v) => (v / 1000).toFixed(0) + "k"} className="h-72"
             series={[{ key: "qty", label: "Cases", type: "bar" }, { key: "avg", label: "7-day avg", type: "line", color: "var(--color-chart-3)" }]} />
         </Panel>
-        <Panel title="CFA ranking" description={`Total cases · last ${n} days`}>
+        <Panel span={5} title="CFA ranking" description={`Total cases · last ${n} days`}
+          insight={list.length > 2 ? `Top 3 CFAs handle {{metric:${pct([...tot].sort((a, b) => b - a).slice(0, 3).reduce((a, b) => a + b, 0), grand, 0)}|of volume|neutral}}.` : null}>
           <BarList data={rows.map((r) => ({ name: r.cfa.replace("CFA ", ""), value: r.total }))} valueFormatter={fmtN} showPercentage />
         </Panel>
       </Grid>
