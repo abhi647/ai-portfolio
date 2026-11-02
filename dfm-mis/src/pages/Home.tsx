@@ -24,7 +24,7 @@ import { asmPeriod, asmPeriodTarget, monthContext, periodRange } from "@/data/sa
 import { computeAlerts } from "@/data/insights";
 import { cn } from "@/lib/utils";
 import { DenseTable } from "@/components/app/dense";
-import { useDashboards } from "@/state/dashboards";
+import { ModuleTiles } from "@/components/app/ModuleTiles";
 import { execute, type QuerySpec } from "@/ai/engine";
 
 const MONTH_LABEL = MONTHS[5].label;
@@ -78,7 +78,6 @@ const ALERTS = computeAlerts();
 const C2 = "var(--color-chart-1)";
 
 export default function Home() {
-  const dashCount = useDashboards().dashboards.length;
   const { user, otif } = useApp();
   const { openTrips, openOrders } = useDrill();
   const nav = useNavigate();
@@ -179,6 +178,8 @@ export default function Home() {
           className="cursor-pointer" onClick={() => nav("/trips/costing")} />
       </div>
 
+      <ModuleTiles />
+
       <Scorecards />
 
       <Grid>
@@ -257,41 +258,7 @@ export default function Home() {
         </Panel>
       </Grid>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="m-0 text-[15px] font-semibold tracking-tight">Dashboards</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {MODULES.filter((m) => m.id !== "home" && (!m.access || user?.access[m.access] || user?.role === "Admin") && (m.id !== "settings" || user?.role === "Admin")).map((m) => {
-            const meta =
-              m.id === "trips" ? { k: fmtN(active.length), l: "active trips", s: dispByDay.map((r) => r.length) }
-              : m.id === "orders" ? { k: fmtN(orders.filter((o) => o.stage !== "dispatched" && (+NOW - +o.approved) / DAY <= 30).length), l: "open orders", s: days14.map((d) => orders.filter((o) => o.approved >= d && +o.approved < +d + DAY).length) }
-              : m.id === "sales" ? { k: cr(mc.mtd.sales), l: "MTD sales", s: salesDaily }
-              : m.id === "cfa" ? { k: fmtN(cfaToday), l: "cases today", s: days14.map((d) => CFAS.reduce((s, _, i) => s + cfaQty(i, d), 0)) }
-              : m.id === "dashboards" ? { k: String(dashCount), l: "dashboards · 3 templates", s: undefined }
-              : m.id === "explore" ? { k: "5", l: "datasets · pivot & raw records", s: undefined }
-              : m.id === "ask" ? { k: "Ask", l: "anything — get a chart back", s: undefined }
-              : m.id === "pnl" ? { k: ((pnlMtd.materialMargin / pnlMtd.netSales) * 100).toFixed(1) + "%", l: "material margin (MTD)", s: undefined }
-              : { k: "8 / 8", l: "sync jobs healthy", s: undefined };
-            return (
-              <Link key={m.id} to={m.tabs ? `${m.path}/${m.tabs[0].id}` : m.path}
-                className="surface-card group flex flex-col gap-3 p-5 transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary"><m.icon className="size-[18px]" /></span>
-                  {m.source ? <StatusBadge variant="neutral">{m.source}</StatusBadge> : null}
-                </div>
-                <div>
-                  <div className="text-sm font-semibold">{m.label}</div>
-                  <div className="text-[13px] leading-5 text-muted-foreground">{m.description}</div>
-                </div>
-                <div className="mt-auto flex items-end justify-between gap-4">
-                  <div><div className="text-xl font-semibold tracking-[-0.02em] tabular-nums">{meta.k}</div><div className="text-xs text-muted-foreground">{meta.l}</div></div>
-                  {meta.s ? <Sparkline data={meta.s} className="h-10 w-28" /> : null}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-        <Foot>Data refreshes automatically every 15 minutes. Use Sync in the top bar to pull the latest now.</Foot>
-      </section>
+      <Foot>Data refreshes automatically every 15 minutes. Use Sync in the top bar to pull the latest now.</Foot>
     </div>
   );
 }
