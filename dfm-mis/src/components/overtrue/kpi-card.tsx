@@ -1,0 +1,149 @@
+/** Adapted from dashboardcn (MIT), copyright 2026 dashboardcn contributors.
+ * Source: https://github.com/NoahGdev/dashboardcn/tree/b1ffacbca0f7a0be60135c8665b9e8c267205c48
+ *
+ * MIT License
+ *
+ * Copyright (c) 2026 dashboardcn contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * ---
+ *
+ * Portions of this project are derived from shadcn/ui and shadcn/registry-template
+ * (https://github.com/shadcn-ui/ui), Copyright (c) 2023 shadcn, licensed under the
+ * MIT License. The notice above applies to those portions as well.
+ */
+"use client";
+
+import * as React from "react";
+
+import { cn } from "@/lib/utils";
+import { type NumberFormat } from "./metric-format";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./analytics-card";
+import { DeltaBadge, getDeltaDirection } from "./delta-badge";
+import { Sparkline } from "./trend-sparkline";
+import { MetricValue } from "./metric-value";
+
+export interface KpiCardProps extends Omit<
+  React.ComponentProps<typeof Card>,
+  "children"
+> {
+  /** Metric name, e.g. "Revenue". */
+  label: string;
+  /** Current value. Numbers are formatted with `format`; strings render as-is. */
+  value: number | string;
+  /** Fractional change vs. the previous period, e.g. 0.124 for +12.4%. */
+  delta?: number;
+  /** Context for the delta, e.g. "vs. last 30 days". */
+  deltaLabel?: string;
+  /** Series for the sparkline. Rendered when it has two or more points. */
+  sparkline?: number[];
+  /** @deprecated Use sparkline. Retained for existing consumers. */
+  trend?: number[];
+  format?: NumberFormat;
+  /** ISO 4217 code, used when `format` is "currency". */
+  currency?: string;
+  /** Caps the decimals shown, e.g. 0 for whole dollars. */
+  maximumFractionDigits?: number;
+  /** Treat a decrease as good and an increase as bad (churn, latency, errors). */
+  invertDelta?: boolean;
+  /** Optional icon shown before the label. */
+  icon?: React.ReactNode;
+  children?: React.ReactNode;
+}
+
+function KpiCard({
+  label,
+  value,
+  delta,
+  deltaLabel,
+  sparkline,
+  trend,
+  format = "number",
+  currency,
+  maximumFractionDigits,
+  invertDelta = false,
+  icon,
+  className,
+  children,
+  ...props
+}: KpiCardProps) {
+  const series = sparkline ?? trend;
+  const direction = getDeltaDirection(delta);
+  const isPositive =
+    direction === "flat" ? null : (direction === "up") !== invertDelta;
+  const trendColor =
+    isPositive === true
+      ? "var(--color-emerald-500)"
+      : isPositive === false
+        ? "var(--color-rose-500)"
+        : "var(--color-primary)";
+
+  return (
+    <Card
+      data-slot="kpi-card"
+      data-direction={direction}
+      className={cn(
+        "min-w-0 gap-4 rounded-2xl border border-border/70 bg-card py-5 text-card-foreground shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.10)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.05),0_1px_2px_rgb(0_0_0/0.5)]",
+        className,
+      )}
+      {...props}
+    >
+      <CardHeader className="gap-y-2 px-5">
+        <CardDescription className="row-start-1 flex min-h-5 min-w-0 items-center gap-1.5 text-[13px] font-medium [&>svg]:size-4 [&>svg]:shrink-0">
+          {icon}
+          {label}
+        </CardDescription>
+        <CardTitle className="col-span-2 row-start-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.035em] tabular-nums">
+          <MetricValue
+            value={value}
+            format={format}
+            currency={currency}
+            maximumFractionDigits={maximumFractionDigits}
+          />
+        </CardTitle>
+        {delta !== undefined ? (
+          <CardAction className="row-span-1">
+            <DeltaBadge delta={delta} invert={invertDelta} variant="soft" />
+          </CardAction>
+        ) : null}
+      </CardHeader>
+      {series && series.length > 1 ? (
+        <CardContent className="px-5">
+          <Sparkline data={series} color={trendColor} className="h-11" />
+        </CardContent>
+      ) : null}
+      {deltaLabel || children ? (
+        <CardContent className="flex min-w-0 items-center gap-2 px-5 text-xs text-muted-foreground">
+          {deltaLabel ? <span>{deltaLabel}</span> : null}
+          {children}
+        </CardContent>
+      ) : null}
+    </Card>
+  );
+}
+
+export { KpiCard };
