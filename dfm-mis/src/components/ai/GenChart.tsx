@@ -1,6 +1,6 @@
 /* Generative UI: renders any QuerySpec with the overtrue/ui chart that fits it. */
 import * as React from "react";
-import { IconCode, IconDownload, IconPin, IconPinFilled } from "@tabler/icons-react";
+import { IconCode, IconDownload, IconPin, IconPinFilled, IconShare } from "@tabler/icons-react";
 import { TrendChart } from "@/components/overtrue/trend-chart";
 import { ComposedChart } from "@/components/overtrue/composed-chart";
 import { DonutChart } from "@/components/overtrue/donut-chart";
@@ -50,6 +50,11 @@ export function GenChart({ spec, pinned, onPin, compact, className }: { spec: Qu
     a.click();
   };
 
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const share = () => {
+    const plain = insights.join(" ").replace(/\{\{metric:([^|}]*)\|?([^|}]*)\|?[^}]*\}\}/g, (_m, a, b) => [a, b].filter(Boolean).join(" "));
+    navigator.share({ title: spec.title, text: `${spec.title}\n${plain}` }).catch(() => undefined);
+  };
   return (
     <div data-slot="gen-chart" className={cn("surface-card flex min-w-0 flex-col gap-3 p-4", className)}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -63,6 +68,7 @@ export function GenChart({ spec, pinned, onPin, compact, className }: { spec: Qu
         </div>
         <div className="flex items-center gap-1">
           {onPin ? <Button variant="ghost" size="icon-sm" aria-label={pinned ? "Unpin from My board" : "Pin to My board"} onClick={onPin}>{pinned ? <IconPinFilled className="size-4 text-primary" /> : <IconPin className="size-4" />}</Button> : null}
+          {canShare ? <Button variant="ghost" size="icon-sm" aria-label="Share" onClick={share}><IconShare className="size-4" /></Button> : null}
           <Button variant="ghost" size="icon-sm" aria-label="Export CSV" onClick={exportCsv}><IconDownload className="size-4" /></Button>
           <Button variant="ghost" size="icon-sm" aria-label="Show query" aria-pressed={showSpec} onClick={() => setShowSpec((v) => !v)}><IconCode className="size-4" /></Button>
         </div>

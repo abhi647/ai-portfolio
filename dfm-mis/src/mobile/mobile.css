@@ -1,0 +1,11 @@
+/* Phone app: native-feeling touches on top of the overtrue/ui theme. */
+html, body { height: 100%; overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+body { touch-action: manipulation; }
+/* iOS zooms into inputs under 16px; keep composer and fields at 16px on phones. */
+@media (max-width: 640px) { input, textarea, select { font-size: 16px !important; } }
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+@keyframes mic-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-destructive) 45%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+.mic-live { animation: mic-pulse 1.1s ease-out infinite; }

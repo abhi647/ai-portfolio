@@ -150,6 +150,7 @@ export function AppShell() {
                 <DropdownMenuSeparator />
                 {user?.role === "Admin" && <DropdownMenuItem onSelect={() => nav("/settings/users")}>Manage users</DropdownMenuItem>}
                 <DropdownMenuItem onSelect={() => setTheme(theme === "dark" ? "light" : "dark")}>Switch to {theme === "dark" ? "light" : "dark"} mode</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => { window.location.href = "/app/"; }}>Open phone app (Ask AI first)</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => { signOut(); nav("/login"); }}><IconLogout className="size-4" /> Sign out</DropdownMenuItem>
               </DropdownMenuContent>

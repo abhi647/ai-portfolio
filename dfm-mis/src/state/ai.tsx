@@ -19,6 +19,7 @@ interface AIState {
   ask: (text: string) => void;
   pins: Pin[];
   togglePin: (spec: QuerySpec) => void;
+  movePin: (id: string, dir: -1 | 1) => void;
   isPinned: (spec: QuerySpec) => boolean;
   configured: boolean | null;
   model?: string;
@@ -101,6 +102,11 @@ export function AIProvider({ children }: { children: React.ReactNode }) {
     ask: (text) => { setOpen(true); window.setTimeout(() => send(text), 60); },
     pins,
     togglePin: (spec) => setPins((ps) => (ps.some((p) => specKey(p.spec) === specKey(spec)) ? ps.filter((p) => specKey(p.spec) !== specKey(spec)) : [{ id: id(), spec, at: Date.now() }, ...ps])),
+    movePin: (pid, dir) => setPins((ps) => {
+      const i = ps.findIndex((p) => p.id === pid), j = i + dir;
+      if (i < 0 || j < 0 || j >= ps.length) return ps;
+      const next = [...ps]; [next[i], next[j]] = [next[j], next[i]]; return next;
+    }),
     isPinned: (spec) => pins.some((p) => specKey(p.spec) === specKey(spec)),
     configured: cfg.configured, model: cfg.model,
   };

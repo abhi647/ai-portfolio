@@ -96,6 +96,44 @@ npm run dev             # or: npm run build && npm run preview
 
 The key is only read on the server. `/api/ask` runs in both `vite dev` and `vite preview`. For another host, move `handleAsk()` from `server/ask.ts` into a serverless function.
 
+## Phone app (PWA) — `/app`
+
+The phone app is a separate, installable app built for phone screens (about 360–430 px). It shares the data, the Ask AI engine and the overtrue/ui components with the desktop dashboard.
+
+| Tab | What it does |
+| --- | --- |
+| **Ask** (home) | Chat with the data: a today-at-a-glance strip, suggested questions, **voice input** (browser speech recognition), and phone-width charts that can be shared, exported or pinned |
+| **Monitor** | Secondary live view: alerts with one-tap trip/order lists and "Ask AI about this", swipeable key numbers, trip pipeline, trips behind plan, sales pace. **Pull down to sync** |
+| **Board** | Charts pinned from Ask, re-run live and reorderable |
+| **More** | Profile, AI engine status, sync, dark mode, **Install app**, open desktop dashboard, sign out |
+
+- Entry: `app/index.html` → `src/mobile/`. Routes live under `/app` (`/app/monitor`, `/app/board`, …).
+- PWA: `vite-plugin-pwa` adds a manifest and service worker **scoped to `/app/` only**, so the desktop site stays a normal website. The app installs as a standalone app with home-screen shortcuts to Ask and Monitor, and the app shell is cached for offline use. Ask AI calls are never cached; without a network connection the app falls back to offline mode.
+- Phone details: safe-area padding for notches, 16 px inputs (no zoom when typing on iOS), 44 px+ tap targets, haptic feedback where supported, and an install hint on iOS.
+
+## Deploy to Vercel
+
+`vercel.json` builds both apps and the Ask AI serverless function:
+
+- `npm run build`: bundles `server/ask.ts` into `api/_lib/ask.mjs` (`npm run build:api`), type-checks, then builds `dist/` with the desktop app at `/` and the phone app at `/app`.
+- `api/ask.mjs` (POST, up to 60 s) and `api/ask/status.mjs` (GET) are the serverless functions.
+- Rewrites send `/app/*` to the phone app and other paths to the desktop app. The service worker and manifest are served with no-cache headers so updates reach users.
+
+**One-time setup (Vercel dashboard):**
+
+1. **Add New → Project → Import** the GitHub repo, and set **Root Directory = `dfm-mis`**. The framework (Vite) and build settings come from `vercel.json`.
+2. Under **Settings → Environment Variables**, add `ANTHROPIC_API_KEY` (and optionally `DFM_AI_MODEL`). Without it, Ask AI runs in offline mode.
+3. Deploy. Every push to the connected branch redeploys. Open `https://<project>.vercel.app/app` on a phone, then use **Install app** (Android) or **Share → Add to Home Screen** (iOS).
+
+**Or with the CLI:**
+
+```bash
+cd dfm-mis
+npx vercel link
+npx vercel env add ANTHROPIC_API_KEY
+npx vercel deploy --prod
+```
+
 ## Structure
 
 ```
@@ -109,7 +147,12 @@ src/
   state/                 auth/session, settings, drill-down drawer, Ask AI conversation + pins
   ai/                    semantic layer (catalog), query engine + insights, offline parser, client
   components/ai/         Ask AI UI: conversation (AssistantPanel), generated charts, slide-over
-server/ask.ts            /api/ask — Claude tool loop (Vite plugin)
+  mobile/                phone app (PWA): shell + Ask / Monitor / Board / More screens
+app/index.html           phone app entry (served at /app)
+server/ask.ts            /api/ask — Claude tool loop (Vite plugin + shared handler)
+server/vercel.ts         Vercel function entry → bundled to api/_lib/ask.mjs
+api/                     Vercel serverless functions
+vercel.json              Vercel build, rewrites, headers
 ```
 
 The library is distributed as a shadcn registry, so its components live in this repository as source, as the library intends. Two additive changes were made. `TrendChart` and `ComposedChart` gained an optional `onBarClick` prop to support drill-downs.

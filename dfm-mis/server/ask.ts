@@ -144,6 +144,8 @@ export async function handleAsk(history: AskTurn[]): Promise<AskResponse> {
 }
 
 function readJson(req: IncomingMessage): Promise<unknown> {
+  const pre = (req as IncomingMessage & { body?: unknown }).body; // Vercel parses JSON bodies for us
+  if (pre !== undefined) return Promise.resolve(typeof pre === "string" ? JSON.parse(pre || "{}") : pre);
   return new Promise((resolve, reject) => {
     let raw = "";
     req.on("data", (c) => { raw += c; if (raw.length > 200_000) reject(new Error("Body too large")); });
@@ -161,9 +163,13 @@ function send(res: ServerResponse, status: number, body: unknown) {
 /** Env vars, or a profile saved by `ant auth login` (the SDK reads ~/.config/anthropic automatically). */
 const configured = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_PROFILE || existsSync(join(homedir(), ".config", "anthropic")));
 
-async function middleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
-  if (!req.url?.startsWith("/api/ask")) return next();
-  if (req.method === "GET" && req.url.startsWith("/api/ask/status")) return send(res, 200, { configured: configured(), model: MODEL });
+/** GET /api/ask/status */
+export function handleStatus(_req: IncomingMessage, res: ServerResponse) {
+  send(res, 200, { configured: configured(), model: MODEL });
+}
+
+/** POST /api/ask — plain Node (req, res), so it runs in Vite and as a Vercel function. */
+export async function handleHttp(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
   try {
     const body = (await readJson(req)) as { messages?: AskTurn[] };
@@ -177,6 +183,12 @@ async function middleware(req: IncomingMessage, res: ServerResponse, next: () =>
     console.error("[ask]", err);
     send(res, 500, { error: "internal", message: "Something went wrong answering that." });
   }
+}
+
+function middleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
+  if (!req.url?.startsWith("/api/ask")) return next();
+  if (req.method === "GET" && req.url.startsWith("/api/ask/status")) return handleStatus(req, res);
+  void handleHttp(req, res);
 }
 
 /** Mounts POST /api/ask (and GET /api/ask/status) on the dev and preview servers. */

@@ -39,7 +39,14 @@ export function suggestionsFor(path: string) {
   return BY_MODULE[mod] ?? DEFAULT;
 }
 
-export function Conversation({ compact, headerActions, className, showCharts = true }: { compact?: boolean; headerActions?: React.ReactNode; className?: string; showCharts?: boolean }) {
+export function Conversation({
+  compact, headerActions, className, showCharts = true, emptyState, composerActions, value, onValueChange, title, footer, autoFocus = true,
+}: {
+  compact?: boolean; headerActions?: React.ReactNode; className?: string; showCharts?: boolean;
+  /** Overrides used by the mobile app. */
+  emptyState?: React.ReactNode; composerActions?: React.ReactNode; value?: string; onValueChange?: (v: string) => void;
+  title?: React.ReactNode; footer?: React.ReactNode; autoFocus?: boolean;
+}) {
   const ai = useAI()!;
   const loc = useLocation();
   const lastAssistant = [...ai.messages].reverse().find((m) => m.role === "assistant");
@@ -54,15 +61,19 @@ export function Conversation({ compact, headerActions, className, showCharts = t
       onNewChat={ai.messages.length ? ai.newChat : undefined}
       suggestions={suggestionsFor(loc.pathname)}
       density={compact ? "compact" : "comfortable"}
-      autoFocus
-      title={
+      autoFocus={autoFocus}
+      emptyState={emptyState}
+      composerActions={composerActions}
+      value={value}
+      onValueChange={onValueChange}
+      title={title ?? (
         <span className="inline-flex items-center gap-2">
           <IconSparkles className="size-4 text-primary" /> Ask AI
           {ai.configured === null ? null : ai.configured
             ? <StatusBadge variant="success">Claude</StatusBadge>
             : <StatusBadge variant="warning">Offline mode</StatusBadge>}
         </span>
-      }
+      )}
       placeholder="Ask about trips, orders, sales, CFAs or the P&L…"
       headerActions={headerActions}
       labels={{
@@ -70,7 +81,7 @@ export function Conversation({ compact, headerActions, className, showCharts = t
         emptyDescription: "Ask a question in plain English. I’ll query the MIS, chart the answer and point out what matters.",
         thinking: "Querying the MIS…",
       }}
-      footer={ai.configured === false
+      footer={footer !== undefined ? footer : ai.configured === false
         ? <span>Offline mode understands common questions. Set ANTHROPIC_API_KEY on the server to let Claude answer anything.</span>
         : <span>Answers come from live MIS data. Every number is computed, not written by the AI.</span>}
       renderMessage={(m, ctx) => {
