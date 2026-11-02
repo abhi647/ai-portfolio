@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider, useApp } from "@/state/app";
 import { DrillProvider } from "@/state/drill";
 import { AIProvider } from "@/state/ai";
+import { DashboardsProvider } from "@/state/dashboards";
 import Login from "@/pages/Login";
 import { computeAlerts } from "@/data/insights";
 import { trips } from "@/data/data";
@@ -21,7 +22,7 @@ const ALERT_COUNT = computeAlerts().length + (trips.some((t) => t.stage !== "epo
 const TABS = [
   { to: "/", label: "Ask", icon: IconSparkles, end: true },
   { to: "/monitor", label: "Monitor", icon: IconActivityHeartbeat, badge: ALERT_COUNT },
-  { to: "/board", label: "Board", icon: IconLayoutDashboard },
+  { to: "/board", label: "Dashboards", icon: IconLayoutDashboard },
   { to: "/more", label: "More", icon: IconDots },
 ];
 
@@ -74,6 +75,7 @@ function Routed() {
   return (
     <DrillProvider otif={otif}>
       <AIProvider>
+       <DashboardsProvider>
         <Routes>
           <Route path="/login" element={<LoginRoute />} />
           <Route element={<RequireAuth><Shell /></RequireAuth>}>
@@ -84,6 +86,7 @@ function Routed() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
+       </DashboardsProvider>
       </AIProvider>
     </DrillProvider>
   );

@@ -147,8 +147,8 @@ export function fmt(v: number | null | undefined, format: string, compact = fals
   if (format === "km") return Math.round(v).toLocaleString("en-IN") + " km";
   if (format === "inr") {
     const a = Math.abs(v);
-    if (a >= 1e7) return "₹" + (v / 1e7).toFixed(compact ? 1 : 2) + " Cr";
-    if (a >= 1e5) return "₹" + (v / 1e5).toFixed(compact ? 1 : 2) + " L";
+    if (a >= 1e7) return "₹" + (v / 1e7).toFixed(compact ? 1 : 2) + (compact ? "Cr" : " Cr");
+    if (a >= 1e5) return "₹" + (v / 1e5).toFixed(compact ? 1 : 2) + (compact ? "L" : " L");
     if (compact && a >= 1e3) return "₹" + (v / 1e3).toFixed(1) + "k";
     return "₹" + Math.round(v).toLocaleString("en-IN");
   }

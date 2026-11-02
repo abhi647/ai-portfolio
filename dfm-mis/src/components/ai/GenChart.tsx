@@ -16,7 +16,7 @@ import { PALETTE } from "@/data/colors";
 import { cn } from "@/lib/utils";
 
 const LABEL: Record<ChartType, string> = {
-  bar: "Bars", horizontal_bar: "Ranked", stacked_bar: "Stacked", line: "Line", area: "Area", combo: "Combo", donut: "Donut", bar_list: "List", heatmap: "Heatmap", kpi: "KPI", table: "Table",
+  bar: "Columns", horizontal_bar: "Ranked", stacked_bar: "Stacked", line: "Line", area: "Area", combo: "Combo", donut: "Donut", bar_list: "List", heatmap: "Heatmap", kpi: "KPI", table: "Table",
 };
 
 export function compatibleCharts(r: QueryResult): ChartType[] {
@@ -27,7 +27,7 @@ export function compatibleCharts(r: QueryResult): ChartType[] {
   const additive = !!m && ["number", "inr", "km"].includes(m.format);
   const n = new Set(r.rows.map((x) => x.label)).size;
   const out: ChartType[] = [];
-  if (s.series) out.push(dim?.time ? "line" : "stacked_bar", "heatmap", dim?.time ? "stacked_bar" : "line");
+  if (s.series) out.push(...((s.chart === "bar" ? ["bar"] : []) as ChartType[]), dim?.time ? "line" : "stacked_bar", "heatmap", dim?.time ? "stacked_bar" : "line");
   else if (dim?.time) out.push("line", "area", "bar");
   else out.push("horizontal_bar", "bar", "bar_list", ...(additive && n <= 8 ? (["donut"] as ChartType[]) : []));
   if (s.measures.length >= 2 && !s.series) out.push("combo");

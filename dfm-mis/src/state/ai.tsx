@@ -2,27 +2,41 @@ import * as React from "react";
 import type { AssistantMessage } from "@/components/overtrue/assistant-panel";
 import { askAI, aiStatus, type AskTurn } from "@/ai/client";
 import type { QuerySpec } from "@/ai/engine";
+import type { AskFocus, AskMode, AskSource } from "@/ai/modes";
 
-export interface AIMessage extends AssistantMessage { charts?: QuerySpec[]; followUps?: string[]; mode?: "claude" | "offline" }
+export interface AIMessage extends AssistantMessage {
+  charts?: QuerySpec[]; followUps?: string[]; mode?: "claude" | "offline";
+  /** Answer mode and data focus the question was asked with. */
+  askMode?: AskMode; focus?: AskFocus;
+  sources?: AskSource[];
+}
 export interface Pin { id: string; spec: QuerySpec; at: number }
+export interface Thread { id: string; title: string; at: number; messages: AIMessage[] }
 
 interface AIState {
   messages: AIMessage[];
   status: "idle" | "streaming";
-  send: (text: string) => void;
+  send: (text: string, opts?: { mode?: AskMode; focus?: AskFocus }) => void;
   stop: () => void;
-  regenerate: (id: string) => void;
+  regenerate: (id: string, opts?: { mode?: AskMode }) => void;
   newChat: () => void;
   open: boolean;
   setOpen: (v: boolean) => void;
   /** Open the assistant and ask straight away — used by "Ask AI" buttons across the app. */
-  ask: (text: string) => void;
+  ask: (text: string, opts?: { mode?: AskMode; focus?: AskFocus }) => void;
   pins: Pin[];
   togglePin: (spec: QuerySpec) => void;
   movePin: (id: string, dir: -1 | 1) => void;
   isPinned: (spec: QuerySpec) => boolean;
   configured: boolean | null;
   model?: string;
+  /** Default answer mode and focus for new questions. */
+  askMode: AskMode; setAskMode: (m: AskMode) => void;
+  focus: AskFocus; setFocus: (f: AskFocus) => void;
+  /** Library of earlier threads (newest first). */
+  threads: Thread[];
+  openThread: (id: string) => void;
+  deleteThread: (id: string) => void;
 }
 
 const Ctx = React.createContext<AIState | null>(null);
@@ -33,26 +47,33 @@ const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.st
 const specKey = (s: QuerySpec) => JSON.stringify({ ...s, title: "" });
 let seq = 0;
 const id = () => `m${Date.now().toString(36)}${(seq++).toString(36)}`;
+const fix = (ms: AIMessage[]) => ms.map((m) => (m.status === "streaming" ? { ...m, status: "error" as const } : m));
 
 export function AIProvider({ children }: { children: React.ReactNode }) {
-  const [messages, setMessages] = React.useState<AIMessage[]>(() => read("dfm.ai.chat", []).map((m: AIMessage) => (m.status === "streaming" ? { ...m, status: "error" as const } : m)));
+  const [messages, setMessages] = React.useState<AIMessage[]>(() => fix(read("dfm.ai.chat", [])));
   const [status, setStatus] = React.useState<"idle" | "streaming">("idle");
   const [open, setOpen] = React.useState(false);
   const [pins, setPins] = React.useState<Pin[]>(() => read("dfm.ai.pins", []));
+  const [threads, setThreads] = React.useState<Thread[]>(() => read("dfm.ai.threads", []));
+  const [askMode, setAskModeState] = React.useState<AskMode>(() => read("dfm.ai.mode", "quick" as AskMode));
+  const [focus, setFocusState] = React.useState<AskFocus>(() => read("dfm.ai.focus", "all" as AskFocus));
   const [cfg, setCfg] = React.useState<{ configured: boolean | null; model?: string }>({ configured: null });
   const abort = React.useRef<AbortController | null>(null);
   const latest = React.useRef(messages);
   latest.current = messages;
+  const prefs = React.useRef({ askMode, focus });
+  prefs.current = { askMode, focus };
 
   React.useEffect(() => { aiStatus().then((s) => setCfg(s)); }, []);
   React.useEffect(() => { write("dfm.ai.chat", messages.slice(-40)); }, [messages]);
   React.useEffect(() => { write("dfm.ai.pins", pins); }, [pins]);
+  React.useEffect(() => { write("dfm.ai.threads", threads.slice(0, 30)); }, [threads]);
 
-  const run = React.useCallback(async (history: AIMessage[]) => {
+  const run = React.useCallback(async (history: AIMessage[], mode: AskMode, f: AskFocus) => {
     const turns: AskTurn[] = history.filter((m) => m.status !== "error" && m.content.trim()).map((m) => ({ role: m.role, content: m.content }));
     const aid = id();
     setMessages([...history, {
-      id: aid, role: "assistant", content: "", status: "streaming", createdAt: new Date(),
+      id: aid, role: "assistant", content: "", status: "streaming", createdAt: new Date(), askMode: mode, focus: f,
       steps: [{ id: "plan", label: "Reading the question and picking the data", kind: "think", status: "running" }],
     }]);
     setStatus("streaming");
@@ -60,7 +81,7 @@ export function AIProvider({ children }: { children: React.ReactNode }) {
     abort.current = ctrl;
     const started = Date.now();
     try {
-      const res = await askAI(turns, ctrl.signal);
+      const res = await askAI(turns, ctrl.signal, { mode, focus: f });
       const elapsed = Date.now() - started;
       setMessages((ms) => ms.map((m) => (m.id !== aid ? m : {
         ...m,
@@ -68,6 +89,7 @@ export function AIProvider({ children }: { children: React.ReactNode }) {
         content: (res.notice ? `_${res.notice}_\n\n` : "") + res.answer,
         charts: res.charts,
         followUps: res.followUps,
+        sources: res.sources,
         mode: res.mode,
         steps: [
           { id: "plan", label: "Read the question and picked the data", kind: "think" as const, status: "done" as const, duration: Math.min(800, elapsed / 3) },
@@ -83,23 +105,35 @@ export function AIProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const send = React.useCallback((text: string) => {
+  const send = React.useCallback((text: string, opts?: { mode?: AskMode; focus?: AskFocus }) => {
     const t = text.trim();
     if (!t || status === "streaming") return;
+    const mode = opts?.mode ?? prefs.current.askMode, f = opts?.focus ?? prefs.current.focus;
     // Side effects stay out of state updaters (StrictMode runs updaters twice).
-    void run([...latest.current, { id: id(), role: "user" as const, content: t, createdAt: new Date() }]);
+    void run([...latest.current, { id: id(), role: "user" as const, content: t, createdAt: new Date(), askMode: mode, focus: f }], mode, f);
   }, [run, status]);
+
+  const archive = React.useCallback(() => {
+    const ms = latest.current.filter((m) => m.status !== "streaming");
+    const first = ms.find((m) => m.role === "user");
+    if (!first) return;
+    setThreads((ts) => [{ id: id(), title: first.content.slice(0, 120), at: Date.now(), messages: ms }, ...ts.filter((t) => t.messages[0]?.id !== ms[0]?.id)].slice(0, 30));
+  }, []);
 
   const value: AIState = {
     messages, status, send,
     stop: () => abort.current?.abort(),
-    regenerate: (mid) => {
+    regenerate: (mid, opts) => {
       const i = messages.findIndex((m) => m.id === mid);
-      if (i > 0) void run(messages.slice(0, i));
+      if (i > 0) {
+        const q = messages[i - 1];
+        const mode = opts?.mode ?? messages[i].askMode ?? q.askMode ?? askMode;
+        void run(messages.slice(0, i).map((m, j) => (j === i - 1 ? { ...m, askMode: mode } : m)), mode, messages[i].focus ?? q.focus ?? focus);
+      }
     },
-    newChat: () => { abort.current?.abort(); setMessages([]); },
+    newChat: () => { abort.current?.abort(); archive(); setMessages([]); },
     open, setOpen,
-    ask: (text) => { setOpen(true); window.setTimeout(() => send(text), 60); },
+    ask: (text, opts) => { setOpen(true); window.setTimeout(() => send(text, opts), 60); },
     pins,
     togglePin: (spec) => setPins((ps) => (ps.some((p) => specKey(p.spec) === specKey(spec)) ? ps.filter((p) => specKey(p.spec) !== specKey(spec)) : [{ id: id(), spec, at: Date.now() }, ...ps])),
     movePin: (pid, dir) => setPins((ps) => {
@@ -109,6 +143,16 @@ export function AIProvider({ children }: { children: React.ReactNode }) {
     }),
     isPinned: (spec) => pins.some((p) => specKey(p.spec) === specKey(spec)),
     configured: cfg.configured, model: cfg.model,
+    askMode, setAskMode: (m) => { setAskModeState(m); write("dfm.ai.mode", m); },
+    focus, setFocus: (f) => { setFocusState(f); write("dfm.ai.focus", f); },
+    threads,
+    openThread: (tid) => {
+      const t = threads.find((x) => x.id === tid); if (!t) return;
+      abort.current?.abort(); archive();
+      setThreads((ts) => ts.filter((x) => x.id !== tid));
+      setMessages(fix(t.messages));
+    },
+    deleteThread: (tid) => setThreads((ts) => ts.filter((x) => x.id !== tid)),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
