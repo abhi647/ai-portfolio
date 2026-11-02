@@ -3,6 +3,8 @@ import type { AssistantMessage } from "@/components/overtrue/assistant-panel";
 import { askAI, aiStatus, type AskTurn } from "@/ai/client";
 import type { QuerySpec } from "@/ai/engine";
 import type { AskFocus, AskMode, AskSource } from "@/ai/modes";
+import { answerLocally } from "@/ai/local";
+import { MONTHS } from "@/data/data";
 
 export interface AIMessage extends AssistantMessage {
   charts?: QuerySpec[]; followUps?: string[]; mode?: "claude" | "offline";
@@ -47,14 +49,45 @@ const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.st
 const specKey = (s: QuerySpec) => JSON.stringify({ ...s, title: "" });
 let seq = 0;
 const id = () => `m${Date.now().toString(36)}${(seq++).toString(36)}`;
+/* First-run demo content, answered from the live demo data, so the Library and pinned board are never empty. */
+function demoThreads(): Thread[] {
+  const qs: [string, AskMode, number][] = [
+    ["Why is freight cost per km rising, and what should we do?", "research", 3],
+    ["OTIF this month vs last month by plant", "compare", 20],
+    ["Brief me on sales vs target this month", "brief", 27],
+    ["Which transporters cost the most per km?", "quick", 46],
+  ];
+  return qs.map(([q, mode, hoursAgo], i) => {
+    const at = Date.now() - hoursAgo * 3600e3;
+    const r = answerLocally(q, mode, "all");
+    const user: AIMessage = { id: `demo-q${i}`, role: "user", content: q, createdAt: new Date(at), askMode: mode, focus: "all" };
+    const answer: AIMessage = {
+      id: `demo-a${i}`, role: "assistant", content: r.answer, status: "done", createdAt: new Date(at + 4000), askMode: mode, focus: "all", mode: "offline",
+      charts: r.charts, followUps: r.followUps, sources: r.sources,
+      steps: [{ id: "plan", label: "Read the question and picked the data", kind: "think", status: "done", duration: 300 }, ...r.steps.map((s, j) => ({ id: "q" + j, label: s.label, detail: s.detail, kind: "query" as const, status: "done" as const, duration: 200 }))],
+    };
+    return { id: `demo-t${i}`, title: q, at, messages: [user, answer] };
+  });
+}
+function demoPins(): Pin[] {
+  const cur = MONTHS[5].label;
+  const specs: QuerySpec[] = [
+    { dataset: "trips", measures: ["cost_per_km"], dimension: "transporter", series: null, filters: [{ field: "month", op: "in", values: [cur] }], sort: "desc", limit: 8, chart: "horizontal_bar", title: `Cost per km by transporter · ${cur}` },
+    { dataset: "orders", measures: ["orders", "otif_pct"], dimension: "month", series: null, filters: [], sort: "natural", limit: null, chart: "combo", title: "Orders and OTIF by month" },
+    { dataset: "sales", measures: ["achievement_pct"], dimension: "zone", series: null, filters: [{ field: "month", op: "in", values: [cur] }], sort: "asc", limit: null, chart: "horizontal_bar", title: `Sales achievement by zone · ${cur}` },
+    { dataset: "cfa", measures: ["cases"], dimension: "day", series: null, filters: [], sort: "natural", limit: null, chart: "area", title: "CFA dispatch · last 30 days" },
+  ];
+  return specs.map((spec, i) => ({ id: `demo-pin${i}`, spec, at: Date.now() - i * 3600e3 }));
+}
+
 const fix = (ms: AIMessage[]) => ms.map((m) => (m.status === "streaming" ? { ...m, status: "error" as const } : m));
 
 export function AIProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = React.useState<AIMessage[]>(() => fix(read("dfm.ai.chat", [])));
   const [status, setStatus] = React.useState<"idle" | "streaming">("idle");
   const [open, setOpen] = React.useState(false);
-  const [pins, setPins] = React.useState<Pin[]>(() => read("dfm.ai.pins", []));
-  const [threads, setThreads] = React.useState<Thread[]>(() => read("dfm.ai.threads", []));
+  const [pins, setPins] = React.useState<Pin[]>(() => read<Pin[] | null>("dfm.ai.pins", null) ?? demoPins());
+  const [threads, setThreads] = React.useState<Thread[]>(() => read<Thread[] | null>("dfm.ai.threads", null) ?? demoThreads());
   const [askMode, setAskModeState] = React.useState<AskMode>(() => read("dfm.ai.mode", "quick" as AskMode));
   const [focus, setFocusState] = React.useState<AskFocus>(() => read("dfm.ai.focus", "all" as AskFocus));
   const [cfg, setCfg] = React.useState<{ configured: boolean | null; model?: string }>({ configured: null });

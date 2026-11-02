@@ -396,8 +396,8 @@ function Ecom() {
     { id: "ap", header: "Appointment", value: (r) => +r.appt, cell: (r) => fdt(r.appt) },
     { id: "st", header: "Status", value: (r) => r.status, cell: (r) => <Pill tone={EST.find((s) => s[0] === r.status)![1]}>{r.status}</Pill> },
     { id: "q", header: "PO qty", align: "right", value: (r) => r.qty, cell: (r) => fmtN(r.qty) },
-    { id: "dq", header: "Delivered", align: "right", value: (r) => r.fill ?? -1, cell: (r) => (r.fill != null ? fmtN(r.fill) : "—") },
-    { id: "f", header: "Fill %", align: "right", value: (r) => (r.fill != null ? r.fill / r.qty : -1), cell: (r) => (r.fill != null ? pct(r.fill, r.qty, 0) : "—") },
+    { id: "dq", header: "Delivered", align: "right", value: (r) => r.fill ?? -1, cell: (r) => (r.fill != null ? fmtN(r.fill) : <span className="text-muted-foreground">{r.status === "Dispatched" ? "In transit" : r.status === "Appointment Missed" ? "Rebook" : `Due ${fdShort(r.appt)}`}</span>) },
+    { id: "f", header: "Fill %", align: "right", value: (r) => (r.fill != null ? r.fill / r.qty : -1), cell: (r) => (r.fill != null ? pct(r.fill, r.qty, 0) : <span className="text-muted-foreground">Pending</span>) },
     { id: "v", header: "PO value", align: "right", value: (r) => r.value, cell: (r) => inr(r.value) },
   ];
   return (
