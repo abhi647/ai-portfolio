@@ -56,7 +56,13 @@ export function pivotTitle(cfg: PivotConfig) {
 }
 
 /* ------------------------------- Raw records ------------------------------- */
-const HIDDEN = new Set(["day_ts", "epod_done", "delivered", "sys_detention", "otif_qty"]);
+const HIDDEN = new Set(["day_ts", "day", "epod_done", "delivered", "sys_detention", "otif_qty"]);
+/** What an empty number means for each field, so the grid never shows a bare dash. */
+const PENDING: Record<string, string> = {
+  otif: "Not due", cycle_h: "Not dispatched", indent_h: "No indent yet", transit_h: "In progress", plant_h: "In progress",
+};
+const monthOf = (ts: unknown) => (typeof ts === "number" ? new Date(ts).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }) : "");
+const dateOf = (ts: unknown) => (typeof ts === "number" ? new Date(ts).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }) : "");
 const LABELS: Record<string, string> = {
   id: "ID", freight: "Freight ₹", km: "Distance km", cases: "Cases", detention: "Detention ₹", short_qty: "Shortage qty", transit_h: "Transit h", plant_h: "Plant TAT h",
   qty: "Order qty", disp_qty: "Dispatched qty", otif: "OTIF %", cycle_h: "Approval → dispatch h", indent_h: "Approval → indent h", sales: "Sales ₹", target: "Target ₹",
@@ -74,20 +80,23 @@ function RawRecords() {
   const rows = React.useMemo(() => applyFilters(ds.rows(), f).slice().reverse(), [ds, f]);
   const keys = React.useMemo(() => Object.keys(ds.rows()[0] ?? {}).filter((k) => !HIDDEN.has(k)), [ds]);
   const dimKeys = new Set(ds.dims.map((d) => d.key));
-  const cols = React.useMemo<Col<Row>[]>(() => keys.map((k) => {
+  const hasTs = ds.rows()[0]?.day_ts != null;
+  const cols = React.useMemo<Col<Row>[]>(() => [...(hasTs ? [{ id: "__date", header: "Date", value: (r: Row) => Number(r.day_ts), cell: (r: Row) => dateOf(r.day_ts), csv: (r: Row) => dateOf(r.day_ts) } as Col<Row>] : []), ...keys.map((k) => {
     if (dimKeys.has(k) || typeof ds.rows()[0][k] === "string") {
-      return { id: k, header: ds.dims.find((d) => d.key === k)?.label ?? human(k), value: (r: Row) => (r[k] == null ? "" : String(r[k])), cell: (r: Row) => (r[k] == null ? <span className="text-muted-foreground">—</span> : String(r[k])) };
+      // Rows older than the 6-month reporting window carry no month bucket; show their calendar month instead.
+      const show = (r: Row) => (r[k] != null ? String(r[k]) : k === "month" ? monthOf(r.day_ts) : "Not set");
+      return { id: k, header: ds.dims.find((d) => d.key === k)?.label ?? human(k), value: show, cell: show };
     }
     const fm = formatOf(k);
     return {
       id: k, header: human(k), align: "right" as const, value: (r: Row) => (r[k] == null ? null : Number(r[k])),
-      cell: (r: Row) => { const v = r[k] as number | null; return v == null ? <span className="text-muted-foreground">—</span> : fm === "pct100" ? (v * 100).toFixed(1) + "%" : fm === "ratio" ? v.toFixed(3) : fmt(v, fm); },
+      cell: (r: Row) => { const v = r[k] as number | null; return v == null ? <span className="text-muted-foreground">{PENDING[k] ?? "Not recorded"}</span> : fm === "pct100" ? (v * 100).toFixed(1) + "%" : fm === "ratio" ? v.toFixed(3) : fmt(v, fm); },
       csv: (r: Row) => (r[k] == null ? "" : Number(r[k])),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [keys, ds]);
+  })], [keys, ds]);
   const ai = useAI();
-  const search = React.useCallback((r: Row) => keys.filter((k) => typeof r[k] === "string").map((k) => r[k]).join(" "), [keys]);
+  const search = React.useCallback((r: Row) => keys.filter((k) => typeof r[k] === "string").map((k) => r[k]).join(" ") + " " + dateOf(r.day_ts), [keys]);
 
   return (
     <div className="flex flex-col gap-3">

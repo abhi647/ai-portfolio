@@ -348,7 +348,7 @@ export function LibraryList({ threads, onOpen, onDelete, limit }: { threads: Thr
             <button type="button" onClick={() => onOpen(t.id)} className="min-w-0 flex-1 py-2.5 text-left">
               <span className="flex items-center gap-1.5 text-[14px] font-medium"><I className="size-3.5 shrink-0 text-primary" /><span className="truncate">{t.title}</span></span>
               {preview ? <span className="mt-0.5 line-clamp-1 text-[12.5px] text-muted-foreground">{preview}</span> : null}
-              <span className="mt-0.5 block text-[11px] text-muted-foreground">{new Date(t.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {t.messages.filter((m) => m.role === "user").length} questions</span>
+              <span className="mt-0.5 block text-[11px] text-muted-foreground">{new Date(t.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {(() => { const n = t.messages.filter((m) => m.role === "user").length; return `${n} ${n === 1 ? "question" : "questions"}`; })()}</span>
             </button>
             {onDelete ? <button type="button" aria-label={`Delete thread ${t.title}`} onClick={() => onDelete(t.id)} className="mt-2.5 rounded-md p-1 text-muted-foreground opacity-60 hover:bg-muted hover:opacity-100"><IconTrash className="size-4" /></button> : null}
           </li>

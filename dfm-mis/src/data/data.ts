@@ -87,7 +87,7 @@ export interface Trip {
   len: string; vtype: string; transporter: string; vno: string; dedicated: boolean; customer: string; otype: string; consent: string;
   stage: string; stageIdx: number; status: string; ms: Record<MsKey, Date | null>; lastUpdated: Date;
   freight: number; l1: number; definedRoute: boolean; sysDet: number; actDet: number; addl: number; shortPen: number; dmgPen: number;
-  invQty: number; shortQty: number; excessQty: number; total: number; acceptedBy: string; epodDone: boolean; payStatus: string;
+  invQty: number; planQty: number; shortQty: number; excessQty: number; total: number; acceptedBy: string; epodDone: boolean; payStatus: string;
   pi: boolean; piAt: Date | null; paidAt: Date | null; timely: boolean | null; cleanSource: string | null; cdEligible: boolean;
   cdAvailed: boolean; cdAmt: number; tPlant: number | null; tTransit: number | null; tDest: number | null; tEpod: number | null;
 }
@@ -134,12 +134,13 @@ function makeTrip(created: Date) {
   const epodDone = stage === "epod_done";
   const actDet = epodDone && sysDet && rnd() < 0.72 ? Math.round((sysDet * (0.6 + rnd() * 0.4)) / 100) * 100 : 0;
   const addl = epodDone && rnd() < 0.12 ? pick([500, 750, 1000, 1500, 2000]) : 0;
-  const invQty = stageIdx >= 3 ? Math.round(+len * (40 + rnd() * 12)) : 0;
+  const planQty = Math.round(+len * (40 + rnd() * 12));
+  const invQty = stageIdx >= 3 ? planQty : 0;
   const shortQty = stageIdx >= 6 && rnd() < 0.07 ? randInt(1, 28) : 0;
   const excessQty = stageIdx >= 6 && !shortQty && rnd() < 0.025 ? randInt(1, 12) : 0;
   const shortPen = shortQty ? shortQty * randInt(180, 260) : 0;
   const dmgPen = epodDone && rnd() < 0.03 ? randInt(5, 30) * 100 : 0;
-  let payStatus = "", pi = false, paidAt: Date | null = null, piAt: Date | null = null, timely: boolean | null = null, cleanSource: string | null = null;
+  let payStatus = stageIdx >= 6 ? "Awaiting ePOD" : "Not due", pi = false, paidAt: Date | null = null, piAt: Date | null = null, timely: boolean | null = null, cleanSource: string | null = null;
   if (epodDone) {
     cleanSource = rnd() < 0.71 ? "Auto" : "Manual";
     const sinceEpod = (+NOW - +ms.epod!) / DAY;
@@ -163,7 +164,7 @@ function makeTrip(created: Date) {
   trips.push({
     id: "DS-" + tripSeq++, created, mk: monthKey(created), dk: dayKey(created), origin, loc: originShort(origin), dest: dest.name, km, own, len, vtype,
     transporter, vno, dedicated, customer, otype, consent, stage, stageIdx, status: tStage(stage).status!, ms, lastUpdated,
-    freight, l1, definedRoute, sysDet, actDet, addl, shortPen, dmgPen, invQty, shortQty, excessQty,
+    freight, l1, definedRoute, sysDet, actDet, addl, shortPen, dmgPen, invQty, planQty, shortQty, excessQty,
     total: freight + actDet + addl - shortPen - dmgPen, acceptedBy,
     epodDone, payStatus, pi, piAt, paidAt, timely, cleanSource, cdEligible, cdAvailed, cdAmt: cdAvailed ? Math.round(freight * 0.02) : 0,
     tPlant: t("reported", "gateOut"), tTransit: t("gateOut", "destReported"), tDest: t("destReported", "destGateOut"), tEpod: t("destGateOut", "epod"),
@@ -236,7 +237,7 @@ function makeOrder(approved: Date) {
   const o: Order = {
     no: `SO/${plant}/26-27/${String(soSeq++).padStart(6, "0")}`, approved, mk: monthKey(approved), plant, location: plant === "GN" ? "Greater Noida" : "Ghaziabad",
     type: stock ? "Stock Transfer" : "Direct Order", dest: destName, customer, qty, dispQty, qtyShown: dispQty || qty, m, stage, statusTxt,
-    target, onTime, otif, otifStatus, src, transporter: si >= 2 ? tr : "—", vno: si >= 3 ? vehNo() : "—", productType: rnd() < 0.7 ? "SP" : rnd() < 0.6 ? "LP" : "LP + SP",
+    target, onTime, otif, otifStatus, src, transporter: si >= 2 ? tr : "Not assigned yet", vno: si >= 3 ? vehNo() : "Awaiting vehicle", productType: rnd() < 0.7 ? "SP" : rnd() < 0.6 ? "LP" : "LP + SP",
   };
   orders.push(o);
   if (si >= 1) {
@@ -315,7 +316,8 @@ export const CHANNELS: [string, number, [string, number][]][] = [["General Trade
 export const CFAS = ["CFA Lucknow", "CFA Kanpur", "CFA Jaipur", "CFA Dehradun", "CFA Ludhiana", "CFA Patna", "CFA Ranchi", "CFA Kolkata", "CFA Indore", "CFA Varanasi"];
 const CFA_BASE = [2100, 1500, 1700, 1100, 1450, 1300, 750, 980, 820, 900];
 export function cfaQty(ci: number, d: Date) {
-  if (d.getDay() === 0) return 0;
+  // Sundays run a half shift for urgent distributor orders (~20% of a weekday).
+  if (d.getDay() === 0) return Math.round(CFA_BASE[ci] * SEASON[d.getMonth()] * (0.14 + hash(ci + 70, Math.floor(d.getTime() / DAY)) * 0.12));
   const dn = Math.floor(d.getTime() / DAY);
   const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   return Math.round(CFA_BASE[ci] * SEASON[d.getMonth()] * (d.getDate() > dim - 4 ? 1.3 : 1) * (0.6 + hash(ci + 50, dn) * 0.8));
@@ -368,7 +370,7 @@ SYNC_JOBS.forEach(([table, area, every, rows, secs], ji) => {
     const start = new Date(+NOW - ((NOW.getMinutes() % every) + i * every) * 60e3 - 60e3 * ji);
     const failed = ji === 5 && i === 2;
     const inProc = i === 0 && ji === 2;
-    syncRuns.push({ id: `${table}-${i}`, table, area, start, secs: Math.round(secs * (0.8 + rnd() * 0.5)), rows: failed ? 0 : rows + randInt(-40, 120), status: inProc ? "in_process" : failed ? "failed" : "completed", err: failed ? "Timeout: remote SQL Server did not respond within 300s" : "" });
+    syncRuns.push({ id: `${table}-${i}`, table, area, start, secs: Math.round(secs * (0.8 + rnd() * 0.5)), rows: failed ? 0 : inProc ? Math.round(rows * 0.42) : rows + randInt(-40, 120), status: inProc ? "in_process" : failed ? "failed" : "completed", err: failed ? "Timeout: remote SQL Server did not respond within 300s" : "" });
   }
 });
 syncRuns.sort((a, b) => +b.start - +a.start);

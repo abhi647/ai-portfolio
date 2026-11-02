@@ -180,12 +180,13 @@ function makeTrip(created) {
   const epodDone = stage === "epod_done";
   const actDet = epodDone && sysDet && rnd() < 0.72 ? Math.round(sysDet * (0.6 + rnd() * 0.4) / 100) * 100 : 0;
   const addl = epodDone && rnd() < 0.12 ? pick([500, 750, 1e3, 1500, 2e3]) : 0;
-  const invQty = stageIdx >= 3 ? Math.round(+len * (40 + rnd() * 12)) : 0;
+  const planQty = Math.round(+len * (40 + rnd() * 12));
+  const invQty = stageIdx >= 3 ? planQty : 0;
   const shortQty = stageIdx >= 6 && rnd() < 0.07 ? randInt(1, 28) : 0;
   const excessQty = stageIdx >= 6 && !shortQty && rnd() < 0.025 ? randInt(1, 12) : 0;
   const shortPen = shortQty ? shortQty * randInt(180, 260) : 0;
   const dmgPen = epodDone && rnd() < 0.03 ? randInt(5, 30) * 100 : 0;
-  let payStatus = "", pi = false, paidAt = null, piAt = null, timely = null, cleanSource = null;
+  let payStatus = stageIdx >= 6 ? "Awaiting ePOD" : "Not due", pi = false, paidAt = null, piAt = null, timely = null, cleanSource = null;
   if (epodDone) {
     cleanSource = rnd() < 0.71 ? "Auto" : "Manual";
     const sinceEpod = (+NOW - +ms.epod) / DAY;
@@ -241,6 +242,7 @@ function makeTrip(created) {
     shortPen,
     dmgPen,
     invQty,
+    planQty,
     shortQty,
     excessQty,
     total: freight + actDet + addl - shortPen - dmgPen,
@@ -345,8 +347,8 @@ function makeOrder(approved) {
     otif,
     otifStatus,
     src,
-    transporter: si >= 2 ? tr : "\u2014",
-    vno: si >= 3 ? vehNo() : "\u2014",
+    transporter: si >= 2 ? tr : "Not assigned yet",
+    vno: si >= 3 ? vehNo() : "Awaiting vehicle",
     productType: rnd() < 0.7 ? "SP" : rnd() < 0.6 ? "LP" : "LP + SP"
   };
   orders.push(o);
@@ -430,7 +432,7 @@ var CHANNELS = [["General Trade", 0.73, [["Urban GT", 0.52], ["Rural GT", 0.3], 
 var CFAS = ["CFA Lucknow", "CFA Kanpur", "CFA Jaipur", "CFA Dehradun", "CFA Ludhiana", "CFA Patna", "CFA Ranchi", "CFA Kolkata", "CFA Indore", "CFA Varanasi"];
 var CFA_BASE = [2100, 1500, 1700, 1100, 1450, 1300, 750, 980, 820, 900];
 function cfaQty(ci, d) {
-  if (d.getDay() === 0) return 0;
+  if (d.getDay() === 0) return Math.round(CFA_BASE[ci] * SEASON[d.getMonth()] * (0.14 + hash(ci + 70, Math.floor(d.getTime() / DAY)) * 0.12));
   const dn = Math.floor(d.getTime() / DAY);
   const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   return Math.round(CFA_BASE[ci] * SEASON[d.getMonth()] * (d.getDate() > dim - 4 ? 1.3 : 1) * (0.6 + hash(ci + 50, dn) * 0.8));
@@ -476,7 +478,7 @@ SYNC_JOBS.forEach(([table, area, every, rows, secs], ji) => {
     const start = new Date(+NOW - (NOW.getMinutes() % every + i * every) * 6e4 - 6e4 * ji);
     const failed = ji === 5 && i === 2;
     const inProc = i === 0 && ji === 2;
-    syncRuns.push({ id: `${table}-${i}`, table, area, start, secs: Math.round(secs * (0.8 + rnd() * 0.5)), rows: failed ? 0 : rows + randInt(-40, 120), status: inProc ? "in_process" : failed ? "failed" : "completed", err: failed ? "Timeout: remote SQL Server did not respond within 300s" : "" });
+    syncRuns.push({ id: `${table}-${i}`, table, area, start, secs: Math.round(secs * (0.8 + rnd() * 0.5)), rows: failed ? 0 : inProc ? Math.round(rows * 0.42) : rows + randInt(-40, 120), status: inProc ? "in_process" : failed ? "failed" : "completed", err: failed ? "Timeout: remote SQL Server did not respond within 300s" : "" });
   }
 });
 syncRuns.sort((a, b) => +b.start - +a.start);

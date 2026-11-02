@@ -28,16 +28,16 @@ export const tripCols: Col<Trip>[] = [
   { id: "own", header: "Type", value: (r) => r.own, cell: (r) => <Pill tone={r.own === "Contracted" ? "info" : "neutral"}>{r.own}</Pill> },
   { id: "km", header: "KM", align: "right", value: (r) => r.km, cell: (r) => fmtN(r.km) },
   { id: "freight", header: "Freight", align: "right", value: (r) => r.total, cell: (r) => inr(r.total) },
-  { id: "qty", header: "Cases", align: "right", value: (r) => r.invQty, cell: (r) => (r.invQty ? fmtN(r.invQty) : "—") },
+  { id: "qty", header: "Cases", align: "right", value: (r) => r.invQty || r.planQty, cell: (r) => (r.invQty ? fmtN(r.invQty) : <span className="text-muted-foreground" title="Planned — not yet invoiced">{fmtN(r.planQty)} plan</span>), csv: (r) => r.invQty || r.planQty },
   { id: "track", header: "Tracking", value: (r) => r.consent, cell: (r) => (r.consent === "ALLOWED" ? <Pill tone="success">Live</Pill> : <Pill>Not tracked</Pill>) },
-  { id: "pay", header: "Payment", value: (r) => r.payStatus || "—" },
+  { id: "pay", header: "Payment", value: (r) => r.payStatus, cell: (r) => <span className={["Not due", "Awaiting ePOD"].includes(r.payStatus) ? "text-muted-foreground" : undefined}>{r.payStatus}</span> },
 ];
 
 export const orderCols = (otif: { green: number; amber: number }): Col<Order>[] => [
   { id: "no", header: "Order no", value: (r) => r.no, cell: (r) => <span className="font-mono text-xs font-medium">{r.no}</span> },
   { id: "approved", header: "Approved", value: (r) => +r.approved, cell: (r) => fdt(r.approved), csv: (r) => fdt(r.approved) },
   { id: "age", header: "Ageing", align: "right", value: (r) => +NOW - +r.approved, cell: (r) => {
-    if (r.stage === "dispatched") return <span className="text-muted-foreground">—</span>;
+    if (r.stage === "dispatched") return <span className="text-muted-foreground">Closed</span>;
     const a = (+NOW - +r.approved) / 3600e3;
     return <Pill tone={a > 48 ? "error" : a > 24 ? "warning" : "success"}>{ageStr(+NOW - +r.approved)}</Pill>;
   } },

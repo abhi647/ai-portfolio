@@ -134,8 +134,8 @@ function Sync() {
     { id: "t", header: "Source table", value: (r) => r.table, cell: (r) => <code className="font-mono text-xs text-primary">{r.table}</code> },
     { id: "a", header: "Feeds", value: (r) => r.area },
     { id: "s", header: "Started", value: (r) => +r.start, cell: (r) => fdt(r.start) },
-    { id: "d", header: "Duration", align: "right", value: (r) => r.secs, cell: (r) => (r.status === "in_process" ? "—" : r.secs + " s") },
-    { id: "r", header: "Rows synced", align: "right", value: (r) => r.rows, cell: (r) => (r.status === "completed" ? fmtN(r.rows) : "—") },
+    { id: "d", header: "Duration", align: "right", value: (r) => r.secs, cell: (r) => (r.status === "in_process" ? <span className="text-muted-foreground">Running…</span> : r.status === "failed" ? "300 s (timeout)" : r.secs + " s") },
+    { id: "r", header: "Rows synced", align: "right", value: (r) => r.rows, cell: (r) => (r.status === "completed" ? fmtN(r.rows) : r.status === "in_process" ? <span className="text-muted-foreground">{fmtN(r.rows)} so far</span> : <span className="text-muted-foreground">0 · will retry</span>) },
     { id: "st", header: "Status", value: (r) => r.status, cell: (r) => <Pill tone={r.status === "completed" ? "success" : r.status === "failed" ? "error" : "info"} live={r.status === "in_process"}>{r.status === "completed" ? "Completed" : r.status === "failed" ? "Failed" : "In process"}</Pill> },
     { id: "e", header: "Error", value: (r) => r.err, cell: (r) => <span className="text-rose-600 dark:text-rose-400">{r.err}</span> },
   ];

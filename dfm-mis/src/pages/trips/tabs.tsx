@@ -159,7 +159,7 @@ export function Inside({ rows }: P) {
     { id: "stage", header: "Stage", value: (r) => r.stageIdx, cell: (r) => <StagePill s={tStage(r.stage)} /> },
     { id: "since", header: "Since", value: (r) => +b.since(r), cell: (r) => fdt(b.since(r)) },
     { id: "age", header: "Ageing", align: "right", value: (r) => r.age, cell: (r) => <Pill tone={r.age / H > b.warn ? "error" : r.age / H > b.warn / 2 ? "warning" : "success"}>{ageStr(r.age)}</Pill> },
-    { id: "trk", header: "Tracking", value: (r) => r.consent, cell: (r) => (r.consent === "ALLOWED" ? <Pill tone="success" live>Live</Pill> : <Num tone="muted">—</Num>) },
+    { id: "trk", header: "Tracking", value: (r) => r.consent, cell: (r) => (r.consent === "ALLOWED" ? <Pill tone="success" live>Live</Pill> : <Pill tone="warning">No consent</Pill>) },
   ];
   return (
     <>
