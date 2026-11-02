@@ -3,11 +3,13 @@
  * credentials are configured on the server. Good for common questions, not open-ended ones.
  */
 import { DATASETS, dataset, dimValues, type Dataset } from "./catalog";
-import { execute, insightsFor, normalize, type ChartType, type Filter, type QuerySpec } from "./engine";
+import { execute, fmt, insightsFor, normalize, type ChartType, type Filter, type QuerySpec, type QueryResult } from "./engine";
+import type { AskFocus, AskMode, AskSource } from "./modes";
 
 const has = (q: string, ...words: string[]) => words.some((w) => new RegExp(`\\b${w}`, "i").test(q));
 
-function pickDataset(q: string): Dataset {
+function pickDataset(q: string, focus: AskFocus = "all"): Dataset {
+  if (focus !== "all" && dataset(focus)) return dataset(focus)!;
   if (has(q, "margin", "p&l", "pnl", "net sales", "claims", "gross revenue", "cost of sales", "account", "blinkit", "zepto", "amazon", "flipkart", "instamart", "bigbasket", "e-?com")) return dataset("pnl")!;
   if (has(q, "cfa", "throughput")) return dataset("cfa")!;
   if (has(q, "sales", "target", "achievement", "asm", "zone", "region", "brand", "channel", "secondary")) return dataset("sales")!;
@@ -78,8 +80,8 @@ function pickFilters(ds: Dataset, q: string, used: string[]): Filter[] {
   return out;
 }
 
-export function parseQuestion(q: string): QuerySpec {
-  const ds = pickDataset(q);
+export function parseQuestion(q: string, focus: AskFocus = "all"): QuerySpec {
+  const ds = pickDataset(q, focus);
   const measures = pickMeasure(ds, q);
   const dims = pickDims(ds, q);
   const filters = pickFilters(ds, q, dims);
@@ -112,21 +114,113 @@ export function parseQuestion(q: string): QuerySpec {
   });
 }
 
-export function answerLocally(q: string) {
-  const spec = parseQuestion(q);
-  const r = execute(spec);
-  const ins = insightsFor(r);
+const plain = (t: string) => t.replace(/\{\{metric:([^|}]*)\|?([^|}]*)\|?[^}]*\}\}/g, (_m, a, b) => [a, b].filter(Boolean).join(" "));
+const stepOf = (spec: QuerySpec, r: QueryResult) => ({ label: spec.title, detail: `${spec.dataset} · ${spec.measures.join(", ")}${spec.dimension ? ` by ${spec.dimension}` : ""} → ${r.rows.length} rows`, ok: !r.error });
+
+export interface LocalAnswer { answer: string; charts: QuerySpec[]; followUps: string[]; steps: { label: string; detail?: string; ok: boolean }[]; sources: AskSource[] }
+
+/** Offline answers for every mode: the same parser, plus extra queries for Research and Compare. */
+export function answerLocally(q: string, mode: AskMode = "quick", focus: AskFocus = "all"): LocalAnswer {
+  const spec = parseQuestion(q, focus);
   const ds = dataset(spec.dataset)!;
-  const answer = r.error
-    ? `I couldn’t map that to the data (${r.error}). Try naming a measure and a breakdown, e.g. “freight by transporter this month”.`
-    : r.rows.length
-      ? `${ins.join(" ")} I read this as **${spec.title.toLowerCase()}** from ${ds.label}${r.matched ? ` (${r.matched.toLocaleString("en-IN")} records)` : ""}.`
-      : "No records match that question — try removing a filter or widening the period.";
+  const m0 = ds.measures.find((m) => m.key === spec.measures[0])!;
+  const sources: AskSource[] = [];
+  const steps: LocalAnswer["steps"] = [];
+  const run = (s: QuerySpec) => {
+    const r = execute(s);
+    steps.push(stepOf(s, r));
+    if (!r.error) sources.push({ id: sources.length + 1, dataset: s.dataset, title: s.title, detail: `${s.measures.join(", ")}${s.dimension ? ` by ${s.dimension}` : ""}${s.filters.length ? ` · ${s.filters.map((f) => f.values.join(", ")).join(" · ")}` : ""}`, rows: r.matched, spec: s });
+    return { r, n: sources.length };
+  };
+  const main = run(spec);
+  const followUps = suggest(spec, ds);
+  if (main.r.error) return { answer: `I couldn’t map that to the data (${main.r.error}). Try naming a measure and a breakdown, e.g. “freight by transporter this month”.`, charts: [], followUps, steps, sources };
+  if (!main.r.rows.length) return { answer: "No records match that question — try removing a filter or widening the period.", charts: [], followUps, steps, sources };
+  const ins = insightsFor(main.r);
+  const months = dimValues(ds, "month", 12);
+  const hasMonth = ds.dims.some((d) => d.key === "month");
+  const breakdownDim = ds.dims.find((d) => !d.time && d.key !== spec.dimension && !spec.filters.some((f) => f.field === d.key))?.key;
+
+  if (mode === "brief") {
+    const total = main.r.totals[m0.key];
+    const bullets = [
+      `- **${m0.label}**: ${fmt(total, m0.format)} across ${main.r.matched.toLocaleString("en-IN")} records [1]`,
+      ...(spec.dimension ? ins.map((x) => `- ${x} [1]`) : []),
+    ];
+    if (!spec.dimension && breakdownDim) {
+      const bd = run({ ...spec, dimension: breakdownDim, series: null, chart: "horizontal_bar", sort: "desc", limit: 8, title: `${m0.label} by ${ds.dims.find((d) => d.key === breakdownDim)!.label.toLowerCase()}` });
+      insightsFor(bd.r).slice(0, 2).forEach((x) => bullets.push(`- ${x} [${bd.n}]`));
+    }
+    if (hasMonth && spec.dimension !== "month") {
+      const t = run({ ...spec, dimension: "month", series: null, chart: "line", sort: "natural", limit: null, filters: spec.filters.filter((f) => f.field !== "month"), title: `${m0.label} by month` });
+      const ti = insightsFor(t.r)[0];
+      if (ti) bullets.push(`- ${ti} [${t.n}]`);
+    }
+    return { answer: bullets.slice(0, 5).join("\n"), charts: [spec.dimension ? { ...spec, limit: Math.min(spec.limit ?? 8, 8) } : spec], followUps, steps, sources };
+  }
+
+  if (mode === "compare" && hasMonth && months.length >= 2) {
+    const [prev, cur] = months.slice(-2);
+    const dim = spec.dimension && spec.dimension !== "month" ? spec.dimension : breakdownDim ?? null;
+    const base = { ...spec, filters: spec.filters.filter((f) => f.field !== "month") };
+    const tot = run({ ...base, dimension: "month", series: null, chart: "bar", sort: "natural", limit: null, filters: [...base.filters, { field: "month", op: "in", values: [prev, cur] }], title: `${m0.label}: ${prev} vs ${cur}` });
+    const a = tot.r.rows.find((x) => x.label === prev)?.values[m0.key] ?? null, b = tot.r.rows.find((x) => x.label === cur)?.values[m0.key] ?? null;
+    const change = a != null && b != null ? (m0.format === "pct" ? `${b - a >= 0 ? "+" : ""}${(b - a).toFixed(1)} pts` : a ? `${b >= a ? "+" : ""}${(((b - a) / Math.abs(a)) * 100).toFixed(1)}%` : "–") : "–";
+    const tone = a == null || b == null || m0.higherIsBetter === undefined ? "neutral" : (b >= a) === m0.higherIsBetter ? "positive" : "negative";
+    const parts = [`${m0.label} is {{metric:${cur}|${fmt(b, m0.format)}|neutral}} against {{metric:${prev}|${fmt(a, m0.format)}|neutral}} — {{metric:change|${change}|${tone}}} [${tot.n}]. ${cur} is month-to-date, so additive totals are partial.`];
+    const charts: QuerySpec[] = [];
+    if (dim) {
+      const cmp = run({ ...base, dimension: dim, series: "month", chart: "bar", sort: "desc", limit: 8, filters: [...base.filters, { field: "month", op: "in", values: [prev, cur] }], title: `${m0.label} by ${ds.dims.find((d) => d.key === dim)!.label.toLowerCase()} · ${prev} vs ${cur}` });
+      const by = new Map<string, { a: number | null; b: number | null }>();
+      for (const row of cmp.r.rows) { const e = by.get(row.label) ?? { a: null, b: null }; if (row.series === prev) e.a = row.values[m0.key]; else e.b = row.values[m0.key]; by.set(row.label, e); }
+      const movers = [...by.entries()].filter(([, v]) => v.a != null && v.b != null).map(([k, v]) => ({ k, d: (v.b as number) - (v.a as number) })).sort((x, y) => Math.abs(y.d) - Math.abs(x.d)).slice(0, 3);
+      if (movers.length) parts.push(`Biggest movers: ${movers.map((mv) => `{{metric:${mv.k}|${mv.d >= 0 ? "+" : "−"}${fmt(Math.abs(mv.d), m0.format)}|${m0.higherIsBetter === undefined ? "neutral" : (mv.d >= 0) === m0.higherIsBetter ? "positive" : "negative"}}}`).join(", ")} [${cmp.n}].`);
+      charts.push(cmp.r.spec);
+    }
+    charts.push(tot.r.spec);
+    return { answer: parts.join(" "), charts, followUps, steps, sources };
+  }
+
+  if (mode === "research") {
+    const charts: QuerySpec[] = spec.dimension ? [spec] : [];
+    const why: string[] = [];
+    let lead = spec.dimension ? `${ins.join(" ")} [1]` : `${m0.label} is ${fmt(main.r.totals[m0.key], m0.format)} across ${main.r.matched.toLocaleString("en-IN")} records [1].`;
+    if (hasMonth && spec.dimension !== "month") {
+      const t = run({ ...spec, dimension: "month", series: null, chart: "line", sort: "natural", limit: null, filters: spec.filters.filter((f) => f.field !== "month"), title: `${m0.label} by month` });
+      const ti = insightsFor(t.r);
+      if (!spec.dimension && ti[0]) lead = `${ti[0]} [${t.n}]`;
+      ti.slice(spec.dimension ? 0 : 1).forEach((x) => why.push(`- ${x} [${t.n}]`));
+      charts.push(t.r.spec);
+    }
+    let driver: { label: string; n: number } | null = spec.dimension && main.r.rows[0] ? { label: main.r.rows[0].label, n: 1 } : null;
+    const extraDims = ds.dims.filter((d) => !d.time && d.key !== spec.dimension && !spec.filters.some((f) => f.field === d.key)).slice(0, spec.dimension ? 1 : 2);
+    for (const d of extraDims) {
+      const b = run({ ...spec, dimension: d.key, series: null, chart: "horizontal_bar", sort: m0.higherIsBetter === false ? "desc" : "asc", limit: 8, title: `${m0.label} by ${d.label.toLowerCase()}` });
+      insightsFor(b.r).forEach((x) => why.push(`- ${x} [${b.n}]`));
+      if (!driver && b.r.rows[0]) driver = { label: `${b.r.rows[0].label} (${d.label.toLowerCase()})`, n: b.n };
+      charts.push(b.r.spec);
+    }
+    const sections: string[] = [lead];
+    if (why.length) sections.push("## What’s behind it\n" + why.slice(0, 5).join("\n"));
+    const worstWord = m0.higherIsBetter === false ? "highest" : m0.higherIsBetter ? "lowest" : "largest";
+    sections.push("## What to do\n" + [
+      driver ? `- Start with **${driver.label}** — the ${worstWord} on ${m0.label.toLowerCase()}; review it with the owner this week [${driver.n}].` : null,
+      `- Set a weekly check on ${m0.label.toLowerCase()} in **My dashboards** so a shift shows up before month-end.`,
+    ].filter(Boolean).join("\n"));
+    return { answer: sections.join("\n\n"), charts: charts.slice(0, 4), followUps, steps, sources };
+  }
+
+  return { answer: `${ins.join(" ")} [1] I read this as **${spec.title.toLowerCase()}** from ${ds.label}.`, charts: [spec], followUps, steps, sources };
+}
+
+function suggest(spec: QuerySpec, ds: Dataset) {
   const others = DATASETS.filter((d) => d.key !== ds.key).slice(0, 1);
-  const followUps = [
+  return [
     spec.dimension !== "month" && ds.dims.some((d) => d.key === "month") ? `Show ${ds.measures.find((m) => m.key === spec.measures[0])!.label.toLowerCase()} by month` : null,
     spec.dimension ? `Which ${ds.dims.find((d) => d.key === spec.dimension)!.label.toLowerCase()} is worst on ${ds.measures[Math.min(1, ds.measures.length - 1)].label.toLowerCase()}?` : null,
+    `Compare ${ds.measures.find((m) => m.key === spec.measures[0])!.label.toLowerCase()} this month vs last month`,
     others[0] ? `What does ${others[0].label.split(" (")[0].toLowerCase()} look like this month?` : null,
   ].filter((x): x is string => !!x);
-  return { answer, charts: r.error ? [] : [spec], followUps, steps: [{ label: spec.title, detail: `${spec.dataset} · ${spec.measures.join(", ")}${spec.dimension ? ` by ${spec.dimension}` : ""} → ${r.rows.length} rows`, ok: !r.error }] };
 }
+
+export { plain };

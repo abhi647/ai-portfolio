@@ -14,13 +14,16 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { catalogText } from "../src/ai/catalog";
 import { QUERY_SPEC_SCHEMA, execute, insightsFor, normalize, resultForModel, type QuerySpec } from "../src/ai/engine";
+import { MODE_EFFORT, MODE_MAX_CHARTS, modeInstructions, type AskFocus, type AskMode, type AskSource } from "../src/ai/modes";
 
 const MODEL = process.env.DFM_AI_MODEL || "claude-opus-5-5";
 const MAX_TURNS = 8;
+const MODES_OK = new Set(["quick", "research", "brief", "compare"]);
+const FOCUS_OK = new Set(["all", "trips", "orders", "sales", "cfa", "pnl"]);
 
 export interface AskTurn { role: "user" | "assistant"; content: string }
 export interface AskStep { label: string; detail?: string; ok: boolean }
-export interface AskResponse { answer: string; charts: QuerySpec[]; followUps: string[]; steps: AskStep[]; model: string }
+export interface AskResponse { answer: string; charts: QuerySpec[]; followUps: string[]; steps: AskStep[]; sources: AskSource[]; model: string }
 
 const SYSTEM = `You are the analytics copilot inside the DFM Foods MIS (makers of CRAX snacks). Users are supply-chain, sales and finance managers asking about their own operational data.
 
@@ -30,9 +33,9 @@ How to work:
 - Finish every turn by calling present_answer exactly once. Do not write the final answer as plain text.
 
 The answer (present_answer.answer):
-- 2–5 short sentences of plain business language, leading with the direct answer, then the most useful "why" or "so what", then a concrete next action when there is one.
+- Plain business language, leading with the direct answer, then the most useful "why" or "so what", then a concrete next action when there is one. Length and structure follow the mode instructions below.
 - Highlight key figures with inline tokens: {{metric:Label|value|tone}} where tone is positive, negative or neutral (e.g. {{metric:Shree Ganesh Roadlines|₹52.6/km|negative}}). Use the exact formatted values the query returned.
-- No headings, no bullet lists, no markdown tables — the charts carry the detail.
+- No markdown tables — the charts carry the detail. Use "## " headings and "- " bullets only when the mode asks for them.
 
 Charts (present_answer.charts): 0–3 QuerySpecs the app will execute and render. Pick the chart that answers the question best: line/area for trends over time, horizontal_bar or bar_list for rankings, stacked_bar for composition, donut only for ≤6 parts of a whole, heatmap for two dimensions, combo for a volume plus a rate (2 measures), kpi for single numbers, table for detail lists. Reuse specs you already ran so the user sees what you saw. Give each a clear title.
 
@@ -69,7 +72,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
 
 export class NotConfiguredError extends Error {}
 
-export async function handleAsk(history: AskTurn[]): Promise<AskResponse> {
+export async function handleAsk(history: AskTurn[], mode: AskMode = "quick", focus: AskFocus = "all"): Promise<AskResponse> {
   let client: Anthropic;
   try {
     client = new Anthropic();
@@ -79,8 +82,11 @@ export async function handleAsk(history: AskTurn[]): Promise<AskResponse> {
 
   const messages: Anthropic.Beta.BetaMessageParam[] = history.slice(-12).map((t) => ({ role: t.role, content: t.content }));
   const steps: AskStep[] = [];
+  const sources: AskSource[] = [];
+  const maxCharts = MODE_MAX_CHARTS[mode];
+  const turns = mode === "research" ? 12 : MAX_TURNS;
 
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
+  for (let turn = 0; turn < turns; turn++) {
     let response: Anthropic.Beta.BetaMessage;
     try {
       response = await client.beta.messages.create({
@@ -88,9 +94,9 @@ export async function handleAsk(history: AskTurn[]): Promise<AskResponse> {
         max_tokens: 16000,
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
-        output_config: { effort: "medium" },
-        // System prompt + tools are stable, so they are cached across turns and users.
-        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+        output_config: { effort: MODE_EFFORT[mode] },
+        // The base prompt + tools are stable, so they are cached; the short mode block follows the breakpoint.
+        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }, { type: "text", text: modeInstructions(mode, focus) }],
         tools: TOOLS,
         tool_choice: { type: "auto" },
         messages,
@@ -103,7 +109,7 @@ export async function handleAsk(history: AskTurn[]): Promise<AskResponse> {
     }
 
     if (response.stop_reason === "refusal") {
-      return { answer: "I can’t help with that request. Try asking about trips, orders, sales, CFA throughput or the e-com P&L.", charts: [], followUps: [], steps, model: response.model };
+      return { answer: "I can’t help with that request. Try asking about trips, orders, sales, CFA throughput or the e-com P&L.", charts: [], followUps: [], steps, sources, model: response.model };
     }
 
     // Keep the full assistant content (including thinking blocks) so the next turn stays valid.
@@ -115,9 +121,10 @@ export async function handleAsk(history: AskTurn[]): Promise<AskResponse> {
       const input = present.input as { answer?: string; charts?: QuerySpec[]; follow_ups?: string[] };
       return {
         answer: String(input.answer ?? ""),
-        charts: (input.charts ?? []).slice(0, 3).map(normalize),
-        followUps: (input.follow_ups ?? []).slice(0, 3),
+        charts: (input.charts ?? []).slice(0, maxCharts).map(normalize),
+        followUps: (input.follow_ups ?? []).slice(0, 4),
         steps,
+        sources,
         model: response.model,
       };
     }
@@ -125,22 +132,25 @@ export async function handleAsk(history: AskTurn[]): Promise<AskResponse> {
     if (!toolUses.length) {
       // The model answered in plain text instead of calling present_answer — accept it.
       const text = response.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
-      return { answer: text || "I couldn’t find an answer to that.", charts: [], followUps: [], steps, model: response.model };
+      return { answer: text || "I couldn’t find an answer to that.", charts: [], followUps: [], steps, sources, model: response.model };
     }
 
     // Run every query in this turn and return all results in one user message.
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = toolUses.map((t) => {
       if (t.name !== "run_query") return { type: "tool_result", tool_use_id: t.id, is_error: true, content: `Unknown tool ${t.name}` };
       const spec = normalize(t.input as QuerySpec);
+      if (focus !== "all" && spec.dataset !== focus) return { type: "tool_result", tool_use_id: t.id, is_error: true, content: `Focus is set to "${focus}" — query that dataset only.` };
       const r = execute(spec);
       steps.push({ label: spec.title || `Query ${spec.dataset}`, detail: r.error ?? `${spec.dataset} · ${spec.measures.join(", ")}${spec.dimension ? ` by ${spec.dimension}` : ""}${spec.filters.length ? ` · ${spec.filters.length} filter(s)` : ""} → ${r.rows.length} rows`, ok: !r.error });
       if (r.error) return { type: "tool_result", tool_use_id: t.id, is_error: true, content: r.error };
+      const n = sources.length + 1;
+      sources.push({ id: n, dataset: spec.dataset, title: spec.title || `Query ${n}`, detail: `${spec.measures.join(", ")}${spec.dimension ? ` by ${spec.dimension}` : ""}${spec.filters.length ? ` · ${spec.filters.map((f) => f.values.join(", ")).join(" · ")}` : ""}`, rows: r.matched, spec });
       const takeaways = insightsFor(r).map((s) => s.replace(/\{\{metric:([^|}]*)\|?([^|}]*)\|?[^}]*\}\}/g, (_m, a, b) => [a, b].filter(Boolean).join(" ")));
-      return { type: "tool_result", tool_use_id: t.id, content: resultForModel(r) + (takeaways.length ? `\nComputed takeaways: ${takeaways.join(" ")}` : "") };
+      return { type: "tool_result", tool_use_id: t.id, content: `source [${n}]\n` + resultForModel(r) + (takeaways.length ? `\nComputed takeaways: ${takeaways.join(" ")}` : "") };
     });
     messages.push({ role: "user", content: results });
   }
-  return { answer: "That took more analysis steps than I allow per question. Try narrowing it down (a dataset, a period or a measure).", charts: [], followUps: [], steps, model: MODEL };
+  return { answer: "That took more analysis steps than I allow per question. Try narrowing it down (a dataset, a period or a measure).", charts: [], followUps: [], steps, sources, model: MODEL };
 }
 
 function readJson(req: IncomingMessage): Promise<unknown> {
@@ -172,10 +182,12 @@ export function handleStatus(_req: IncomingMessage, res: ServerResponse) {
 export async function handleHttp(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== "POST") return send(res, 405, { error: "method_not_allowed" });
   try {
-    const body = (await readJson(req)) as { messages?: AskTurn[] };
+    const body = (await readJson(req)) as { messages?: AskTurn[]; mode?: string; focus?: string };
+    const mode = (MODES_OK.has(String(body.mode)) ? body.mode : "quick") as AskMode;
+    const focus = (FOCUS_OK.has(String(body.focus)) ? body.focus : "all") as AskFocus;
     const history = (body.messages ?? []).filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim());
     if (!history.length || history[history.length - 1].role !== "user") return send(res, 400, { error: "bad_request" });
-    send(res, 200, await handleAsk(history));
+    send(res, 200, await handleAsk(history, mode, focus));
   } catch (err) {
     if (err instanceof NotConfiguredError) return send(res, 503, { error: "not_configured", message: err.message });
     if (err instanceof Anthropic.RateLimitError) return send(res, 429, { error: "rate_limited", message: "Claude is busy — try again in a moment." });
