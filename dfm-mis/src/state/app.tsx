@@ -7,6 +7,7 @@ const store = {
 };
 
 export type Theme = "light" | "dark";
+export type Density = "compact" | "comfortable";
 export interface Toast { id: number; title: string; tone?: "success" | "info" | "warning" | "error" }
 
 interface AppState {
@@ -15,6 +16,8 @@ interface AppState {
   signOut: () => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
+  density: Density;
+  setDensity: (d: Density) => void;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   otif: { green: number; amber: number };
@@ -41,6 +44,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = React.useState(INITIAL_USERS);
   const [email, setEmail] = React.useState<string | null>(() => store.get("dfm.session") ?? sessionStorageGet());
   const [theme, setThemeState] = React.useState<Theme>(() => (store.get("dfm.theme") as Theme) || (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+  const [density, setDensityState] = React.useState<Density>(() => (store.get("dfm.density") as Density) || "compact");
   const [otif, setOtif] = React.useState({ green: 95, amber: 85 });
   const [refresh, setRefresh] = React.useState<Record<string, number>>({ sales: 30, trip: 15, order: 15 });
   const [sync, setSync] = React.useState<AppState["sync"]>("idle");
@@ -51,6 +55,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
+  React.useEffect(() => { document.documentElement.dataset.density = density; }, [density]);
 
   const toast = React.useCallback((title: string, tone: Toast["tone"] = "success") => {
     const id = Date.now() + Math.random();
@@ -70,6 +75,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     signOut: () => { setEmail(null); store.set("dfm.session", null); try { window.sessionStorage.removeItem("dfm.session"); } catch { /* ignore */ } },
     theme,
     setTheme: (t) => { setThemeState(t); store.set("dfm.theme", t); },
+    density,
+    setDensity: (d) => { setDensityState(d); store.set("dfm.density", d); },
     users, setUsers, otif, setOtif, refresh, setRefresh, sync, lastSync,
     doSync: () => {
       if (sync === "syncing") return;

@@ -1,6 +1,7 @@
 /* Generative UI: renders any QuerySpec with the overtrue/ui chart that fits it. */
 import * as React from "react";
-import { IconCode, IconDownload, IconPin, IconPinFilled, IconShare } from "@tabler/icons-react";
+import { IconCode, IconDownload, IconLayoutGridAdd, IconPin, IconPinFilled, IconShare } from "@tabler/icons-react";
+import { useDashboardsOptional } from "@/state/dashboards";
 import { TrendChart } from "@/components/overtrue/trend-chart";
 import { ComposedChart } from "@/components/overtrue/composed-chart";
 import { DonutChart } from "@/components/overtrue/donut-chart";
@@ -9,6 +10,7 @@ import { HeatmapChart } from "@/components/overtrue/heatmap-chart";
 import { StatusBadge } from "@/components/overtrue/status-badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, InsightLine, Toggle, type Col } from "@/components/app/kit";
+import { DenseTable } from "@/components/app/dense";
 import { execute, fmt, insightsFor, type ChartType, type QueryResult, type QuerySpec } from "@/ai/engine";
 import { PALETTE } from "@/data/colors";
 import { cn } from "@/lib/utils";
@@ -50,6 +52,8 @@ export function GenChart({ spec, pinned, onPin, compact, className }: { spec: Qu
     a.click();
   };
 
+  const db = useDashboardsOptional();
+  const [added, setAdded] = React.useState(false);
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
   const share = () => {
     const plain = insights.join(" ").replace(/\{\{metric:([^|}]*)\|?([^|}]*)\|?[^}]*\}\}/g, (_m, a, b) => [a, b].filter(Boolean).join(" "));
@@ -68,6 +72,9 @@ export function GenChart({ spec, pinned, onPin, compact, className }: { spec: Qu
         </div>
         <div className="flex items-center gap-1">
           {onPin ? <Button variant="ghost" size="icon-sm" aria-label={pinned ? "Unpin from My board" : "Pin to My board"} onClick={onPin}>{pinned ? <IconPinFilled className="size-4 text-primary" /> : <IconPin className="size-4" />}</Button> : null}
+          {db ? <Button variant="ghost" size="icon-sm" aria-label={added ? "Added to dashboard" : "Add to my dashboard"} title={added ? "Added to your latest dashboard" : "Add to my dashboard"} disabled={added}
+            onClick={() => { db.addWidgetToDashboard(null, { kind: chart === "kpi" ? "kpi" : chart === "table" ? "table" : "chart", title: spec.title, w: chart === "kpi" ? 3 : 6, h: chart === "kpi" ? 2 : 4, spec: { ...spec, chart } }); setAdded(true); }}>
+            <IconLayoutGridAdd className={cn("size-4", added && "text-primary")} /></Button> : null}
           {canShare ? <Button variant="ghost" size="icon-sm" aria-label="Share" onClick={share}><IconShare className="size-4" /></Button> : null}
           <Button variant="ghost" size="icon-sm" aria-label="Export CSV" onClick={exportCsv}><IconDownload className="size-4" /></Button>
           <Button variant="ghost" size="icon-sm" aria-label="Show query" aria-pressed={showSpec} onClick={() => setShowSpec((v) => !v)}><IconCode className="size-4" /></Button>
@@ -83,13 +90,13 @@ export function GenChart({ spec, pinned, onPin, compact, className }: { spec: Qu
   );
 }
 
-function ChartBody({ r, compact }: { r: QueryResult; compact?: boolean }) {
+export function ChartBody({ r, compact, fill }: { r: QueryResult; compact?: boolean; fill?: boolean }) {
   const s = r.spec;
   const ms = s.measures.map((k) => r.ds.measures.find((m) => m.key === k)!);
   const m0 = ms[0];
   const f0 = (v: number) => fmt(v, m0.format, true);
   const labels = [...new Set(r.rows.map((x) => x.label))];
-  const h = compact ? "h-56" : "h-72";
+  const h = fill ? "h-full min-h-0" : compact ? "h-56" : "h-72";
 
   if (s.chart === "kpi" || !s.dimension) {
     return (
@@ -104,6 +111,13 @@ function ChartBody({ r, compact }: { r: QueryResult; compact?: boolean }) {
     );
   }
 
+  if (s.chart === "table" && fill) {
+    const dimL = r.ds.dims.find((d) => d.key === s.dimension)?.label ?? "Group";
+    return <DenseTable className="h-full" dimLabel={s.series ? `${dimL} · ${r.ds.dims.find((d) => d.key === s.series)?.label}` : dimL} rank={s.sort !== "natural"}
+      rows={r.rows.map((x, i) => ({ id: `${x.label}-${x.series ?? ""}-${i}`, label: s.series ? `${x.label} · ${x.series}` : x.label, values: x.values }))}
+      cols={ms.map((m, i) => ({ key: m.key, label: m.label, format: m.format, bar: i === 0 && ["number", "inr", "km"].includes(m.format), higherIsBetter: ["number", "inr", "km"].includes(m.format) ? undefined : m.higherIsBetter }))}
+      total={s.series ? undefined : r.totals} />;
+  }
   if (s.chart === "table") {
     const cols: Col<(typeof r.rows)[number]>[] = [
       { id: "l", header: r.ds.dims.find((d) => d.key === s.dimension)?.label ?? "Group", value: (x) => x.label, cell: (x) => <span className="font-medium">{x.label}</span> },
@@ -139,6 +153,6 @@ function ChartBody({ r, compact }: { r: QueryResult; compact?: boolean }) {
   return (
     <TrendChart data={data} xKey="label" type={type} layout={horizontal ? "horizontal" : "vertical"} showYAxis={!horizontal} showLegend={ms.length > 1}
       series={ms.map((m, i) => ({ key: m.key, label: m.label, color: PALETTE[i] }))} yFormatter={f0}
-      className={horizontal ? undefined : h} style={horizontal ? { height: Math.max(180, labels.length * (compact ? 26 : 32) + 40) } : undefined} />
+      className={horizontal ? (fill && labels.length <= 12 ? "h-full min-h-0" : undefined) : h} style={horizontal && !(fill && labels.length <= 12) ? { height: Math.max(180, labels.length * (compact || fill ? 26 : 32) + 40) } : undefined} />
   );
 }

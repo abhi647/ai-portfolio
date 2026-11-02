@@ -1,5 +1,5 @@
 import {
-  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconReportMoney, IconSettings, IconSparkles, IconTruck,
+  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconLayoutGrid, IconTablePlus, IconReportMoney, IconSettings, IconSparkles, IconTruck,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 
@@ -11,6 +11,18 @@ export interface NavModule {
 
 export const MODULES: NavModule[] = [
   { id: "home", path: "/", label: "Overview", group: "Workspace", icon: IconLayoutDashboard, description: "Today’s pulse across supply, sales and finance" },
+  {
+    id: "dashboards", path: "/dashboards", label: "My dashboards", group: "Workspace", icon: IconLayoutGrid,
+    description: "Build, arrange and share your own dashboards from KPIs, charts, tables and pivots",
+  },
+  {
+    id: "explore", path: "/explore", label: "Data explorer", group: "Workspace", icon: IconTablePlus,
+    description: "Pivot and slice every dataset — trips, orders, sales, CFA and P&L",
+    tabs: [
+      { id: "pivot", label: "Pivot table", description: "Drag fields into rows, columns and values — every cell is re-aggregated from raw records" },
+      { id: "table", label: "Raw records", description: "Every record behind the dashboards, filterable and exportable" },
+    ],
+  },
   { id: "ask", path: "/ask", label: "Ask AI", group: "Workspace", icon: IconSparkles, description: "Talk to your data — ask in plain English, get charts and insights" },
   {
     id: "trips", path: "/trips", label: "Trip Analytics", group: "Primary supply", source: "Traqo TMS", access: "trip", icon: IconTruck,

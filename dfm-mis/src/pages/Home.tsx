@@ -23,11 +23,62 @@ import { asmDay, asmTarget } from "@/data/data";
 import { asmPeriod, asmPeriodTarget, monthContext, periodRange } from "@/data/sales";
 import { computeAlerts } from "@/data/insights";
 import { cn } from "@/lib/utils";
+import { DenseTable } from "@/components/app/dense";
+import { useDashboards } from "@/state/dashboards";
+import { execute, type QuerySpec } from "@/ai/engine";
+
+const MONTH_LABEL = MONTHS[5].label;
+const sc = (dataset: string, measures: string[], dimension: string, mtdOnly = true): ReturnType<typeof execute> =>
+  execute({ dataset, measures, dimension, series: null, filters: mtdOnly ? [{ field: "month", op: "in", values: [MONTH_LABEL] }] : [], sort: "desc", limit: null, chart: "table", title: "" } as QuerySpec);
+
+function Scorecards() {
+  const nav = useNavigate();
+  const tr = React.useMemo(() => sc("trips", ["trips", "freight", "cost_per_km", "detention_rate", "tracking_rate", "shortage_rate", "avg_transit_h"], "transporter"), []);
+  const plantT = React.useMemo(() => sc("trips", ["trips", "freight", "cost_per_km", "avg_plant_tat_h"], "plant"), []);
+  const plantO = React.useMemo(() => sc("orders", ["orders", "otif_pct", "avg_approval_to_dispatch_h"], "plant"), []);
+  const region = React.useMemo(() => sc("sales", ["sales", "target", "achievement_pct", "gap_to_target"], "region"), []);
+  const zoneOf = React.useMemo(() => Object.fromEntries(ASMS.map((a) => [a.region, a.zone.split(" – ")[0]])), []);
+  // Orders are booked per plant (Greater Noida / Ghaziabad); trips per dispatch location (GN, GZB, C-37 GZB).
+  const site = (code: string) => (code === "GN" ? "Greater Noida" : "Ghaziabad");
+  const plants = plantT.rows.map((r) => ({ label: r.label, sub: site(r.label), values: { ...r.values, ...(plantO.rows.find((o) => o.label === site(r.label))?.values ?? {}) } }));
+  return (
+    <Grid>
+      <Panel span={8} title={`Transporter scorecard · ${MONTH_LABEL}`} description="Best and worst quartile highlighted · click a column to sort · click a row for the transporter view" contentClassName="p-0"
+        actions={<Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => nav("/explore/pivot")}>Pivot</Button>}>
+        <DenseTable rank maxHeight={344} dimLabel="Transporter" initialSort={{ key: "freight", dir: "desc" }} onRowClick={() => nav("/trips/transporters")}
+          rows={tr.rows.map((r) => ({ label: r.label, values: r.values }))} total={tr.totals}
+          cols={[
+            { key: "trips", label: "Trips", format: "number" }, { key: "freight", label: "Freight", format: "inr", bar: true },
+            { key: "cost_per_km", label: "₹/km", format: "inr_per_km", higherIsBetter: false }, { key: "detention_rate", label: "Detention", format: "pct", higherIsBetter: false },
+            { key: "tracking_rate", label: "Tracked", format: "pct", higherIsBetter: true }, { key: "shortage_rate", label: "Shortage", format: "pct", higherIsBetter: false },
+            { key: "avg_transit_h", label: "Transit", format: "hours", higherIsBetter: false },
+          ]} />
+      </Panel>
+      <Panel span={4} title={`Plant scorecard · ${MONTH_LABEL}`} description="Trips and orders by supply location" contentClassName="p-0">
+        <DenseTable dimLabel="Plant" maxHeight={344} rows={plants} initialSort={{ key: "freight", dir: "desc" }} onRowClick={() => nav("/orders/otif")}
+          cols={[
+            { key: "trips", label: "Trips", format: "number" }, { key: "cost_per_km", label: "₹/km", format: "inr_per_km" },
+            { key: "otif_pct", label: "Plant OTIF", format: "pct" }, { key: "avg_plant_tat_h", label: "Plant TAT", format: "hours" }, { key: "avg_approval_to_dispatch_h", label: "Order→disp.", format: "hours" },
+          ]} />
+      </Panel>
+      <Panel span={12} title={`Region sales scorecard · ${MONTH_LABEL}`} description="Secondary sales vs pro-rated target, month to date" contentClassName="p-0"
+        actions={<Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => nav("/sales/team")}>Sales detail</Button>}>
+        <DenseTable rank dimLabel="Region" maxHeight={300} initialSort={{ key: "achievement_pct", dir: "asc" }} onRowClick={() => nav("/sales/team")}
+          rows={region.rows.map((r) => ({ label: r.label, sub: zoneOf[r.label], values: r.values }))} total={region.totals}
+          cols={[
+            { key: "sales", label: "Sales", format: "inr", bar: true }, { key: "target", label: "Target", format: "inr" },
+            { key: "achievement_pct", label: "Achievement", format: "pct", higherIsBetter: true }, { key: "gap_to_target", label: "Gap to target", format: "inr", higherIsBetter: false },
+          ]} />
+      </Panel>
+    </Grid>
+  );
+}
 
 const ALERTS = computeAlerts();
 const C2 = "var(--color-chart-1)";
 
 export default function Home() {
+  const dashCount = useDashboards().dashboards.length;
   const { user, otif } = useApp();
   const { openTrips, openOrders } = useDrill();
   const nav = useNavigate();
@@ -81,7 +132,7 @@ export default function Home() {
   const [stream, setStream] = React.useState<AsyncIterable<string>>(() => makeStream());
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[var(--page-gap)]">
       <Grid>
         <section className="surface-card relative overflow-hidden lg:col-span-8 animate-rise">
           <img src="/brand/crax-range.webp" alt="The CRAX product range" className="absolute inset-y-0 right-0 hidden h-full w-[50%] object-cover object-[20%_center] md:block" />
@@ -117,7 +168,7 @@ export default function Home() {
         />
       </Grid>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Dispatched today" value={today.length} deltaLabel={`so far today · ${fmtN(sum(today, "invQty"))} cases · 7-day avg ${avg7.toFixed(1)}/day`} sparkline={dispByDay.map((r) => r.length)}
           className="cursor-pointer" onClick={() => openTrips("Dispatched today", today)} />
         <KpiCard label="MTD secondary sales" value={cr(mc.mtd.sales)} delta={mc.mtd.target ? mc.mtd.sales / mc.mtd.target - 1 : 0} deltaLabel={`vs pro-rated target · ${pct(mc.mtd.sales, mc.mTarget)} of month`} sparkline={salesDaily}
@@ -127,6 +178,8 @@ export default function Home() {
         <KpiCard label="MTD freight spend" value={cr(mtdFreight)} deltaLabel={`₹${(mtdFreight / (sum(trips.filter((t) => t.mk === CUR_MONTH), "km") || 1)).toFixed(1)} per km · ${fmtN(trips.filter((t) => t.mk === CUR_MONTH).length)} trips`} sparkline={monthly.map((m) => m.perKm)} invertDelta
           className="cursor-pointer" onClick={() => nav("/trips/costing")} />
       </div>
+
+      <Scorecards />
 
       <Grid>
         <Panel span={7} title="Needs attention" description="Generated from live data — click to jump to the exact view" contentClassName="p-0">
@@ -213,6 +266,9 @@ export default function Home() {
               : m.id === "orders" ? { k: fmtN(orders.filter((o) => o.stage !== "dispatched" && (+NOW - +o.approved) / DAY <= 30).length), l: "open orders", s: days14.map((d) => orders.filter((o) => o.approved >= d && +o.approved < +d + DAY).length) }
               : m.id === "sales" ? { k: cr(mc.mtd.sales), l: "MTD sales", s: salesDaily }
               : m.id === "cfa" ? { k: fmtN(cfaToday), l: "cases today", s: days14.map((d) => CFAS.reduce((s, _, i) => s + cfaQty(i, d), 0)) }
+              : m.id === "dashboards" ? { k: String(dashCount), l: "dashboards · 3 templates", s: undefined }
+              : m.id === "explore" ? { k: "5", l: "datasets · pivot & raw records", s: undefined }
+              : m.id === "ask" ? { k: "Ask", l: "anything — get a chart back", s: undefined }
               : m.id === "pnl" ? { k: ((pnlMtd.materialMargin / pnlMtd.netSales) * 100).toFixed(1) + "%", l: "material margin (MTD)", s: undefined }
               : { k: "8 / 8", l: "sync jobs healthy", s: undefined };
             return (

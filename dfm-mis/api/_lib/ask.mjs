@@ -834,6 +834,7 @@ function fmt(v, format, compact = false) {
     const a = Math.abs(v);
     if (a >= 1e7) return "\u20B9" + (v / 1e7).toFixed(compact ? 1 : 2) + " Cr";
     if (a >= 1e5) return "\u20B9" + (v / 1e5).toFixed(compact ? 1 : 2) + " L";
+    if (compact && a >= 1e3) return "\u20B9" + (v / 1e3).toFixed(1) + "k";
     return "\u20B9" + Math.round(v).toLocaleString("en-IN");
   }
   if (compact && Math.abs(v) >= 1e5) return (v / 1e5).toFixed(1) + "L";
