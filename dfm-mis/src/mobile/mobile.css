@@ -9,3 +9,9 @@ body { touch-action: manipulation; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 @keyframes mic-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-destructive) 45%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
 .mic-live { animation: mic-pulse 1.1s ease-out infinite; }
+
+/* Chat (Ask tab): iOS grouped-background canvas with white bubbles. */
+.chat-canvas { background: #f2f2f7; }
+.chat-bubble { background: #ffffff; }
+.dark .chat-canvas { background: #0b0b0c; }
+.dark .chat-bubble { background: #1c1c1e; }
