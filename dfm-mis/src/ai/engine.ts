@@ -53,6 +53,30 @@ export const QUERY_SPEC_SCHEMA = {
 
 const keyOf = (v: unknown) => (v == null ? null : String(v));
 
+/** Rows of a dataset that pass every filter (case-insensitive exact match on dimension values). */
+export function applyFilters(rows: Row[], filters: Filter[]): Row[] {
+  if (!filters.length) return rows;
+  return rows.filter((r) => filters.every((f) => {
+    if (!f.values.length) return true;
+    const v = keyOf(r[f.field]);
+    const hit = v != null && f.values.some((x) => x.toLowerCase() === v.toLowerCase());
+    return f.op === "in" ? hit : !hit;
+  }));
+}
+
+/** Natural order of a dimension's values: explicit order, chronological for days, else alphabetical. */
+export function orderValues(ds: Dataset, dim: string, values: string[], rows?: Row[]): string[] {
+  const def = ds.dims.find((d) => d.key === dim);
+  const out = [...values];
+  if (def?.order) return out.sort((a, b) => def.order!.indexOf(a) - def.order!.indexOf(b));
+  if (def?.time === "day") {
+    const ts = new Map<string, number>();
+    for (const r of rows ?? ds.rows()) { const k = keyOf(r[dim]); if (k != null && !ts.has(k)) ts.set(k, Number(r.day_ts)); }
+    return out.sort((a, b) => (ts.get(a) ?? 0) - (ts.get(b) ?? 0));
+  }
+  return out.sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+}
+
 export function execute(spec: QuerySpec): QueryResult {
   const ds = dataset(spec.dataset) ?? DATASETS[0];
   const fail = (error: string): QueryResult => ({ spec, ds, rows: [], seriesKeys: [], totals: {}, matched: 0, error });
@@ -125,6 +149,7 @@ export function fmt(v: number | null | undefined, format: string, compact = fals
     const a = Math.abs(v);
     if (a >= 1e7) return "₹" + (v / 1e7).toFixed(compact ? 1 : 2) + " Cr";
     if (a >= 1e5) return "₹" + (v / 1e5).toFixed(compact ? 1 : 2) + " L";
+    if (compact && a >= 1e3) return "₹" + (v / 1e3).toFixed(1) + "k";
     return "₹" + Math.round(v).toLocaleString("en-IN");
   }
   if (compact && Math.abs(v) >= 1e5) return (v / 1e5).toFixed(1) + "L";

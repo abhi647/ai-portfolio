@@ -52,3 +52,30 @@ export function FieldSelect({ label, options, value, onChange }: { label: string
     </div>
   );
 }
+
+/* ------------------------- Semantic-layer filter bar ------------------------- */
+import type { Filter as QFilter } from "@/ai/engine";
+import { dimValues, type Dataset } from "@/ai/catalog";
+
+const NEG = new Set(["is-not", "is-none-of"]);
+export const toBar = (fs: QFilter[]): FilterValues =>
+  fs.map((f, i) => ({ id: `q${i}-${f.field}`, field: f.field, operator: f.op === "in" ? (f.values.length > 1 ? "is-any-of" : "is") : f.values.length > 1 ? "is-none-of" : "is-not", value: f.values.length > 1 ? f.values : f.values[0] ?? null }) as Filter);
+export const fromBar = (v: FilterValues): QFilter[] =>
+  (Array.isArray(v) ? v : []).map((x) => ({
+    field: x.field,
+    op: NEG.has(x.operator) ? ("not_in" as const) : ("in" as const),
+    values: x.value == null ? [] : Array.isArray(x.value) ? (x.value as unknown[]).map(String) : [String(x.value)],
+  }));
+
+/** Filter fields for a dataset: every dimension, with its distinct values. */
+export function datasetFields(ds: Dataset, exclude: string[] = []): FilterField[] {
+  return ds.dims.filter((d) => !exclude.includes(d.key)).map((d) => ({ key: d.key, label: d.label, options: opts(dimValues(ds, d.key, 400)) }));
+}
+
+/** FilterBar bound to the semantic layer's filter shape. */
+export function DatasetFilterBar({ ds, filters, onChange, children, count, exclude }: {
+  ds: Dataset; filters: QFilter[]; onChange: (f: QFilter[]) => void; children?: React.ReactNode; count?: React.ReactNode; exclude?: string[];
+}) {
+  const fields = React.useMemo(() => datasetFields(ds, exclude), [ds, exclude]);
+  return <FilterBar fields={fields} values={toBar(filters)} onChange={(v) => onChange(fromBar(v))} count={count}>{children}</FilterBar>;
+}

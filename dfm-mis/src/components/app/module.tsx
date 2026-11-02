@@ -21,7 +21,7 @@ export function ModulePage({ moduleId, tab, filters, children, note, updated }: 
   const nav = useNavigate();
   const { lastSync } = useApp();
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[var(--page-gap)]">
       <PageHeader
         eyebrow={mod.source ? `${mod.label} · Source: ${mod.source}` : mod.label}
         title={t ? t.label : mod.label}
@@ -34,7 +34,7 @@ export function ModulePage({ moduleId, tab, filters, children, note, updated }: 
         }
       />
       {mod.tabs || filters ? (
-        <div className="sticky top-14 z-20 -mx-4 flex flex-col gap-3 border-b border-border/60 bg-background/85 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="sticky top-14 z-20 -mx-4 flex flex-col gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           {mod.tabs ? (
             <div className="-mx-1 overflow-x-auto px-1 scrollbar-thin">
               <FilterTabs label={`${mod.label} views`} items={mod.tabs.map((x) => ({ value: x.id, label: x.label }))} value={tab ?? mod.tabs[0].id} onValueChange={(v) => nav(`${mod.path}/${v}`)} />
@@ -55,7 +55,7 @@ export function ModulePage({ moduleId, tab, filters, children, note, updated }: 
           ) : null}
         </div>
       ) : null}
-      <div key={tab} className="flex flex-col gap-6">{children}</div>
+      <div key={tab} className="flex flex-col gap-[var(--page-gap)]">{children}</div>
     </div>
   );
 }

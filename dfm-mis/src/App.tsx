@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider, useApp } from "@/state/app";
 import { DrillProvider } from "@/state/drill";
 import { AIProvider } from "@/state/ai";
+import { DashboardsProvider } from "@/state/dashboards";
 import { AppShell } from "@/components/app/shell";
 import Login from "@/pages/Login";
 import Home from "@/pages/Home";
@@ -15,6 +16,10 @@ const Cfa = React.lazy(() => import("@/pages/Cfa"));
 const Pnl = React.lazy(() => import("@/pages/Pnl"));
 const Settings = React.lazy(() => import("@/pages/settings/Settings"));
 const Ask = React.lazy(() => import("@/pages/Ask"));
+const Explore = React.lazy(() => import("@/pages/Explore"));
+const Dashboards = React.lazy(() => import("@/pages/dashboards/Dashboards"));
+const DashboardPage = React.lazy(() => import("@/pages/dashboards/Dashboard"));
+const ImportDashboard = React.lazy(() => import("@/pages/dashboards/Dashboards").then((m) => ({ default: m.ImportDashboard })));
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useApp();
@@ -44,11 +49,17 @@ function Routed() {
   return (
     <DrillProvider otif={otif}>
      <AIProvider>
+     <DashboardsProvider>
       <Routes>
         <Route path="/login" element={user ? <BackToApp /> : <Login />} />
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route index element={<Home />} />
           <Route path="ask" element={<React.Suspense fallback={<Loading />}><Ask /></React.Suspense>} />
+          <Route path="dashboards" element={<React.Suspense fallback={<Loading />}><Dashboards /></React.Suspense>} />
+          <Route path="dashboards/import" element={<React.Suspense fallback={<Loading />}><ImportDashboard /></React.Suspense>} />
+          <Route path="dashboards/:id" element={<React.Suspense fallback={<Loading />}><DashboardPage /></React.Suspense>} />
+          <Route path="explore" element={<Navigate to="/explore/pivot" replace />} />
+          <Route path="explore/:tab" element={<React.Suspense fallback={<Loading />}><Explore /></React.Suspense>} />
           <Route path="trips" element={<Navigate to="/trips/live" replace />} />
           <Route path="trips/:tab" element={<RequireAccess access="trip"><React.Suspense fallback={<Loading />}><Trips /></React.Suspense></RequireAccess>} />
           <Route path="orders" element={<Navigate to="/orders/live" replace />} />
@@ -62,6 +73,7 @@ function Routed() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+     </DashboardsProvider>
      </AIProvider>
     </DrillProvider>
   );

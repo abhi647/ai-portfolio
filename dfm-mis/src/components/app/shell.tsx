@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  IconChevronRight, IconLogout, IconMoon, IconRefresh, IconSearch, IconSparkles, IconSun, IconCheck, IconAlertTriangle, IconInfoCircle, IconX,
+  IconChevronRight, IconLayoutList, IconLayoutRows, IconLogout, IconMoon, IconRefresh, IconSearch, IconSparkles, IconSun, IconCheck, IconAlertTriangle, IconInfoCircle, IconX,
 } from "@tabler/icons-react";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu,
@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 const ALERTS = computeAlerts();
 
 export function AppShell() {
-  const { user, theme, setTheme, signOut, sync, doSync, lastSync, toasts, commandOpen, setCommandOpen } = useApp();
+  const { user, theme, setTheme, density, setDensity, signOut, sync, doSync, lastSync, toasts, commandOpen, setCommandOpen } = useApp();
   const loc = useLocation();
   const nav = useNavigate();
   const ai = useAI();
@@ -132,6 +132,10 @@ export function AppShell() {
               heading="Needs attention"
               onOpen={(n) => n.href && nav(n.href)}
             />
+            <Button variant="ghost" size="icon-sm" aria-label={density === "compact" ? "Switch to comfortable layout" : "Switch to compact layout"} title={density === "compact" ? "Compact layout · click for comfortable" : "Comfortable layout · click for compact"} aria-pressed={density === "compact"}
+              onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}>
+              {density === "compact" ? <IconLayoutList className="size-4" /> : <IconLayoutRows className="size-4" />}
+            </Button>
             <Button variant="ghost" size="icon-sm" aria-label="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <IconSun className="size-4" /> : <IconMoon className="size-4" />}
             </Button>
@@ -150,6 +154,7 @@ export function AppShell() {
                 <DropdownMenuSeparator />
                 {user?.role === "Admin" && <DropdownMenuItem onSelect={() => nav("/settings/users")}>Manage users</DropdownMenuItem>}
                 <DropdownMenuItem onSelect={() => setTheme(theme === "dark" ? "light" : "dark")}>Switch to {theme === "dark" ? "light" : "dark"} mode</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDensity(density === "compact" ? "comfortable" : "compact")}>{density === "compact" ? "Comfortable layout" : "Compact (data-dense) layout"}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => { window.location.href = "/app/"; }}>Open phone app (Ask AI first)</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => { signOut(); nav("/login"); }}><IconLogout className="size-4" /> Sign out</DropdownMenuItem>
@@ -158,7 +163,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-[1600px] min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div data-slot="app-content" className="mx-auto w-full max-w-[1760px] min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Outlet />
         </div>
       </SidebarInset>

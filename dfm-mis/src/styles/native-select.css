@@ -35,3 +35,7 @@ select.native-select:dir(rtl):not([multiple]):is(
     padding-inline-end: 12px;
   }
 }
+
+/* Compact selects (data-dense toolbars): let the fixed height centre the text, tighter chevron. */
+select.native-select { padding-block: 0; }
+select.native-select:is(.h-6, .h-7, .h-8):not([multiple]) { padding-inline-end: 26px; background-position: right 7px center; background-size: 14px 14px; }

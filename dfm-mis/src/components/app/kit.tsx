@@ -111,11 +111,11 @@ export function renderInsight(text: string) {
 }
 
 export function Grid({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("grid grid-cols-1 gap-5 lg:grid-cols-12", className)}>{children}</div>;
+  return <div className={cn("grid grid-cols-1 gap-[var(--grid-gap)] lg:grid-cols-12", className)}>{children}</div>;
 }
 
 export function KpiRow({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]", className)}>{children}</div>;
+  return <div className={cn("grid grid-cols-2 gap-[var(--grid-gap)] md:grid-cols-3 xl:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]", className)}>{children}</div>;
 }
 
 export function SectionHeading({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
