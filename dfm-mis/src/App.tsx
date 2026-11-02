@@ -16,6 +16,7 @@ const Cfa = React.lazy(() => import("@/pages/Cfa"));
 const Pnl = React.lazy(() => import("@/pages/Pnl"));
 const Settings = React.lazy(() => import("@/pages/settings/Settings"));
 const Ask = React.lazy(() => import("@/pages/Ask"));
+const Forecasts = React.lazy(() => import("@/pages/Forecasts"));
 const Explore = React.lazy(() => import("@/pages/Explore"));
 const Dashboards = React.lazy(() => import("@/pages/dashboards/Dashboards"));
 const DashboardPage = React.lazy(() => import("@/pages/dashboards/Dashboard"));
@@ -59,6 +60,7 @@ function Routed() {
           <Route path="dashboards" element={<React.Suspense fallback={<Loading />}><Dashboards /></React.Suspense>} />
           <Route path="dashboards/import" element={<React.Suspense fallback={<Loading />}><ImportDashboard /></React.Suspense>} />
           <Route path="dashboards/:id" element={<React.Suspense fallback={<Loading />}><DashboardPage /></React.Suspense>} />
+          <Route path="forecasts" element={<React.Suspense fallback={<Loading />}><Forecasts /></React.Suspense>} />
           <Route path="explore" element={<Navigate to="/explore/pivot" replace />} />
           <Route path="explore/:tab" element={<React.Suspense fallback={<Loading />}><Explore /></React.Suspense>} />
           <Route path="trips" element={<Navigate to="/trips/live" replace />} />

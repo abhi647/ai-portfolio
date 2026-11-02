@@ -1,5 +1,5 @@
 import {
-  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconLayoutGrid, IconTablePlus, IconReportMoney, IconSettings, IconSparkles, IconTruck,
+  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconLayoutGrid, IconTablePlus, IconCrystalBall, IconReportMoney, IconSettings, IconSparkles, IconTruck,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 
@@ -24,6 +24,7 @@ export const MODULES: NavModule[] = [
     ],
   },
   { id: "ask", path: "/ask", label: "Ask AI", group: "Workspace", icon: IconSparkles, description: "Talk to your data — ask in plain English, get charts and insights" },
+  { id: "forecasts", path: "/forecasts", label: "Forecasts", group: "Planning", icon: IconCrystalBall, description: "Month-end sales landing, OTIF and delay risk, freight, CFA demand and margin projections" },
   {
     id: "trips", path: "/trips", label: "Trip Analytics", group: "Primary supply", source: "Traqo TMS", access: "trip", icon: IconTruck,
     description: "Trip hygiene, costing, payments, detention & transporters",

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/overtrue/status-badge";
+import { SectionCard } from "@/components/overtrue/section-card";
 import { EmptyState } from "@/components/overtrue/empty-state";
 import { FilterBar, fromBar, opts, toBar, type FilterField } from "@/components/app/filters";
 import { WidgetBody, widgetCsv, widgetDataset } from "@/components/dash/WidgetView";
@@ -163,49 +164,50 @@ function DashboardView({ d }: { d: DashboardDef }) {
       {d.widgets.length ? (
         <div ref={grid} className="grid grid-cols-12" style={{ gap: GAP, gridAutoRows: ROW_H }} data-slot="dashboard-grid">
           {d.widgets.map((w, i) => (
-            <section key={w.id} aria-label={w.title}
-              className={cn("surface-card relative flex min-w-0 flex-col overflow-hidden rounded-xl! [grid-column:span_var(--ws)] md:[grid-column:span_var(--wm)] xl:[grid-column:span_var(--w)] [grid-row:span_var(--h)]",
+            <SectionCard key={w.id} aria-label={w.title}
+              className={cn("relative flex min-w-0 flex-col overflow-hidden rounded-xl [grid-column:span_var(--ws)] md:[grid-column:span_var(--wm)] xl:[grid-column:span_var(--w)] [grid-row:span_var(--h)] [&>.card-header]:min-h-0 [&>.card-header]:flex-nowrap [&>.card-header]:px-3 [&>.card-header]:py-2",
                 editing && "ring-1 ring-primary/25", dragId === w.id && "opacity-40", overId === w.id && dragId !== w.id && "ring-2 ring-primary")}
               style={{ "--w": w.w, "--ws": w.kind === "kpi" ? 6 : 12, "--wm": w.w <= 3 ? 6 : w.w <= 6 ? 6 : 12, "--h": w.h } as React.CSSProperties}
-              onDragOver={(e) => { if (dragId) { e.preventDefault(); setOverId(w.id); } }}
+              onDragOver={(e: React.DragEvent) => { if (dragId) { e.preventDefault(); setOverId(w.id); } }}
               onDragLeave={() => setOverId((o) => (o === w.id ? null : o))}
-              onDrop={(e) => { e.preventDefault(); if (dragId) moveWidget(dragId, w.id); setDragId(null); setOverId(null); }}>
-              <header className={cn("flex h-9 shrink-0 items-center gap-1.5 px-3", w.kind !== "kpi" && "border-b border-border/50")}
-                draggable={editing} onDragStart={(e) => { setDragId(w.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", w.id); }} onDragEnd={() => { setDragId(null); setOverId(null); }}>
-                {editing ? <IconGripVertical className="size-3.5 shrink-0 cursor-grab text-muted-foreground" aria-hidden /> : null}
-                <h2 className={cn("m-0 min-w-0 flex-1 truncate font-medium", w.kind === "kpi" ? "text-xs text-muted-foreground" : "text-[13px]")} title={w.title}>{w.title || autoTitle(w)}</h2>
-                {editing ? (
-                  <span className="flex shrink-0 items-center">
-                    <button type="button" aria-label="Move earlier" disabled={i === 0} onClick={() => shift(w.id, -1)} className="rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"><IconChevronLeft className="size-3.5" /></button>
-                    <button type="button" aria-label="Move later" disabled={i === d.widgets.length - 1} onClick={() => shift(w.id, 1)} className="rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"><IconChevronRight className="size-3.5" /></button>
-                    <button type="button" aria-label={`Edit ${w.title}`} onClick={() => setEditor({ open: true, widget: w })} className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><IconEdit className="size-3.5" /></button>
-                    <button type="button" aria-label={`Remove ${w.title}`} onClick={() => update((x) => ({ ...x, widgets: x.widgets.filter((y) => y.id !== w.id) }))} className="rounded p-0.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600"><IconTrash className="size-3.5" /></button>
-                  </span>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><button type="button" aria-label={`${w.title} actions`} className="-mr-1 rounded p-0.5 text-muted-foreground opacity-60 hover:bg-muted hover:opacity-100"><IconDots className="size-4" /></button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => setEditor({ open: true, widget: w })}><IconEdit className="size-4" /> Edit</DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => addWidget({ ...w, title: `${w.title} (copy)` })}><IconCopy className="size-4" /> Duplicate</DropdownMenuItem>
-                      {w.kind !== "note" ? <DropdownMenuItem onSelect={() => widgetCsv(w, d.filters)}><IconDownload className="size-4" /> Export CSV</DropdownMenuItem> : null}
-                      {w.kind !== "note" && ai ? <DropdownMenuItem onSelect={() => ai.ask(`${w.title} — what stands out, why, and what should I do?`)}><IconSparkles className="size-4" /> Ask AI</DropdownMenuItem> : null}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={() => update((x) => ({ ...x, widgets: x.widgets.filter((y) => y.id !== w.id) }))}><IconTrash className="size-4" /> Remove</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </header>
-              <div className={cn("min-h-0 flex-1", w.kind === "kpi" ? "px-3 pb-2.5" : w.kind === "pivot" || w.kind === "table" ? "p-0" : "p-3")}>
-                <WidgetBody widget={w} filters={d.filters} />
-              </div>
+              onDrop={(e: React.DragEvent) => { e.preventDefault(); if (dragId) moveWidget(dragId, w.id); setDragId(null); setOverId(null); }}
+              title={
+                <span className={cn("flex min-w-0 items-center gap-1.5", editing && "cursor-grab")} draggable={editing}
+                  onDragStart={(e) => { setDragId(w.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", w.id); }} onDragEnd={() => { setDragId(null); setOverId(null); }}>
+                  {editing ? <IconGripVertical className="size-3.5 shrink-0 text-muted-foreground" aria-hidden /> : null}
+                  <span className={cn("min-w-0 truncate", w.kind === "kpi" ? "text-xs font-medium text-muted-foreground" : "text-[13px]")} title={w.title}>{w.title || autoTitle(w)}</span>
+                </span>
+              }
+              actions={editing ? (
+                <span className="flex shrink-0 items-center">
+                  <Button variant="ghost" size="icon-sm" className="size-6" aria-label="Move earlier" disabled={i === 0} onClick={() => shift(w.id, -1)}><IconChevronLeft className="size-3.5" /></Button>
+                  <Button variant="ghost" size="icon-sm" className="size-6" aria-label="Move later" disabled={i === d.widgets.length - 1} onClick={() => shift(w.id, 1)}><IconChevronRight className="size-3.5" /></Button>
+                  <Button variant="ghost" size="icon-sm" className="size-6" aria-label={`Edit ${w.title}`} onClick={() => setEditor({ open: true, widget: w })}><IconEdit className="size-3.5" /></Button>
+                  <Button variant="ghost" size="icon-sm" className="size-6 hover:text-rose-600" aria-label={`Remove ${w.title}`} onClick={() => update((x) => ({ ...x, widgets: x.widgets.filter((y) => y.id !== w.id) }))}><IconTrash className="size-3.5" /></Button>
+                </span>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" className="-mr-1 size-6 opacity-60 hover:opacity-100" aria-label={`${w.title} actions`}><IconDots className="size-4" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setEditor({ open: true, widget: w })}><IconEdit className="size-4" /> Edit</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => addWidget({ ...w, title: `${w.title} (copy)` })}><IconCopy className="size-4" /> Duplicate</DropdownMenuItem>
+                    {w.kind !== "note" ? <DropdownMenuItem onSelect={() => widgetCsv(w, d.filters)}><IconDownload className="size-4" /> Export CSV</DropdownMenuItem> : null}
+                    {w.kind !== "note" && ai ? <DropdownMenuItem onSelect={() => ai.ask(`${w.title} — what stands out, why, and what should I do?`)}><IconSparkles className="size-4" /> Ask AI</DropdownMenuItem> : null}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => update((x) => ({ ...x, widgets: x.widgets.filter((y) => y.id !== w.id) }))}><IconTrash className="size-4" /> Remove</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              contentClassName={cn("min-h-0 flex-1", w.kind === "kpi" ? "px-3 pt-1 pb-2.5" : w.kind === "pivot" || w.kind === "table" ? "p-0" : "p-3")}>
+              <WidgetBody widget={w} filters={d.filters} />
               {editing ? (
-                <button type="button" aria-label={`Resize ${w.title} (${w.w}×${w.h})`} title="Drag to resize" onPointerDown={startResize(w)}
-                  className="absolute right-0.5 bottom-0.5 z-10 flex size-5 cursor-se-resize items-center justify-center rounded bg-background/90 text-muted-foreground shadow-xs ring-1 ring-border hover:text-primary">
+                <Button variant="outline" size="icon-sm" aria-label={`Resize ${w.title} (${w.w}×${w.h})`} title="Drag to resize" onPointerDown={startResize(w)}
+                  className="absolute right-0.5 bottom-0.5 z-10 size-5 cursor-se-resize hover:text-primary">
                   <IconArrowsDiagonal className="size-3" />
-                </button>
+                </Button>
               ) : null}
               {editing ? <span className="pointer-events-none absolute right-7 bottom-1 rounded bg-background/80 px-1 font-mono text-[10px] text-muted-foreground">{w.w}×{w.h}</span> : null}
-            </section>
+            </SectionCard>
           ))}
           {editing ? (
             <button type="button" onClick={() => setEditor({ open: true, widget: null })}
@@ -219,9 +221,11 @@ function DashboardView({ d }: { d: DashboardDef }) {
           <EmptyState title="Start with live data" description="Pick suggested widgets below, or add your own KPI, chart, table or pivot." />
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {SUGGESTED.map((s, i) => (
-              <button key={i} type="button" onClick={() => addWidget(s)} className="surface-card flex items-center gap-2 p-3 text-left text-[13px] hover:ring-2 hover:ring-primary/30">
-                <IconPlus className="size-4 text-primary" /><span className="min-w-0 flex-1 truncate">{s.title}</span><StatusBadge variant="neutral">{s.kind}</StatusBadge>
-              </button>
+              <SectionCard key={i} contentClassName="p-0">
+                <button type="button" onClick={() => addWidget(s)} className="flex w-full items-center gap-2 p-3 text-left text-[13px] hover:bg-muted/40">
+                  <IconPlus className="size-4 text-primary" /><span className="min-w-0 flex-1 truncate">{s.title}</span><StatusBadge variant="neutral">{s.kind}</StatusBadge>
+                </button>
+              </SectionCard>
             ))}
           </div>
           <div><Button size="sm" onClick={() => { setEditing(true); setEditor({ open: true, widget: null }); }} className="gap-1.5"><IconPlus className="size-4" /> Build a widget</Button></div>

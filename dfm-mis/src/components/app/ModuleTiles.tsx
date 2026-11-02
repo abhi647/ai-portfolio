@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { MODULES } from "@/nav";
 import { useApp } from "@/state/app";
 import { useDashboards } from "@/state/dashboards";
+import { IconCrystalBall } from "@tabler/icons-react";
 import { ACCOUNTS, ASMS, CFAS, CUR_MONTH, MONTHS, orders, plSum, today0, trips, asmDay, cfaQty } from "@/data/data";
 import { DAY, cr, fmtN, sum } from "@/data/format";
 import { cfaForecast, delayRisk, freightForecast, healthLabel, marginForecast, otifRisk, salesForecast, zoneForecasts, type Health } from "@/data/forecast";
@@ -21,6 +22,7 @@ const BADGE: Record<Health, "success" | "warning" | "error"> = { healthy: "succe
 interface Spoke {
   id: string; label: string; icon: typeof IconTruck; path: string; source: string; health: Health;
   kpi: string; kpiLabel: string; delta?: number; invert?: boolean; spark: number[]; facts: [string, string][]; predict: string; moduleId?: string;
+  links?: [string, string][];
 }
 
 function useHubData() {
@@ -78,6 +80,14 @@ function useHubData() {
         predict: `Margin trending to ${mg.nextMonth.toFixed(1)}% next month`,
       },
     ];
+    const fh: Health = spokes.some((x) => x.health === "down") ? "down" : spokes.some((x) => x.health === "degraded") ? "degraded" : "healthy";
+    spokes.push({
+      id: "forecasts", label: "Forecasts", icon: IconCrystalBall, path: "/forecasts", source: "Predictive models", moduleId: "forecasts", health: fh,
+      kpi: cr(sales.projected), kpiLabel: `sales landing · ${(sales.achievement * 100).toFixed(1)}% of target`, spark: sales.series.map((x) => x.actual ?? x.forecast ?? 0),
+      facts: [["Chance to hit", sales.pHit < 0.01 ? "<1%" : Math.round(sales.pHit * 100) + "%"], ["Risks flagged", String(dl.late.length + dl.atRisk.length + or.high.length)]],
+      predict: `Freight ₹${fr.next[0].v.toFixed(1)}/km next month · OTIF to ${or.projectedOtif.toFixed(1)}%`,
+      links: [["Sales landing", "/forecasts#sales"], ["OTIF risk", "/forecasts#otif"], ["Delay risk", "/forecasts#delay"], ["Margin", "/forecasts#margin"]],
+    });
     return { spokes, sales, zones, fr, or, dl, cfa, mg, perKm, otifM };
   }, [otif]);
 }
@@ -117,8 +127,9 @@ export function ModuleTiles() {
                 {s.facts.map(([k, v]) => <div key={k} className="rounded-lg bg-muted/50 px-2 py-1.5"><dt className="truncate text-muted-foreground">{k}</dt><dd className="m-0 font-semibold tabular-nums">{v}</dd></div>)}
               </dl>
               <p className="m-0 flex items-start gap-1.5 text-[12px] leading-[1.4]"><IconSparkles className="mt-0.5 size-3.5 shrink-0 text-primary" /><span>{s.predict}</span></p>
-              {tabs.length ? (
+              {tabs.length || s.links ? (
                 <div className="flex flex-wrap gap-1">
+                  {s.links?.map(([l, href]) => <button key={l} type="button" onClick={() => nav(href)} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary">{l}</button>)}
                   {tabs.map((t) => <button key={t.id} type="button" onClick={() => nav(`${mod!.path}/${t.id}`)} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary">{t.label}</button>)}
                 </div>
               ) : null}
@@ -126,8 +137,8 @@ export function ModuleTiles() {
             </StatusEdgeCard>
           );
         })}
-        <SectionCard title={<span className="inline-flex items-center gap-2"><IconSparkles className="size-4 text-primary" />Tools</span>} description="Build, explore and ask" contentClassName="flex flex-1 flex-col p-0" className="flex flex-col">
-          <ul className="m-0 flex flex-1 list-none flex-col divide-y divide-border/60 p-0">
+        <SectionCard contentClassName="p-0" className="md:col-span-2 xl:col-span-3">
+          <ul aria-label="Tools" className="m-0 grid list-none grid-cols-1 divide-border/60 p-0 max-md:divide-y md:grid-cols-3 md:divide-x">
             {tools.map((t) => (
               <li key={t.label} className="flex-1">
                 <button type="button" onClick={() => nav(t.path)} className="flex h-full w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40">

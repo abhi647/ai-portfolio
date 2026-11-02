@@ -14,6 +14,7 @@ import { asmPeriod, asmPeriodTarget, monthContext, periodRange } from "@/data/sa
 import { tripEta } from "@/pages/trips/timeline";
 import { ListProvider, ScreenHeader, Section, useList } from "./parts";
 import { DenseTable } from "@/components/app/dense";
+import { MetricGroup, MetricGroupItem } from "@/components/overtrue/metric-group";
 import { execute, type QuerySpec } from "@/ai/engine";
 import { cfaQty, CFAS } from "@/data/data";
 import { cn } from "@/lib/utils";
@@ -80,18 +81,14 @@ function MonitorBody() {
       </div>
 
       <div className="flex flex-col gap-4 px-3 pt-2 pb-8">
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/70 bg-border/70" aria-label="Key numbers">
+        <MetricGroup aria-label="Key numbers" className="grid grid-cols-2 rounded-xl">
           {kpis.map((k) => (
-            <button key={k.l} type="button" onClick={k.onClick} disabled={!k.onClick} className="flex min-w-0 flex-col bg-card px-3 py-2 text-left disabled:cursor-default active:bg-muted">
-              <span className="truncate text-[11px] text-muted-foreground">{k.l}</span>
-              <span className="flex items-end justify-between gap-2">
-                <span className="truncate text-[18px] leading-6 font-semibold tracking-[-0.03em] tabular-nums">{k.v}</span>
-                {k.spark ? <Sparkline data={k.spark} className="h-5 w-14 shrink-0" /> : null}
-              </span>
-              <span className={cn("truncate text-[11px] tabular-nums", k.tone === "bad" ? "text-rose-600 dark:text-rose-400" : k.tone === "good" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>{k.s}</span>
-            </button>
+            <MetricGroupItem key={k.l} label={k.l} role={k.onClick ? "button" : undefined} tabIndex={k.onClick ? 0 : undefined} onClick={k.onClick}
+              className={cn("px-3 py-2 sm:px-3 [&>p:first-child]:truncate [&>p:first-child]:text-[11px] [&>p:first-child]:leading-4 [&>p:nth-child(2)]:my-0.5 [&>p:nth-child(2)]:text-[18px]", k.onClick && "cursor-pointer active:bg-muted")}
+              value={<span className="flex items-end justify-between gap-2"><span className="truncate">{k.v}</span>{k.spark ? <Sparkline data={k.spark} className="h-5 w-14 shrink-0" /> : null}</span>}
+              context={<span className={cn("block truncate text-[11px] tabular-nums", k.tone === "bad" ? "text-rose-600 dark:text-rose-400" : k.tone === "good" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>{k.s}</span>} />
           ))}
-        </div>
+        </MetricGroup>
 
         <Section title="Needs attention" action={<span className="text-xs text-muted-foreground">{ALERTS.length + (late.length ? 1 : 0)} items</span>}>
           <ul className="m-0 list-none divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70 bg-card p-0">

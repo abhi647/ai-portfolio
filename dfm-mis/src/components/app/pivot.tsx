@@ -8,6 +8,7 @@ import { DATASETS, dataset, type Dataset } from "@/ai/catalog";
 import { fmt } from "@/ai/engine";
 import { TOTAL, asPct, flatten, pivot, shown, type PivotConfig, type PivotNode, type PivotResult } from "@/ai/pivot";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FormSelect } from "@/components/ui/select";
@@ -45,9 +46,9 @@ export function PivotTable({ result, maxHeight = 560, className, onRowClick }: {
       bg = `color-mix(in oklab, ${hue} ${Math.round(4 + t * 38)}%, transparent)`;
     }
     return (
-      <td key={c + m.key} title={v == null ? "No records" : undefined}
-        className={cn("border-b border-l border-border/50 px-2.5 text-right tabular-nums whitespace-nowrap", c === TOTAL && "bg-muted/40 font-medium", total && "font-semibold", mi === 0 && "border-l-border")}
-        style={bg ? { background: bg } : undefined}>{text}</td>
+      <TableCell key={c + m.key} title={v == null ? "No records" : undefined}
+        className={cn("border-b border-l border-border/50 px-2.5 py-0 text-right tabular-nums whitespace-nowrap", c === TOTAL && "bg-muted/40 font-medium", total && "font-semibold", mi === 0 && "border-l-border")}
+        style={bg ? { background: bg } : undefined}>{text}</TableCell>
     );
   };
 
@@ -56,11 +57,11 @@ export function PivotTable({ result, maxHeight = 560, className, onRowClick }: {
   }
 
   return (
-    <div className={cn("relative overflow-auto rounded-lg border border-border/70 bg-card scrollbar-thin", className)} style={{ maxHeight }} data-slot="pivot-table">
-      <table className="w-max min-w-full border-separate border-spacing-0 text-[12px] leading-none [&_td]:h-7 [&_th]:h-7">
-        <thead className="sticky top-0 z-20 bg-muted/90 backdrop-blur [&_th]:font-medium [&_th]:text-muted-foreground">
-          <tr>
-            <th rowSpan={cfg.cols && multiM ? 2 : 1} className="sticky left-0 z-30 border-b border-border bg-muted px-2.5 text-left">
+    <div className={cn("relative overflow-auto rounded-lg border border-border/70 bg-card scrollbar-thin [&_[data-slot=table-container]]:overflow-visible", className)} style={{ maxHeight }} data-slot="pivot-table">
+      <Table className="w-max min-w-full border-separate border-spacing-0 text-[12px] leading-none [&_td]:h-7 [&_td]:py-0 [&_th]:h-7 [&_th]:py-0">
+        <TableHeader className="sticky top-0 z-20 bg-muted/90 backdrop-blur [&_th]:font-medium [&_th]:text-muted-foreground">
+          <TableRow className="border-0 hover:bg-transparent">
+            <TableHead rowSpan={cfg.cols && multiM ? 2 : 1} className="sticky left-0 z-30 border-b border-border bg-muted px-2.5 text-left">
               <div className="flex items-center gap-1.5">
                 <span className="truncate text-foreground">{cfg.rows.length ? cfg.rows.map(dimLabel).join(" › ") : "Total"}</span>
                 {parents.length ? (
@@ -70,22 +71,22 @@ export function PivotTable({ result, maxHeight = 560, className, onRowClick }: {
                   </span>
                 ) : null}
               </div>
-            </th>
+            </TableHead>
             {cfg.cols
-              ? cols.map((c) => <th key={c} colSpan={measures.length} className={cn("border-b border-l border-border px-2.5 text-right whitespace-nowrap", c === TOTAL && "text-foreground")}>{c === TOTAL ? "Total" : c}</th>)
-              : measures.map((m) => <th key={m.key} className="border-b border-l border-border px-2.5 text-right whitespace-nowrap">{m.label}{asPct(r, m) ? " (%)" : ""}</th>)}
-          </tr>
+              ? cols.map((c) => <TableHead key={c} colSpan={measures.length} className={cn("border-b border-l border-border px-2.5 text-right whitespace-nowrap", c === TOTAL && "text-foreground")}>{c === TOTAL ? "Total" : c}</TableHead>)
+              : measures.map((m) => <TableHead key={m.key} className="border-b border-l border-border px-2.5 text-right whitespace-nowrap">{m.label}{asPct(r, m) ? " (%)" : ""}</TableHead>)}
+          </TableRow>
           {cfg.cols && multiM ? (
-            <tr>{cols.flatMap((c) => measures.map((m, i) => <th key={c + m.key} className={cn("border-b border-l border-border/60 px-2.5 text-right font-normal whitespace-nowrap", i === 0 && "border-l-border")}>{m.label}{asPct(r, m) ? " %" : ""}</th>))}</tr>
+            <TableRow className="border-0 hover:bg-transparent">{cols.flatMap((c) => measures.map((m, i) => <TableHead key={c + m.key} className={cn("border-b border-l border-border/60 px-2.5 text-right font-normal whitespace-nowrap", i === 0 && "border-l-border")}>{m.label}{asPct(r, m) ? " %" : ""}</TableHead>))}</TableRow>
           ) : null}
-        </thead>
-        <tbody>
+        </TableHeader>
+        <TableBody>
           {visible.map((n) => {
             const parent = n.children.length > 0;
             const open = !collapsed.has(n.id);
             return (
-              <tr key={n.id} className={cn("group", parent && "bg-muted/25 font-medium", onRowClick && "cursor-pointer")} onClick={onRowClick ? () => onRowClick(n) : undefined}>
-                <th scope="row" className={cn("sticky left-0 z-10 border-b border-border/50 bg-card px-2.5 text-left font-[inherit] whitespace-nowrap group-hover:bg-muted", parent && "bg-[color-mix(in_oklab,var(--color-muted)_45%,var(--color-card))]")}>
+              <TableRow key={n.id} className={cn("group border-0 hover:bg-transparent", parent && "bg-muted/25 font-medium", onRowClick && "cursor-pointer")} onClick={onRowClick ? () => onRowClick(n) : undefined}>
+                <TableHead scope="row" className={cn("sticky left-0 z-10 border-b border-border/50 bg-card px-2.5 text-left font-[inherit] whitespace-nowrap group-hover:bg-muted", parent && "bg-[color-mix(in_oklab,var(--color-muted)_45%,var(--color-card))]")}>
                   <div className="flex max-w-[340px] items-center gap-1" style={{ paddingLeft: n.depth * 14 }}>
                     {parent ? (
                       <button type="button" aria-expanded={open} aria-label={`${open ? "Collapse" : "Expand"} ${n.label}`} className="-ml-1 rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
@@ -96,21 +97,21 @@ export function PivotTable({ result, maxHeight = 560, className, onRowClick }: {
                     <span className="truncate text-foreground">{n.label}</span>
                     {parent ? <span className="ml-1 text-[10px] font-normal text-muted-foreground">{n.children.length}</span> : null}
                   </div>
-                </th>
+                </TableHead>
                 {cols.flatMap((c) => measures.map((_, mi) => cell(n, c, mi)))}
-              </tr>
+              </TableRow>
             );
           })}
-        </tbody>
+        </TableBody>
         {cfg.totals && cfg.rows.length ? (
-          <tfoot className="sticky bottom-0 z-20">
-            <tr className="bg-muted">
-              <th scope="row" className="sticky left-0 z-30 border-t border-border bg-muted px-2.5 text-left font-semibold">Grand total</th>
+          <TableFooter className="sticky bottom-0 z-20 border-0">
+            <TableRow className="border-0 bg-muted hover:bg-muted">
+              <TableHead scope="row" className="sticky left-0 z-30 border-t border-border bg-muted px-2.5 text-left font-semibold">Grand total</TableHead>
               {cols.flatMap((c) => measures.map((_, mi) => <React.Fragment key={c + mi}>{cell(r.root, c, mi, true)}</React.Fragment>))}
-            </tr>
-          </tfoot>
+            </TableRow>
+          </TableFooter>
         ) : null}
-      </table>
+      </Table>
     </div>
   );
 }
