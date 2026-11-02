@@ -108,7 +108,7 @@ export function AppShell() {
             <Link to="/" className="hidden hover:text-foreground sm:inline">Home</Link>
             {mod.id !== "home" && (<><IconChevronRight className="hidden size-3.5 sm:inline" /><Link to={mod.tabs ? `${mod.path}/${mod.tabs[0].id}` : mod.path} className="truncate hover:text-foreground">{mod.label}</Link></>)}
             {tab && (<><IconChevronRight className="size-3.5" /><span className="truncate font-medium text-foreground">{tab.label}</span></>)}
-            {mod.id === "home" && <><IconChevronRight className="hidden size-3.5 sm:inline" /><span className="font-medium text-foreground">Overview</span></>}
+            {mod.id === "home" && <><IconChevronRight className="hidden size-3.5 sm:inline" /><span className="font-medium text-foreground">Hub</span></>}
           </nav>
           <div className="ml-auto flex items-center gap-1.5">
             {loc.pathname !== "/ask" ? (

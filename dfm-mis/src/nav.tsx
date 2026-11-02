@@ -1,5 +1,5 @@
 import {
-  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconLayoutGrid, IconTablePlus, IconReportMoney, IconSettings, IconSparkles, IconTruck,
+  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconLayoutGrid, IconTablePlus, IconTopologyStar3, IconReportMoney, IconSettings, IconSparkles, IconTruck,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 
@@ -10,7 +10,8 @@ export interface NavModule {
 }
 
 export const MODULES: NavModule[] = [
-  { id: "home", path: "/", label: "Overview", group: "Workspace", icon: IconLayoutDashboard, description: "Today’s pulse across supply, sales and finance" },
+  { id: "home", path: "/", label: "Hub", group: "Workspace", icon: IconTopologyStar3, description: "Command center — live health of every area, predictions, and one click into any dashboard" },
+  { id: "overview", path: "/overview", label: "Daily overview", group: "Workspace", icon: IconLayoutDashboard, description: "Today’s pulse across supply, sales and finance" },
   {
     id: "dashboards", path: "/dashboards", label: "My dashboards", group: "Workspace", icon: IconLayoutGrid,
     description: "Build, arrange and share your own dashboards from KPIs, charts, tables and pivots",

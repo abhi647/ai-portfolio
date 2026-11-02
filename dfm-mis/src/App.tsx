@@ -8,6 +8,7 @@ import { DashboardsProvider } from "@/state/dashboards";
 import { AppShell } from "@/components/app/shell";
 import Login from "@/pages/Login";
 import Home from "@/pages/Home";
+import Hub from "@/pages/Hub";
 
 const Trips = React.lazy(() => import("@/pages/trips/Trips"));
 const Orders = React.lazy(() => import("@/pages/orders/Orders"));
@@ -53,7 +54,8 @@ function Routed() {
       <Routes>
         <Route path="/login" element={user ? <BackToApp /> : <Login />} />
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-          <Route index element={<Home />} />
+          <Route index element={<Hub />} />
+          <Route path="overview" element={<Home />} />
           <Route path="ask" element={<React.Suspense fallback={<Loading />}><Ask /></React.Suspense>} />
           <Route path="dashboards" element={<React.Suspense fallback={<Loading />}><Dashboards /></React.Suspense>} />
           <Route path="dashboards/import" element={<React.Suspense fallback={<Loading />}><ImportDashboard /></React.Suspense>} />
