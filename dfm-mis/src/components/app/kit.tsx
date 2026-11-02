@@ -1,6 +1,7 @@
 /* App-level compositions built only from overtrue/ui components and its visual language. */
 import * as React from "react";
 import { IconDownload, IconInfoCircle, IconSparkles } from "@tabler/icons-react";
+import { useAI } from "@/state/ai";
 import { parseInsight } from "@/components/overtrue/insight-card";
 import { cn } from "@/lib/utils";
 import { SectionCard } from "@/components/overtrue/section-card";
@@ -40,6 +41,19 @@ export function Panel({
 }) {
   const [auto, setAuto] = React.useState<string | null>(null);
   const text = insight === undefined ? auto : insight;
+  const ai = useAI();
+  const askLabel = typeof title === "string" ? title : null;
+  const askBtn = ai && askLabel ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={`Ask AI about ${askLabel}`} className="text-muted-foreground hover:text-primary"
+          onClick={() => ai.ask(`${askLabel} — what stands out, why, and what should I do?`)}>
+          <IconSparkles className="size-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent className="text-xs">Ask AI about this chart</TooltipContent>
+    </Tooltip>
+  ) : null;
   return (
     <InsightCtx.Provider value={setAuto}>
       <SectionCard
@@ -59,7 +73,7 @@ export function Panel({
           </span>
         ) : undefined}
         description={description}
-        actions={actions}
+        actions={askBtn ? <>{actions}{askBtn}</> : actions}
         className={cn(SPAN[wide ? 12 : span], "flex flex-col animate-rise", className)}
         contentClassName={cn("flex flex-1 flex-col p-5", contentClassName)}
       >

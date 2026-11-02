@@ -57,6 +57,45 @@ The charts follow common data-visualisation practice:
 - Rankings and root causes use ranked bar lists instead of doughnuts.
 - Funnels show stage conversion (ePOD → PI → paid), and radial gauges show single KPIs that have thresholds.
 
+## Ask AI — talk to your data
+
+Ask questions in plain English, from anywhere in the app:
+
+- the **Ask AI** button in the header, or **⌘/Ctrl + J**
+- the ✨ button on any chart, which asks about that chart
+- the full-screen **Ask AI** page in the sidebar
+
+Each answer has three parts:
+
+1. **A short narrative** with the key figures highlighted.
+2. **One to three generated charts.** The AI picks the chart type (ranking, trend, stacked, heatmap, combo, donut, KPI or table). You can switch the type, export the data as CSV, inspect the query, or **pin** the chart to **My board**, which is your own live dashboard of pinned charts.
+3. **Computed insights and follow-up questions.**
+
+### How it works
+
+```
+browser ──POST /api/ask──▶ Vite server (server/ask.ts)
+                               │  Claude (claude-opus-5-5) + 2 strict tools
+                               │   • run_query(spec)  → executes on the MIS semantic layer, returns real numbers
+                               │   • present_answer   → narrative + chart specs + follow-ups
+                               ◀── answer + QuerySpecs
+browser re-executes each QuerySpec locally (src/ai/engine.ts) and renders it with overtrue/ui charts
+```
+
+- **Semantic layer.** `src/ai/catalog.ts` defines the datasets the AI can query: trips, orders, secondary sales, CFA throughput and the e-com P&L. Each dataset lists its dimensions and measures. To connect real data, point the `rows()` functions at your warehouse.
+- **Numbers are never invented.** Claude can only see figures that come back from `run_query`. The browser recomputes every chart and insight from the same spec.
+- **Claude API features used:** strict tool use (specs always match the schema), a cached system prompt and tools, adaptive thinking at `medium` effort, and server-side refusal fallbacks (`fallbacks: "default"`).
+- **Offline mode.** With no `ANTHROPIC_API_KEY`, a keyword parser (`src/ai/local.ts`) maps common questions to the same specs, so the feature still works for demos. The panel shows **Offline mode** or **Claude** so users know which one answered.
+
+### Configure
+
+```bash
+cp .env.example .env    # then set ANTHROPIC_API_KEY
+npm run dev             # or: npm run build && npm run preview
+```
+
+The key is only read on the server. `/api/ask` runs in both `vite dev` and `vite preview`. For another host, move `handleAsk()` from `server/ask.ts` into a serverless function.
+
 ## Structure
 
 ```
@@ -67,7 +106,10 @@ src/
   components/app/        app compositions (Panel, Stat, DataTable adapter, shell, filters)
   data/                  deterministic demo data + formatters + alert rules
   pages/                 one folder/file per module
-  state/                 auth/session, settings, drill-down drawer
+  state/                 auth/session, settings, drill-down drawer, Ask AI conversation + pins
+  ai/                    semantic layer (catalog), query engine + insights, offline parser, client
+  components/ai/         Ask AI UI: conversation (AssistantPanel), generated charts, slide-over
+server/ask.ts            /api/ask — Claude tool loop (Vite plugin)
 ```
 
 The library is distributed as a shadcn registry, so its components live in this repository as source, as the library intends. Two additive changes were made. `TrendChart` and `ComposedChart` gained an optional `onBarClick` prop to support drill-downs.

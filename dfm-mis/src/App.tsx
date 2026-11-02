@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider, useApp } from "@/state/app";
 import { DrillProvider } from "@/state/drill";
+import { AIProvider } from "@/state/ai";
 import { AppShell } from "@/components/app/shell";
 import Login from "@/pages/Login";
 import Home from "@/pages/Home";
@@ -13,6 +14,7 @@ const Sales = React.lazy(() => import("@/pages/sales/Sales"));
 const Cfa = React.lazy(() => import("@/pages/Cfa"));
 const Pnl = React.lazy(() => import("@/pages/Pnl"));
 const Settings = React.lazy(() => import("@/pages/settings/Settings"));
+const Ask = React.lazy(() => import("@/pages/Ask"));
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useApp();
@@ -41,10 +43,12 @@ function Routed() {
   const { otif, user } = useApp();
   return (
     <DrillProvider otif={otif}>
+     <AIProvider>
       <Routes>
         <Route path="/login" element={user ? <BackToApp /> : <Login />} />
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
           <Route index element={<Home />} />
+          <Route path="ask" element={<React.Suspense fallback={<Loading />}><Ask /></React.Suspense>} />
           <Route path="trips" element={<Navigate to="/trips/live" replace />} />
           <Route path="trips/:tab" element={<RequireAccess access="trip"><React.Suspense fallback={<Loading />}><Trips /></React.Suspense></RequireAccess>} />
           <Route path="orders" element={<Navigate to="/orders/live" replace />} />
@@ -58,6 +62,7 @@ function Routed() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+     </AIProvider>
     </DrillProvider>
   );
 }

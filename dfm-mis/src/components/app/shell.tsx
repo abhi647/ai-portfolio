@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  IconChevronRight, IconLogout, IconMoon, IconRefresh, IconSearch, IconSun, IconCheck, IconAlertTriangle, IconInfoCircle, IconX,
+  IconChevronRight, IconLogout, IconMoon, IconRefresh, IconSearch, IconSparkles, IconSun, IconCheck, IconAlertTriangle, IconInfoCircle, IconX,
 } from "@tabler/icons-react";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu,
@@ -20,6 +20,8 @@ import { computeAlerts } from "@/data/insights";
 import { orders, trips, NOW } from "@/data/data";
 import { fdt, initials } from "@/data/format";
 import { useDrill } from "@/state/drill";
+import { useAI } from "@/state/ai";
+import { AskSheet } from "@/components/ai/AskSheet";
 import { cn } from "@/lib/utils";
 
 const ALERTS = computeAlerts();
@@ -28,6 +30,7 @@ export function AppShell() {
   const { user, theme, setTheme, signOut, sync, doSync, lastSync, toasts, commandOpen, setCommandOpen } = useApp();
   const loc = useLocation();
   const nav = useNavigate();
+  const ai = useAI();
   const mod = moduleFor(loc.pathname);
   const tab = mod.tabs?.find((t) => loc.pathname.endsWith("/" + t.id));
   const visible = MODULES.filter((m) => !m.access || user?.access[m.access] || user?.role === "Admin").filter((m) => m.id !== "settings" || user?.role === "Admin");
@@ -36,10 +39,11 @@ export function AppShell() {
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCommandOpen(true); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") { e.preventDefault(); ai?.setOpen(!ai.open); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setCommandOpen]);
+  }, [setCommandOpen, ai]);
 
   React.useEffect(() => { window.scrollTo(0, 0); }, [loc.pathname]);
 
@@ -107,6 +111,11 @@ export function AppShell() {
             {mod.id === "home" && <><IconChevronRight className="hidden size-3.5 sm:inline" /><span className="font-medium text-foreground">Overview</span></>}
           </nav>
           <div className="ml-auto flex items-center gap-1.5">
+            {loc.pathname !== "/ask" ? (
+              <Button size="sm" onClick={() => ai?.setOpen(true)} className="gap-1.5 shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-primary)_14%,transparent)]" aria-label="Ask AI (Ctrl+J)">
+                <IconSparkles className="size-4" /><span className="hidden sm:inline">Ask AI</span>
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" onClick={() => setCommandOpen(true)} className="hidden w-56 justify-start gap-2 text-muted-foreground md:flex">
               <IconSearch className="size-4" /> Search trips, orders, pages
               <kbd className="ml-auto rounded border border-border bg-muted px-1.5 font-mono text-[10px]">⌘K</kbd>
@@ -154,6 +163,7 @@ export function AppShell() {
       </SidebarInset>
 
       <Command open={commandOpen} onOpenChange={setCommandOpen} visible={visible} />
+      <AskSheet />
       <Toasts toasts={toasts} />
     </SidebarProvider>
   );

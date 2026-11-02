@@ -2,9 +2,10 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { askPlugin } from "./server/ask";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), askPlugin()],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   build: {
     chunkSizeWarningLimit: 900,

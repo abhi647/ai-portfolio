@@ -1,5 +1,5 @@
 import {
-  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconReportMoney, IconSettings, IconTruck,
+  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconReportMoney, IconSettings, IconSparkles, IconTruck,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 
@@ -11,6 +11,7 @@ export interface NavModule {
 
 export const MODULES: NavModule[] = [
   { id: "home", path: "/", label: "Overview", group: "Workspace", icon: IconLayoutDashboard, description: "Today’s pulse across supply, sales and finance" },
+  { id: "ask", path: "/ask", label: "Ask AI", group: "Workspace", icon: IconSparkles, description: "Talk to your data — ask in plain English, get charts and insights" },
   {
     id: "trips", path: "/trips", label: "Trip Analytics", group: "Primary supply", source: "Traqo TMS", access: "trip", icon: IconTruck,
     description: "Trip hygiene, costing, payments, detention & transporters",
