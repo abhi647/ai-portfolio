@@ -3,6 +3,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { IconArrowDown, IconArrowUp, IconDots, IconPin, IconSparkles } from "@tabler/icons-react";
 import { EmptyState } from "@/components/overtrue/empty-state";
+import { SectionCard } from "@/components/overtrue/section-card";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { GenChart } from "@/components/ai/GenChart";
@@ -44,23 +45,20 @@ export default function BoardScreen() {
       {current ? (
         <div className="grid grid-cols-2 gap-2 px-3 pt-3 pb-8">
           {current.widgets.map((w) => (
-            <section key={w.id} aria-label={w.title} className={cn("flex min-w-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-card", w.kind === "kpi" ? "col-span-1" : "col-span-2")} style={{ height: height(w) }}>
-              <header className={cn("flex h-8 shrink-0 items-center gap-1 px-2.5", w.kind !== "kpi" && "border-b border-border/50")}>
-                <h2 className={cn("m-0 min-w-0 flex-1 truncate font-medium", w.kind === "kpi" ? "text-[11px] text-muted-foreground" : "text-[12.5px]")}>{w.title || autoTitle(w)}</h2>
-                {w.kind !== "kpi" ? (
+            <SectionCard key={w.id} aria-label={w.title} className={cn("flex min-w-0 flex-col overflow-hidden rounded-xl [&>.card-header]:flex-nowrap [&>.card-header]:px-2.5 [&>.card-header]:py-1.5", w.kind === "kpi" ? "col-span-1" : "col-span-2")} style={{ height: height(w) }}
+              title={<span className={cn("block truncate", w.kind === "kpi" ? "text-[11px] font-medium text-muted-foreground" : "text-[12.5px]")}>{w.title || autoTitle(w)}</span>}
+              actions={w.kind !== "kpi" ? (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild><button type="button" aria-label={`${w.title} actions`} className="-mr-1 rounded p-1 text-muted-foreground"><IconDots className="size-4" /></button></DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" className="-mr-1 size-7" aria-label={`${w.title} actions`}><IconDots className="size-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {w.kind !== "note" ? <DropdownMenuItem onSelect={() => { ai.send(`${w.title} — what stands out, why, and what should I do?`, { mode: "research" }); nav("/"); }}><IconSparkles className="size-4" /> Research with AI</DropdownMenuItem> : null}
                       {w.kind !== "note" ? <DropdownMenuItem onSelect={() => widgetCsv(w, current.filters)}>Export CSV</DropdownMenuItem> : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                ) : null}
-              </header>
-              <div className={cn("min-h-0 flex-1", w.kind === "kpi" ? "px-2.5 pb-2 [&_.text-\\[22px\\]]:text-[19px]" : w.kind === "pivot" || w.kind === "table" ? "" : "p-2")}>
+                ) : undefined}
+              contentClassName={cn("min-h-0 flex-1", w.kind === "kpi" ? "px-2.5 pb-2" : w.kind === "pivot" || w.kind === "table" ? "p-0" : "p-2")}>
                 <WidgetBody widget={w} filters={current.filters} />
-              </div>
-            </section>
+            </SectionCard>
           ))}
         </div>
       ) : (

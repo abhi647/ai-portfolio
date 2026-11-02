@@ -207,10 +207,14 @@ export interface Col<T> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function DataTable<T extends Record<string, any>>({
   rows, cols, search, searchPlaceholder, pageSize = 10, onRowClick, getRowId, maxHeight, toolbar, exportName, density = "compact", emptyTitle,
+  initialSorting, showPagination, footer, className,
 }: {
   rows: T[]; cols: Col<T>[]; search?: (r: T) => string; searchPlaceholder?: string; pageSize?: number; onRowClick?: (r: T) => void;
   getRowId?: (r: T, i: number) => string; maxHeight?: number | string; toolbar?: React.ReactNode; exportName?: string;
   density?: "compact" | "default"; emptyTitle?: string;
+  initialSorting?: { id: string; desc: boolean }[]; showPagination?: boolean;
+  /** Rendered under the table, e.g. a totals row. */
+  footer?: React.ReactNode; className?: string;
 }) {
   const columns = React.useMemo<DataTableColumnDef<T>[]>(() => {
     const defs: DataTableColumnDef<T>[] = cols.map((c) => ({
@@ -230,11 +234,13 @@ export function DataTable<T extends Record<string, any>>({
 
   const exportCsv = () => downloadCsv(exportName || "export", cols, rows);
 
-  return (
+  const table = (
     <OtDataTable
       columns={columns}
       data={rows}
       pageSize={pageSize}
+      initialSorting={initialSorting}
+      showPagination={showPagination ?? (pageSize > 0 && rows.length > pageSize)}
       density={density}
       stickyHeader={!!maxHeight}
       maxHeight={maxHeight}
@@ -247,7 +253,7 @@ export function DataTable<T extends Record<string, any>>({
       rowClassName={onRowClick ? () => "cursor-pointer" : undefined}
       showViewOptions={cols.length > 6}
       emptyMessage={<EmptyState title={emptyTitle ?? "No rows match"} description="Try widening the filters or clearing the search." />}
-      toolbar={
+      toolbar={toolbar || exportName ? (
         <>
           {toolbar}
           {exportName ? (
@@ -256,9 +262,10 @@ export function DataTable<T extends Record<string, any>>({
             </Button>
           ) : null}
         </>
-      }
+      ) : undefined}
     />
   );
+  return footer || className ? <div className={cn("flex min-w-0 flex-col", className)}>{table}{footer}</div> : table;
 }
 
 export function downloadCsv<T>(name: string, cols: Col<T>[], rows: T[]) {

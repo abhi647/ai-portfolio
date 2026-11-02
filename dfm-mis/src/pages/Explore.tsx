@@ -6,6 +6,7 @@ import { DataTable, type Col } from "@/components/app/kit";
 import { DatasetFilterBar } from "@/components/app/filters";
 import { PivotWorkbench } from "@/components/app/pivot";
 import { Button } from "@/components/ui/button";
+import { MetricGroup, MetricGroupItem } from "@/components/overtrue/metric-group";
 import { FormSelect } from "@/components/ui/select";
 import { DATASETS, dataset, type Row } from "@/ai/catalog";
 import { applyFilters, fmt, type Filter } from "@/ai/engine";
@@ -108,14 +109,11 @@ function RawRecords() {
       </div>
       <DatasetFilterBar ds={ds} filters={f} onChange={(x) => setFilters((all) => ({ ...all, [dsKey]: x }))}
         count={<span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">{rows.length.toLocaleString("en-IN")} of {ds.rows().length.toLocaleString("en-IN")} records</span>} />
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border/70 bg-border/70 sm:grid-cols-3 lg:grid-cols-6" aria-label="Totals for the filtered records">
+      <MetricGroup aria-label="Totals for the filtered records" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         {ds.measures.slice(0, 6).map((m) => (
-          <div key={m.key} className="bg-card px-3 py-2">
-            <div className="truncate text-[11px] text-muted-foreground">{m.label}</div>
-            <div className="text-[15px] font-semibold tracking-tight tabular-nums">{fmt(m.agg(rows), m.format)}</div>
-          </div>
+          <MetricGroupItem key={m.key} label={m.label} value={fmt(m.agg(rows), m.format)} className="px-3 py-2.5 sm:px-4 [&>p:first-child]:text-[12px] [&>p:nth-child(2)]:my-1 [&>p:nth-child(2)]:text-[18px]" />
         ))}
-      </div>
+      </MetricGroup>
       <DataTable rows={rows} cols={cols} search={search} searchPlaceholder={`Search ${ds.label.toLowerCase()}…`} pageSize={25} maxHeight="calc(100vh - 380px)"
         exportName={`${ds.key}_records`} getRowId={(r, i) => String(r.id ?? i)}
         toolbar={<Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => ai?.ask(`Summarise ${ds.label} — what stands out?`)}><IconSparkles className="size-4" /> Ask AI</Button>} />

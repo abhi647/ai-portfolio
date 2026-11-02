@@ -45,7 +45,10 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setCommandOpen, ai]);
 
-  React.useEffect(() => { window.scrollTo(0, 0); }, [loc.pathname]);
+  React.useEffect(() => {
+    if (loc.hash) { const t = window.setTimeout(() => document.getElementById(loc.hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }), 350); return () => window.clearTimeout(t); }
+    window.scrollTo(0, 0);
+  }, [loc.pathname, loc.hash]);
 
   const [notes, setNotes] = React.useState<NotificationItem[]>(() =>
     ALERTS.map((a) => ({ id: a.id, title: a.title, body: a.body, time: a.time, kind: a.kind, read: false, href: a.href })),

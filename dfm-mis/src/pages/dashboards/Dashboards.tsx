@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { IconChartBar, IconCopy, IconDots, IconLayoutGrid, IconPlus, IconReportMoney, IconRestore, IconTrash, IconTruck } from "@tabler/icons-react";
 import { PageHeader } from "@/components/overtrue/page-header";
 import { StatusBadge } from "@/components/overtrue/status-badge";
+import { SectionCard } from "@/components/overtrue/section-card";
+import { DataTable, type Col } from "@/components/app/kit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -30,41 +32,28 @@ export default function Dashboards() {
           <Button size="sm" className="gap-1.5" onClick={() => setCreating(true)}><IconPlus className="size-4" /> New dashboard</Button>
         </div>} />
 
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
-        <table className="w-full border-separate border-spacing-0 text-[13px]">
-          <thead className="bg-muted/60 text-xs text-muted-foreground [&_th]:h-8 [&_th]:border-b [&_th]:border-border [&_th]:px-3 [&_th]:text-left [&_th]:font-medium">
-            <tr><th>Dashboard</th><th className="hidden md:table-cell">Layout</th><th className="hidden lg:table-cell">Data sources</th><th className="text-right!">Widgets</th><th className="hidden sm:table-cell">Updated</th><th className="w-10" /></tr>
-          </thead>
-          <tbody>
-            {sorted.map((d) => (
-              <tr key={d.id} className="group cursor-pointer hover:bg-muted/50" onClick={() => nav(`/dashboards/${d.id}`)}>
-                <td className="border-b border-border/50 px-3 py-2">
-                  <Link to={`/dashboards/${d.id}`} className="font-medium hover:text-primary" onClick={(e) => e.stopPropagation()}>{d.name}</Link>
-                  {d.description ? <div className="max-w-xl truncate text-xs text-muted-foreground">{d.description}</div> : null}
-                </td>
-                <td className="hidden border-b border-border/50 px-3 py-2 md:table-cell"><MiniLayout d={d} /></td>
-                <td className="hidden border-b border-border/50 px-3 py-2 lg:table-cell">
-                  <div className="flex flex-wrap gap-1">{sources(d).map((s) => <StatusBadge key={s} variant="neutral">{s}</StatusBadge>)}</div>
-                </td>
-                <td className="border-b border-border/50 px-3 py-2 text-right tabular-nums">{d.widgets.length}</td>
-                <td className="hidden border-b border-border/50 px-3 py-2 text-xs whitespace-nowrap text-muted-foreground sm:table-cell">{fdt(new Date(d.updatedAt))}</td>
-                <td className="border-b border-border/50 px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`${d.name} actions`}><IconDots className="size-4" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => nav(`/dashboards/${d.id}`)}><IconLayoutGrid className="size-4" /> Open</DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => { const id = db.duplicate(d.id); if (id) nav(`/dashboards/${id}`); }}><IconCopy className="size-4" /> Duplicate</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={() => { if (window.confirm(`Delete “${d.name}”?`)) db.remove(d.id); }}><IconTrash className="size-4" /> Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-            {!sorted.length ? <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">No dashboards yet — create one from a template.</td></tr> : null}
-          </tbody>
-        </table>
-      </div>
+      <DataTable rows={sorted} pageSize={0} showPagination={false} getRowId={(d) => d.id} onRowClick={(d) => nav(`/dashboards/${d.id}`)}
+        initialSorting={[{ id: "updated", desc: true }]} emptyTitle="No dashboards yet — create one from a template."
+        cols={[
+          { id: "name", header: "Dashboard", value: (d) => d.name, cell: (d) => <div className="min-w-0 whitespace-normal"><Link to={`/dashboards/${d.id}`} className="font-medium hover:text-primary" onClick={(e) => e.stopPropagation()}>{d.name}</Link>{d.description ? <div className="max-w-xl truncate text-xs text-muted-foreground">{d.description}</div> : null}</div> },
+          { id: "layout", header: "Layout", cell: (d) => <MiniLayout d={d} /> },
+          { id: "src", header: "Data sources", value: (d) => sources(d).join(", "), cell: (d) => <div className="flex flex-wrap gap-1">{sources(d).map((x) => <StatusBadge key={x} variant="neutral">{x}</StatusBadge>)}</div> },
+          { id: "widgets", header: "Widgets", align: "right", value: (d) => d.widgets.length },
+          { id: "updated", header: "Updated", value: (d) => d.updatedAt, cell: (d) => <span className="text-xs text-muted-foreground">{fdt(new Date(d.updatedAt))}</span> },
+          { id: "act", header: "", cell: (d) => (
+            <span onClick={(e) => e.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`${d.name} actions`}><IconDots className="size-4" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => nav(`/dashboards/${d.id}`)}><IconLayoutGrid className="size-4" /> Open</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => { const id = db.duplicate(d.id); if (id) nav(`/dashboards/${id}`); }}><IconCopy className="size-4" /> Duplicate</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onSelect={() => { if (window.confirm(`Delete “${d.name}”?`)) db.remove(d.id); }}><IconTrash className="size-4" /> Delete</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+          ) },
+        ] as Col<DashboardDef>[]} />
 
       <section className="flex flex-col gap-2.5">
         <h2 className="m-0 text-[13px] font-semibold tracking-tight">Start from a template</h2>
@@ -72,12 +61,12 @@ export default function Dashboards() {
           {TEMPLATES.map((t) => {
             const I = ICON[t.icon] ?? IconLayoutGrid;
             return (
-              <button key={t.id} type="button" onClick={() => { const id = db.create(fromTemplate(t)); nav(`/dashboards/${id}`); }}
-                className="surface-card group flex flex-col gap-2 p-4 text-left transition-[transform,box-shadow] hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none">
+              <SectionCard key={t.id} contentClassName="p-0"><button type="button" onClick={() => { const id = db.create(fromTemplate(t)); nav(`/dashboards/${id}`); }}
+                className="group flex w-full flex-col gap-2 p-4 text-left transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none">
                 <div className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><I className="size-4" /></span><span className="font-semibold text-[13px]">{t.name}</span><span className="ml-auto text-xs text-muted-foreground">{t.widgets.length} widgets</span></div>
                 <p className="m-0 text-xs leading-5 text-muted-foreground">{t.description}</p>
                 <MiniLayout d={{ widgets: t.widgets as Widget[] }} wide />
-              </button>
+              </button></SectionCard>
             );
           })}
         </div>

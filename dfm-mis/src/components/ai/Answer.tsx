@@ -6,6 +6,13 @@ import {
   IconTruck, IconClipboardList, IconChartBar, IconBuildingWarehouse, IconReportMoney,
 } from "@tabler/icons-react";
 import { parseInsight } from "@/components/overtrue/insight-card";
+import { PeriodTabs } from "@/components/overtrue/period-tabs";
+import { FilterTabs } from "@/components/overtrue/filter-tabs";
+import { Timeline } from "@/components/overtrue/timeline";
+import { SectionCard } from "@/components/overtrue/section-card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { GenChart } from "./GenChart";
 import { useAI, type AIMessage, type Thread } from "@/state/ai";
@@ -39,21 +46,27 @@ export function useSpeech(onText: (t: string) => void) {
 
 /* -------------------------------- composer --------------------------------- */
 export function ModePicker({ value, onChange, size = "md" }: { value: AskMode; onChange: (m: AskMode) => void; size?: "sm" | "md" }) {
+  if (size === "md") {
+    return <PeriodTabs size="sm" aria-label="Answer mode" options={MODES.map((m) => ({ value: m.key, label: m.label }))} value={value} onValueChange={(v: string) => onChange(v as AskMode)} />;
+  }
+  const cur = MODES.find((m) => m.key === value)!;
+  const I = MODE_ICON[value];
   return (
-    <div role="radiogroup" aria-label="Answer mode" className="flex items-center gap-0.5 rounded-full bg-muted p-0.5">
-      {MODES.map((m) => {
-        const I = MODE_ICON[m.key];
-        const on = value === m.key;
-        return (
-          <button key={m.key} type="button" role="radio" aria-checked={on} title={`${m.label} — ${m.short}`} onClick={() => onChange(m.key)}
-            className={cn("inline-flex items-center gap-1 rounded-full font-medium transition-all", size === "sm" ? "h-7 px-2 text-[12px]" : "h-8 px-2.5 text-[13px]",
-              on ? "bg-background text-primary shadow-xs ring-1 ring-black/5 dark:ring-white/10" : "text-muted-foreground hover:text-foreground")}>
-            <I className={size === "sm" ? "size-3.5" : "size-4"} stroke={2} />
-            <span className={cn(!on && "sr-only")}>{m.label}</span>
-          </button>
-        );
-      })}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="secondary" size="sm" className="h-8 gap-1 rounded-full px-2.5 text-[13px] text-primary" aria-label={`Answer mode: ${cur.label}`}><I className="size-4" />{cur.label}<IconChevronDown className="size-3.5" /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Answer mode</DropdownMenuLabel>
+        {MODES.map((m) => { const MI = MODE_ICON[m.key]; return (
+          <DropdownMenuItem key={m.key} onSelect={() => onChange(m.key)} className="items-start gap-2.5 py-2">
+            <MI className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1"><span className="block text-[13px] font-medium">{m.label}</span><span className="block text-xs text-muted-foreground">{m.short}</span></span>
+            {value === m.key ? <IconCheck className="mt-0.5 size-4 text-primary" /> : null}
+          </DropdownMenuItem>
+        ); })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -95,11 +108,11 @@ export function Composer({ variant, autoFocus, onSent }: { variant: "home" | "fo
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit(); }}
       className={cn("rounded-[22px] border border-border/80 bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-16px_rgb(0_0_0/0.18)] transition-shadow focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/10", home ? "p-3" : "p-2 pl-3")}>
-      <textarea ref={ta} value={draft} rows={1} autoFocus={autoFocus} aria-label={home ? "Ask anything" : "Ask a follow-up"}
+      <Textarea ref={ta} value={draft} rows={1} autoFocus={autoFocus} aria-label={home ? "Ask anything" : "Ask a follow-up"}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
         placeholder={speech.listening ? "Listening…" : home ? "Ask anything about trips, orders, sales, CFA or P&L…" : "Ask a follow-up…"}
-        className={cn("block w-full resize-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground", home ? "min-h-[52px] px-1 pt-1 text-[16px] leading-6" : "min-h-[28px] px-0.5 pt-1 text-[16px] leading-6")} />
+        className={cn("block w-full resize-none rounded-none border-0 bg-transparent py-0 text-foreground shadow-none outline-none placeholder:text-muted-foreground focus:border-0 focus:ring-0", home ? "min-h-[52px] px-1 pt-1 text-[16px] leading-6" : "min-h-[28px] px-0.5 pt-1 text-[16px] leading-6")} />
       <div className={cn("flex items-center gap-1", home ? "mt-2" : "mt-1")}>
         <ModePicker value={ai.askMode} onChange={ai.setAskMode} size={home ? "md" : "sm"} />
         <FocusPicker value={ai.focus} onChange={ai.setFocus} />
@@ -111,9 +124,9 @@ export function Composer({ variant, autoFocus, onSent }: { variant: "home" | "fo
           </button>
         ) : null}
         {busy ? (
-          <button type="button" aria-label="Stop answering" onClick={ai.stop} className="flex size-9 items-center justify-center rounded-full bg-foreground text-background"><IconPlayerStopFilled className="size-4" /></button>
+          <Button type="button" size="icon" aria-label="Stop answering" onClick={ai.stop} className="size-9 rounded-full bg-foreground text-background hover:bg-foreground/90"><IconPlayerStopFilled className="size-4" /></Button>
         ) : (
-          <button type="submit" aria-label="Ask" disabled={!draft.trim()} className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-30"><IconArrowUp className="size-5" stroke={2.4} /></button>
+          <Button type="submit" size="icon" aria-label="Ask" disabled={!draft.trim()} className="size-9 rounded-full disabled:opacity-30"><IconArrowUp className="size-5" stroke={2.4} /></Button>
         )}
       </div>
     </form>
@@ -167,14 +180,15 @@ export function RichAnswer({ text, onCite, className }: { text: string; onCite?:
 function SourceCard({ s, active, onClick, wide }: { s: AskSource; active?: boolean; onClick?: () => void; wide?: boolean }) {
   const I = DS_ICON[s.dataset] ?? IconDatabase;
   return (
-    <button type="button" onClick={onClick} id={undefined}
-      className={cn("flex shrink-0 flex-col gap-1 rounded-xl bg-muted/60 p-2.5 text-left transition-colors hover:bg-muted", wide ? "w-full" : "w-[168px]", active && "ring-2 ring-primary")}>
-      <span className="line-clamp-2 text-[12.5px] leading-[1.3] font-medium text-foreground">{s.title}</span>
-      <span className="mt-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <I className="size-3.5 shrink-0" /><span className="truncate">{dsLabel(s.dataset)}</span>
-        <span className="ml-auto flex size-4 shrink-0 items-center justify-center rounded-full bg-background text-[10px] font-medium tabular-nums">{s.id}</span>
-      </span>
-    </button>
+    <SectionCard className={cn("shrink-0 rounded-xl shadow-none", wide ? "w-full" : "w-[168px]", active && "ring-2 ring-primary")} contentClassName="p-0">
+      <button type="button" onClick={onClick} className="flex h-full w-full flex-col gap-1 p-2.5 text-left transition-colors hover:bg-muted/50">
+        <span className="line-clamp-2 text-[12.5px] leading-[1.3] font-medium text-foreground">{s.title}</span>
+        <span className="mt-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <I className="size-3.5 shrink-0" /><span className="truncate">{dsLabel(s.dataset)}</span>
+          <span className="ml-auto flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium tabular-nums">{s.id}</span>
+        </span>
+      </button>
+    </SectionCard>
   );
 }
 
@@ -202,7 +216,7 @@ function Working({ mode }: { mode: AskMode }) {
         ))}
       </ul>
       <div className="flex flex-col gap-2" aria-hidden>
-        {[92, 100, 76].map((w, j) => <div key={j} className="h-3 animate-pulse rounded-full bg-muted" style={{ width: `${w}%`, animationDelay: `${j * 120}ms` }} />)}
+        {[92, 100, 76].map((w, j) => <Skeleton key={j} className="h-3 rounded-full" style={{ width: `${w}%` }} />)}
       </div>
     </div>
   );
@@ -233,13 +247,9 @@ export function Turn({ q, a, last, compact, onAsk }: { q: AIMessage; a?: AIMessa
         {a?.mode === "offline" ? <span>· offline</span> : null}
       </div>
 
-      <div role="tablist" aria-label="Answer views" className="sticky top-0 z-10 -mx-1 flex gap-1 border-b border-border/70 bg-background/95 px-1 backdrop-blur">
-        {([["answer", "Answer", IconSparkles], ["sources", `Sources${sources.length ? ` · ${sources.length}` : ""}`, IconDatabase], ["steps", `Steps${steps.length ? ` · ${steps.length}` : ""}`, IconListDetails]] as const).map(([k, label, I]) => (
-          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={cn("-mb-px inline-flex h-10 items-center gap-1.5 border-b-2 px-2 text-[13.5px] font-medium transition-colors", tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            <I className="size-4" />{label}
-          </button>
-        ))}
+      <div className="sticky top-0 z-10 -mx-1 border-b border-border/70 bg-background/95 px-1 py-1.5 backdrop-blur">
+        <FilterTabs label="Answer views" value={tab} onValueChange={(v) => setTab(v as Tab)}
+          items={[{ value: "answer", label: "Answer" }, { value: "sources", label: "Sources", count: sources.length || undefined }, { value: "steps", label: "Steps", count: steps.length || undefined }]} />
       </div>
 
       {!a || streaming ? <Working mode={mode} /> : a.status === "error" ? (
@@ -258,10 +268,10 @@ export function Turn({ q, a, last, compact, onAsk }: { q: AIMessage; a?: AIMessa
           <RichAnswer text={a.content} onCite={cite} />
           {a.charts?.map((c, i) => <GenChart key={`${a.id}-${i}`} spec={c} compact={compact} pinned={ai.isPinned(c)} onPin={() => ai.togglePin(c)} className="rounded-2xl" />)}
           <div className="flex flex-wrap items-center gap-1 border-t border-border/60 pt-2 text-[13px] text-muted-foreground">
-            {canShare ? <button type="button" onClick={() => navigator.share({ title: q.content, text: plainText }).catch(() => undefined)} className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 hover:bg-muted hover:text-foreground"><IconShare2 className="size-4" />Share</button> : null}
-            <button type="button" onClick={copy} className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 hover:bg-muted hover:text-foreground">{copied ? <IconCheck className="size-4 text-emerald-500" /> : <IconCopy className="size-4" />}{copied ? "Copied" : "Copy"}</button>
+            {canShare ? <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => navigator.share({ title: q.content, text: plainText }).catch(() => undefined)}><IconShare2 className="size-4" />Share</Button> : null}
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={copy}>{copied ? <IconCheck className="size-4 text-emerald-500" /> : <IconCopy className="size-4" />}{copied ? "Copied" : "Copy"}</Button>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 hover:bg-muted hover:text-foreground" disabled={ai.status === "streaming"}><IconRefresh className="size-4" />Rewrite<IconChevronDown className="size-3.5" /></button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" disabled={ai.status === "streaming"}><IconRefresh className="size-4" />Rewrite<IconChevronDown className="size-3.5" /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel className="text-xs text-muted-foreground">Answer again as…</DropdownMenuLabel>
                 {MODES.map((m) => { const I = MODE_ICON[m.key]; return <DropdownMenuItem key={m.key} onSelect={() => ai.regenerate(a.id, { mode: m.key })} className="gap-2"><I className="size-4" /><span className="flex-1">{m.label}</span><span className="text-xs text-muted-foreground">{m.short}</span></DropdownMenuItem>; })}
@@ -294,23 +304,17 @@ export function Turn({ q, a, last, compact, onAsk }: { q: AIMessage; a?: AIMessa
                     <div className="mt-0.5 text-[12px] text-muted-foreground">{dsLabel(s.dataset)} · {s.detail} · {s.rows.toLocaleString("en-IN")} records</div>
                   </div>
                 </div>
-                {hl === s.id ? <GenChart spec={s.spec} compact className="mt-3 rounded-xl shadow-none" /> : <button type="button" onClick={() => setHl(s.id)} className="mt-2 text-[12px] font-medium text-primary">Show the data</button>}
+                {hl === s.id ? <GenChart spec={s.spec} compact className="mt-3 rounded-xl shadow-none" /> : <Button variant="link" size="sm" onClick={() => setHl(s.id)} className="mt-1 h-auto px-0 text-[12px]">Show the data</Button>}
               </li>
             ))}
           </ul>
         ) : <p className="m-0 text-[14px] text-muted-foreground">No data was queried for this answer.</p>
       ) : (
-        <ol className="m-0 flex list-none flex-col gap-0 p-0">
-          {(a.steps ?? []).map((s, i) => (
-            <li key={s.id} className="relative flex gap-3 pb-3 pl-0">
-              <span className="relative flex flex-col items-center">
-                {s.status === "error" ? <IconAlertTriangle className="size-5 text-amber-500" /> : <IconCircleCheck className="size-5 text-emerald-500" />}
-                {i < (a.steps?.length ?? 0) - 1 ? <span className="mt-1 w-px flex-1 bg-border" /> : null}
-              </span>
-              <span className="min-w-0 flex-1 pb-1"><span className="block text-[14px]">{s.label}</span>{s.detail ? <span className="block font-mono text-[11.5px] text-muted-foreground">{s.detail}</span> : null}</span>
-            </li>
-          ))}
-        </ol>
+        <Timeline label="Steps taken" items={(a.steps ?? []).map((st, i) => ({
+          id: st.id, title: st.label, time: st.kind === "query" ? `Query ${i}` : "Plan",
+          description: st.detail ? <span className="font-mono text-[11.5px]">{st.detail}</span> : undefined,
+          color: st.status === "error" ? "var(--color-destructive)" : "var(--color-success, #10b981)",
+        }))} />
       )}
     </article>
   );
