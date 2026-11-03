@@ -53,3 +53,30 @@ html[data-density="compact"] [data-slot="kpi-card"] .card-header, html[data-dens
 html[data-density="compact"] [data-slot="page-header"] h1 { font-size: 1.25rem; line-height: 1.75rem; }
 html[data-density="compact"] [data-slot="page-header"] p { font-size: 12.5px; }
 html[data-density="compact"] [data-slot="app-content"] { padding-top: 1rem; padding-bottom: 1.25rem; }
+
+/* ---------------------------- Enterprise styling ----------------------------
+   Restrained, data-first surfaces: tighter radii, hairline borders instead of
+   drop shadows, no decorative washes or entrance animations, quiet callouts. */
+:root { --radius: 0.3rem; }
+html body { background: #f4f5f7; }
+html.dark body { background: #0e0f11; }
+[data-slot="sidebar-inset"] { background: transparent !important; }
+:is([data-slot="section-card"], [data-slot="kpi-card"], [data-slot="metric-group"], [data-slot="status-edge-card"], [data-slot="activity-feed"]),
+.surface-card { box-shadow: none !important; border-color: color-mix(in oklab, var(--color-border) 100%, transparent) !important; }
+[data-slot="status-edge-card-wash"] { display: none !important; }
+.animate-rise { animation: none !important; }
+[data-slot="panel-insight"] {
+  background: color-mix(in oklab, var(--color-muted) 55%, transparent) !important;
+  box-shadow: none !important; --tw-ring-shadow: 0 0 #0000 !important;
+  color: var(--color-muted-foreground);
+}
+[data-slot="panel-insight"] svg { color: var(--color-muted-foreground) !important; }
+[data-slot="page-header"] h1 { letter-spacing: -0.01em; }
+/* Section labels in the enterprise style */
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted-foreground); }
+@media print {
+  [data-slot="sidebar"], header, [data-print="hide"] { display: none !important; }
+  html body { background: #fff; }
+  [data-slot="app-content"] { max-width: none !important; padding: 0 !important; }
+  [data-slot="section-card"] { break-inside: avoid; }
+}

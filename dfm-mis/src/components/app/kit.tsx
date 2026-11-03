@@ -270,7 +270,9 @@ export function DataTable<T extends Record<string, any>>({
 
 export function downloadCsv<T>(name: string, cols: Col<T>[], rows: T[]) {
   const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-  const lines = [cols.map((c) => esc(c.header)).join(","), ...rows.map((r) => cols.map((c) => esc(c.csv ? c.csv(r) : c.value ? c.value(r) : "")).join(","))];
+  let who = "user"; try { who = localStorage.getItem("dfm.session") ?? sessionStorage.getItem("dfm.session") ?? "user"; } catch { /* ignore */ }
+  const stamp = esc(`DFM Foods MIS · CONFIDENTIAL · ${name} · exported by ${who} on ${new Date().toLocaleString("en-IN")}`);
+  const lines = [stamp, cols.map((c) => esc(c.header)).join(","), ...rows.map((r) => cols.map((c) => esc(c.csv ? c.csv(r) : c.value ? c.value(r) : "")).join(","))];
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\n")], { type: "text/csv" }));
   a.download = name.replace(/[^\w]+/g, "_").slice(0, 60) + ".csv";

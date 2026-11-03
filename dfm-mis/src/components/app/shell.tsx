@@ -22,6 +22,7 @@ import { fdt, initials } from "@/data/format";
 import { useDrill } from "@/state/drill";
 import { useAI } from "@/state/ai";
 import { AskSheet } from "@/components/ai/AskSheet";
+import { SOURCES, sourceHealth } from "@/data/governance";
 import { cn } from "@/lib/utils";
 
 const ALERTS = computeAlerts();
@@ -114,6 +115,7 @@ export function AppShell() {
             {mod.id === "home" && <><IconChevronRight className="hidden size-3.5 sm:inline" /><span className="font-medium text-foreground">Overview</span></>}
           </nav>
           <div className="ml-auto flex items-center gap-1.5">
+            <DataFreshness />
             {loc.pathname !== "/ask" ? (
               <Button size="sm" onClick={() => ai?.setOpen(true)} className="gap-1.5 shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-primary)_14%,transparent)]" aria-label="Ask AI (Ctrl+J)">
                 <IconSparkles className="size-4" /><span className="hidden sm:inline">Ask AI</span>
@@ -219,5 +221,33 @@ function Toasts({ toasts }: { toasts: { id: number; title: string; tone?: string
         </div>
       ))}
     </div>
+  );
+}
+
+const HEALTH = SOURCES.map((src) => ({ src, h: sourceHealth(src) }));
+function DataFreshness() {
+  const nav = useNavigate();
+  const ok = HEALTH.filter((x) => x.h.status === "operational").length;
+  const tone = ok === HEALTH.length ? "bg-emerald-500" : HEALTH.some((x) => x.h.status === "outage") ? "bg-rose-500" : "bg-amber-500";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="hidden items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground lg:inline-flex" aria-label="Data freshness">
+          <span className={cn("size-2 rounded-full", tone)} />Data as of {NOW.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} IST · {ok}/{HEALTH.length} sources current
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-96">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Source freshness</DropdownMenuLabel>
+        {HEALTH.map(({ src, h }) => (
+          <DropdownMenuItem key={src.id} onSelect={() => nav("/data-health")} className="flex items-center gap-2 text-[12.5px]">
+            <span className={cn("size-2 shrink-0 rounded-full", h.status === "operational" ? "bg-emerald-500" : h.status === "degraded" ? "bg-amber-500" : "bg-rose-500")} />
+            <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{src.table}</span>
+            <span className="text-muted-foreground tabular-nums">{h.lagMin < 60 ? `${Math.round(h.lagMin)} min` : `${(h.lagMin / 60).toFixed(1)} h`} ago</span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => nav("/data-health")}>Open data health</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

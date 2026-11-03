@@ -165,7 +165,7 @@ function makeTrip(created: Date) {
     id: "DS-" + tripSeq++, created, mk: monthKey(created), dk: dayKey(created), origin, loc: originShort(origin), dest: dest.name, km, own, len, vtype,
     transporter, vno, dedicated, customer, otype, consent, stage, stageIdx, status: tStage(stage).status!, ms, lastUpdated,
     freight, l1, definedRoute, sysDet, actDet, addl, shortPen, dmgPen, invQty, planQty, shortQty, excessQty,
-    total: freight + actDet + addl - shortPen - dmgPen, acceptedBy,
+    total: Math.max(Math.round(freight * 0.4), freight + actDet + addl - shortPen - dmgPen), acceptedBy,
     epodDone, payStatus, pi, piAt, paidAt, timely, cleanSource, cdEligible, cdAvailed, cdAmt: cdAvailed ? Math.round(freight * 0.02) : 0,
     tPlant: t("reported", "gateOut"), tTransit: t("gateOut", "destReported"), tDest: t("destReported", "destGateOut"), tEpod: t("destGateOut", "epod"),
   });

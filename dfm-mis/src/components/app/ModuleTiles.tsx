@@ -106,7 +106,7 @@ export function ModuleTiles() {
   ];
   return (
     <section className="flex flex-col gap-2.5" aria-label="Dashboards">
-      <div><h2 className="m-0 text-[15px] font-semibold tracking-tight">Dashboards</h2><p className="m-0 text-[13px] text-muted-foreground">Pick an area, or jump straight to one of its dashboards.</p></div>
+      <div><h2 className="m-0 text-[15px] font-semibold tracking-tight">Business areas</h2><p className="m-0 text-[13px] text-muted-foreground">Health of each function and links into its dashboards.</p></div>
       <div className="grid grid-cols-1 gap-[var(--grid-gap)] md:grid-cols-2 xl:grid-cols-3">
         {spokes.filter((s) => allowed(s.moduleId)).map((s) => {
           const mod = MODULES.find((m) => m.id === s.moduleId);
