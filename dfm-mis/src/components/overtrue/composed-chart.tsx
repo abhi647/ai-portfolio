@@ -52,6 +52,7 @@ import {
 } from "recharts-analytics";
 
 import { cn } from "@/lib/utils";
+import { RichTooltip, type RichTooltipRow } from "./rich-tooltip";
 import {
   ChartContainer,
   ChartLegend,
@@ -159,7 +160,7 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 5);
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const mix = (from: number, to: number, t: number) => from + (to - from) * t;
 
-const GRID = "color-mix(in oklab, var(--color-foreground) 7%, transparent)";
+const GRID = "color-mix(in oklab, var(--color-foreground) 14%, transparent)";
 const CROSSHAIR =
   "color-mix(in oklab, var(--color-foreground) 25%, transparent)";
 const REFERENCE =
@@ -485,7 +486,7 @@ function ComposedChart({
             </React.Fragment>
           ))}
         </defs>
-        {showGrid ? <CartesianGrid vertical={false} stroke={GRID} /> : null}
+        {showGrid ? <CartesianGrid vertical horizontal stroke={GRID} strokeDasharray="3 3" /> : null}
         <XAxis
           dataKey={xKey}
           tickLine={false}
@@ -533,46 +534,36 @@ function ComposedChart({
           }
           content={({ active, payload, label }) => {
             if (!showTooltip || !active || !payload?.length) return null;
-            const rows = payload.filter(
+            const items = payload.filter(
               (item) => item.type !== "none" && item.value != null,
             );
-            if (!rows.length) return null;
+            if (!items.length) return null;
+            const row = items[0]?.payload as Record<string, unknown> | undefined;
+            const idx = row ? data.indexOf(row) : -1;
+            const prevRow = idx > 0 ? (data[idx - 1] as Record<string, unknown>) : undefined;
+            const stackedKeys = new Set(series.filter((s) => s.stackId).map((s) => s.key));
+            const rows: RichTooltipRow[] = items.map((item) => {
+              const key = String(item.dataKey);
+              const index = series.findIndex((s) => s.key === key);
+              const s = series[index];
+              const fmt = formatterFor(s);
+              const pv = prevRow?.[key];
+              return {
+                key,
+                label: s?.label ?? key,
+                color: colors[index] ?? String(item.color),
+                swatch: <SwatchMark color={colors[index] ?? String(item.color)} kind={s ? swatchFor(s) : "dot"} />,
+                value: fmt ? fmt(Number(item.value)) : String(item.value),
+                raw: Number(item.value),
+                prev: pv == null || pv === "" ? null : Number(pv),
+                additive: stackedKeys.has(key),
+              };
+            });
+            const stackFmt = formatterFor(series.find((s) => s.stackId));
             return (
-              <div
-                data-slot="composed-chart-tooltip"
-                className="min-w-40 rounded-xl border border-border/70 bg-popover/90 px-3 py-2.5 text-xs text-popover-foreground shadow-xl backdrop-blur-md"
-              >
-                <p className="mb-1.5 font-medium text-foreground">
-                  {xFormatter(label)}
-                </p>
-                <div className="grid gap-1">
-                  {rows.map((item) => {
-                    const index = series.findIndex(
-                      (s) => s.key === String(item.dataKey),
-                    );
-                    const s = series[index];
-                    const fmt = formatterFor(s);
-                    const value = Number(item.value);
-                    return (
-                      <div
-                        key={String(item.dataKey)}
-                        className="flex items-center gap-2"
-                      >
-                        <SwatchMark
-                          color={colors[index] ?? String(item.color)}
-                          kind={s ? swatchFor(s) : "dot"}
-                        />
-                        <span className="text-muted-foreground">
-                          {s?.label ?? String(item.dataKey)}
-                        </span>
-                        <span className="ml-auto pl-4 font-medium text-foreground tabular-nums">
-                          {fmt ? fmt(value) : String(item.value)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <RichTooltip label={xFormatter(label)} prevLabel={prevRow ? xFormatter(prevRow[xKey] as never) : undefined}
+                rows={rows} format={(v) => (stackFmt ? stackFmt(v) : String(v))} showShare={stackedKeys.size > 1} showTotal={stackedKeys.size > 1}
+                note={series.some((s) => s.axis === "right") ? "Lines on the right axis use their own scale." : undefined} />
             );
           }}
         />
@@ -663,7 +654,7 @@ function ComposedChart({
                 animationDuration={animationDuration + 200}
                 animationBegin={index * 80}
                 animationEasing={EASE}
-                type={s.curve ?? "monotone"}
+                type={s.curve ?? "linear"}
                 stroke={color}
                 color={color}
                 strokeWidth={2}
@@ -704,7 +695,7 @@ function ComposedChart({
               animationDuration={animationDuration + 200}
               animationBegin={index * 60}
               animationEasing={EASE}
-              type={s.curve ?? "monotone"}
+              type={s.curve ?? "linear"}
               stroke={color}
               color={color}
               strokeWidth={2}

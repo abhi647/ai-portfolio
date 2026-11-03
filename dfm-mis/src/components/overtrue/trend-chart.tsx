@@ -53,6 +53,7 @@ import {
 } from "recharts-analytics";
 
 import { cn } from "@/lib/utils";
+import { RichTooltip, type RichTooltipRow } from "./rich-tooltip";
 import {
   ChartContainer,
   ChartLegend,
@@ -143,7 +144,7 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 5);
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const mix = (from: number, to: number, t: number) => from + (to - from) * t;
 
-const GRID = "color-mix(in oklab, var(--color-foreground) 7%, transparent)";
+const GRID = "color-mix(in oklab, var(--color-foreground) 14%, transparent)";
 const CROSSHAIR =
   "color-mix(in oklab, var(--color-foreground) 25%, transparent)";
 /** Lines glow in their own color in dark mode; `color` on each series feeds currentColor. */
@@ -486,11 +487,7 @@ function TrendChart({
   const axes = (
     <>
       {showGrid ? (
-        <CartesianGrid
-          vertical={horizontal}
-          horizontal={!horizontal}
-          stroke={GRID}
-        />
+        <CartesianGrid vertical horizontal stroke={GRID} strokeDasharray="3 3" />
       ) : null}
       {horizontal ? (
         <>
@@ -565,23 +562,26 @@ function TrendChart({
             (item) => item.type !== "none" && item.value != null,
           );
           if (!shown.length) return null;
+          const row = shown[0]?.payload as Record<string, unknown> | undefined;
+          const idx = row ? data.indexOf(row as (typeof data)[number]) : -1;
+          const prevRow = idx > 0 ? (data[idx - 1] as Record<string, unknown>) : undefined;
           const ordered = type === "bar" && stacked ? [...shown].reverse() : shown;
-          const rows = ordered.map((item) => {
+          const rows: RichTooltipRow[] = ordered.map((item) => {
             const key = String(item.dataKey);
             const index = series.findIndex((s) => s.key === key);
+            const pv = prevRow?.[key];
             return {
               key,
               label: series[index]?.label ?? key,
               color: colors[index] ?? String(item.color),
               value: format(Number(item.value)),
+              raw: Number(item.value),
+              prev: pv == null || pv === "" ? null : Number(pv),
             };
           });
-          const total =
-            stacked && shown.length > 1
-              ? format(shown.reduce((sum, item) => sum + Number(item.value), 0))
-              : undefined;
           return (
-            <TrendTooltip label={xFormatter(label)} rows={rows} total={total} />
+            <RichTooltip label={xFormatter(label)} prevLabel={prevRow ? xFormatter(prevRow[xKey] as never) : undefined}
+              rows={rows} format={format} showShare={stacked} showTotal={stacked || series.length > 1} />
           );
         }}
       />
@@ -703,7 +703,7 @@ function TrendChart({
               animationDuration={animationDuration + 200}
               animationBegin={index * 80}
               animationEasing={EASE}
-              type="monotone"
+              type="linear"
               dataKey={s.key}
               stroke={colors[index]}
               color={colors[index]}
@@ -786,7 +786,7 @@ function TrendChart({
               animationDuration={animationDuration + 200}
               animationBegin={index * 60}
               animationEasing={EASE}
-              type="monotone"
+              type="linear"
               dataKey={s.key}
               stroke={colors[index]}
               color={colors[index]}
