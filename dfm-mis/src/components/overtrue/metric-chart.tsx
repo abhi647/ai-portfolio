@@ -251,7 +251,7 @@ export function MetricChart({
                 />
                 {hasComparison && (
                   <Area
-                    type="monotone"
+                    type="linear"
                     dataKey="previous"
                     name={comparisonLabel}
                     stroke={COMPARISON}
@@ -275,7 +275,7 @@ export function MetricChart({
                   />
                 )}
                 <Area
-                  type="monotone"
+                  type="linear"
                   dataKey="value"
                   name={seriesLabel}
                   stroke={PRIMARY}

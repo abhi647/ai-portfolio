@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { RichTooltip } from "./rich-tooltip";
 
 /* ------------------------------------------------------------------------ */
 /* Types                                                                     */
@@ -632,7 +633,7 @@ function paletteColor(i: number) {
 
 const focusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-primary)_10%,transparent)]";
-const gridColor = "color-mix(in oklab, var(--color-foreground) 7%, transparent)";
+const gridColor = "color-mix(in oklab, var(--color-foreground) 14%, transparent)";
 const baseColor = "color-mix(in oklab, var(--color-foreground) 14%, transparent)";
 
 /* ------------------------------------------------------------------------ */
@@ -648,7 +649,7 @@ export function StackedAreaChart({
   index,
   series,
   stack = "normal",
-  curve = "monotone",
+  curve = "linear",
   height = 280,
   title,
   description,
@@ -1389,6 +1390,13 @@ export function StackedAreaChart({
                     }}
                   />
                 ))}
+                {model.xs.map((x, i) => (
+                  <span
+                    key={`v-${i}`}
+                    className="absolute inset-y-0 top-0 w-px"
+                    style={{ left: `${(X(x) / (W || 1)) * 100}%`, backgroundImage: `linear-gradient(${gridColor} 50%, transparent 50%)`, backgroundSize: "1px 6px" }}
+                  />
+                ))}
               </div>
 
               <svg
@@ -1617,7 +1625,8 @@ export function StackedAreaChart({
                   data-slot="stacked-area-tooltip"
                   aria-hidden="true"
                   className={cn(
-                    "pointer-events-none absolute top-0 left-0 z-10 min-w-48 rounded-xl border border-border/70 bg-popover/90 px-3 py-2.5 text-xs text-popover-foreground shadow-xl backdrop-blur-md",
+                    "pointer-events-none absolute top-0 left-0 z-10 text-xs",
+                    renderTooltip && "min-w-48 rounded-xl border border-border/70 bg-popover/90 px-3 py-2.5 text-popover-foreground shadow-xl backdrop-blur-md",
                     glide,
                   )}
                   style={{
@@ -1629,6 +1638,7 @@ export function StackedAreaChart({
                   ) : (
                     <DefaultTooltip
                       point={activePoint}
+                      prev={activeIndex ? pointAt(activeIndex - 1) : null}
                       format={valueFormatter}
                       emphasis={pointerBand}
                     />
@@ -1727,66 +1737,16 @@ export function StackedAreaChart({
   );
 }
 
-function DefaultTooltip({
-  point,
-  format,
-  emphasis,
-}: {
-  point: StackedAreaPoint;
-  format: (value: number) => string;
-  emphasis: string | null;
-}) {
+function DefaultTooltip({ point, prev, format }: { point: StackedAreaPoint; prev: StackedAreaPoint | null; format: (value: number) => string; emphasis: string | null }) {
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-1">
-      <p className="col-span-4 mb-1 font-medium text-foreground">{point.label}</p>
-      {point.items.map((item) => (
-        <React.Fragment key={item.key}>
-          <span
-            aria-hidden="true"
-            className="h-2.5 w-[3px] rounded-full"
-            style={{ background: item.color }}
-          />
-          <span
-            className={cn(
-              "truncate",
-              emphasis === item.key ? "font-medium text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {item.label}
-          </span>
-          <span
-            className={cn(
-              "pl-3 text-right tabular-nums",
-              emphasis === item.key ? "font-semibold" : "font-medium",
-            )}
-          >
-            {format(item.value)}
-          </span>
-          <span className="w-11 text-right text-[11px] text-muted-foreground tabular-nums">
-            {formatShare(item.share)}
-          </span>
-        </React.Fragment>
-      ))}
-      <span className="col-span-4 my-0.5 h-px bg-border" />
-      <span />
-      <span className="text-muted-foreground">Total</span>
-      <span className="pl-3 text-right font-semibold tabular-nums">
-        {format(point.total)}
-      </span>
-      <span />
-      {point.annotations.map((note, i) => (
-        <p
-          key={i}
-          className="col-span-4 mt-1 flex items-center gap-1.5 border-t border-dashed pt-1.5 text-[11px] text-muted-foreground"
-        >
-          <span
-            aria-hidden="true"
-            className="size-1.5 shrink-0 rounded-full"
-            style={{ background: note.color ?? "var(--color-foreground)" }}
-          />
-          {note.label}
-        </p>
-      ))}
-    </div>
+    <RichTooltip
+      label={point.label}
+      prevLabel={prev?.label}
+      format={format}
+      showShare
+      showTotal
+      rows={point.items.map((it) => ({ key: it.key, label: it.label, color: it.color, value: format(it.value), raw: it.value, prev: prev?.items.find((p) => p.key === it.key)?.value ?? null }))}
+      note={point.annotations.length ? point.annotations.map((a) => a.label).join(" · ") : undefined}
+    />
   );
 }

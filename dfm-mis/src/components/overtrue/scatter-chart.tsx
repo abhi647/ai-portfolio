@@ -387,7 +387,7 @@ function ScatterChart({
             </radialGradient>
           ))}
         </defs>
-        {showGrid ? <CartesianGrid vertical={false} stroke={GRID} /> : null}
+        {showGrid ? <CartesianGrid vertical horizontal stroke={GRID} strokeDasharray="3 3" /> : null}
         <XAxis
           type="number"
           dataKey={xKey}

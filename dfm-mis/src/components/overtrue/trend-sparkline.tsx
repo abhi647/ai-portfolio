@@ -166,7 +166,7 @@ function Sparkline({
   variant = "area",
   fill = "gradient",
   color = "var(--color-primary)",
-  curve = "monotone",
+  curve = "linear",
   strokeWidth = 2,
   animate = true,
   animationDuration = 700,

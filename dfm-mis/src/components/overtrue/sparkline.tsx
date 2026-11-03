@@ -21,8 +21,13 @@ const PAD_X = 3;
 const PAD_Y = 5;
 const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 
+/** Straight segments between points: sharp corners, no smoothing. */
+function linearPath(points: [number, number][]) {
+  return points.length < 2 ? "" : points.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ");
+}
+
 /** Monotone cubic path: smooth, but never overshoots the data. */
-function monotonePath(points: [number, number][]) {
+export function monotonePath(points: [number, number][]) {
   const n = points.length;
   if (n < 2) return "";
   const dx: number[] = [];
@@ -89,7 +94,7 @@ export function Sparkline({
       ? HEIGHT / 2
       : HEIGHT - PAD_Y - ((value - low) / (high - low)) * (HEIGHT - PAD_Y * 2),
   ]);
-  const line = monotonePath(points);
+  const line = linearPath(points);
   const last = points[points.length - 1];
   const lastValue = values[values.length - 1];
   const motion = animate ? "motion-reduce:transition-none" : "transition-none";
