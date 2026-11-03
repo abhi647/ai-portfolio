@@ -1,5 +1,5 @@
 import {
-  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconLayoutGrid, IconTablePlus, IconCrystalBall, IconReportMoney, IconSettings, IconSparkles, IconTruck,
+  IconBuildingWarehouse, IconChartBar, IconClipboardList, IconLayoutDashboard, IconLayoutGrid, IconTablePlus, IconCrystalBall, IconFileAnalytics, IconBook2, IconHeartbeat, IconBellRinging, IconReportMoney, IconSettings, IconSparkles, IconTruck,
 } from "@tabler/icons-react";
 import type { ComponentType } from "react";
 
@@ -24,6 +24,7 @@ export const MODULES: NavModule[] = [
     ],
   },
   { id: "ask", path: "/ask", label: "Ask AI", group: "Workspace", icon: IconSparkles, description: "Talk to your data — ask in plain English, get charts and insights" },
+  { id: "mis", path: "/reports/mis", label: "Monthly MIS pack", group: "Reports", icon: IconFileAnalytics, description: "Month-end management report — statements, bridges, commentary and sign-off" },
   { id: "forecasts", path: "/forecasts", label: "Forecasts", group: "Planning", icon: IconCrystalBall, description: "Month-end sales landing, OTIF and delay risk, freight, CFA demand and margin projections" },
   {
     id: "trips", path: "/trips", label: "Trip Analytics", group: "Primary supply", source: "Traqo TMS", access: "trip", icon: IconTruck,
@@ -68,6 +69,9 @@ export const MODULES: NavModule[] = [
   },
   { id: "cfa", path: "/cfa", label: "CFA Throughput", group: "Secondary supply", access: "secondary", icon: IconBuildingWarehouse, description: "CFA-wise, date-wise dispatch quantity" },
   { id: "pnl", path: "/pnl", label: "E-com P&L", group: "Finance", access: "fin", icon: IconReportMoney, description: "Gross revenue to material margin by account" },
+  { id: "catalog", path: "/catalog", label: "Metric catalog", group: "Data platform", icon: IconBook2, description: "Every governed metric — definition, formula, owner, sources, lineage and where it is used" },
+  { id: "health", path: "/data-health", label: "Data health", group: "Data platform", icon: IconHeartbeat, description: "Source freshness against SLA, availability, data-quality checks and the sync log" },
+  { id: "alerts", path: "/alerts", label: "Alerts & subscriptions", group: "Data platform", icon: IconBellRinging, description: "Threshold alerts on governed KPIs and scheduled report delivery" },
   {
     id: "settings", path: "/settings", label: "Settings", group: "Administration", icon: IconSettings, description: "Users, configuration and sync jobs",
     tabs: [
@@ -75,6 +79,7 @@ export const MODULES: NavModule[] = [
       { id: "config", label: "Configuration", description: "Refresh schedule and thresholds" },
       { id: "sync", label: "Sync jobs", description: "Source table sync history" },
       { id: "logic", label: "Metric definitions", description: "How every number is calculated" },
+      { id: "audit", label: "Audit log", description: "Sign-ins, exports, access changes and approvals" },
     ],
   },
 ];

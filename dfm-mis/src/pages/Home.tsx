@@ -25,6 +25,13 @@ import { computeAlerts } from "@/data/insights";
 import { cn } from "@/lib/utils";
 import { DenseTable } from "@/components/app/dense";
 import { ModuleTiles } from "@/components/app/ModuleTiles";
+import { ExecScorecard, keyMessages } from "@/components/app/ExecScorecard";
+import { SectionCard } from "@/components/overtrue/section-card";
+import { PeriodTabs } from "@/components/overtrue/period-tabs";
+import { FormSelect } from "@/components/ui/select";
+import { IconFileAnalytics, IconPrinter } from "@tabler/icons-react";
+import { usePersistentState } from "@/state/app";
+import { PERIODS, evaluate, period, type CompareKey, type PeriodKey } from "@/data/kpis";
 import { execute, type QuerySpec } from "@/ai/engine";
 
 const MONTH_LABEL = MONTHS[5].label;
@@ -78,6 +85,11 @@ const ALERTS = computeAlerts();
 const C2 = "var(--color-chart-1)";
 
 export default function Home() {
+  const [periodKey, setPeriodKey] = usePersistentState<PeriodKey>("exec.period", "mtd");
+  const [compare, setCompare] = usePersistentState<CompareKey>("exec.compare", "target");
+  const per = React.useMemo(() => period(periodKey), [periodKey]);
+  const results = React.useMemo(() => evaluate(per, compare), [per, compare]);
+  const msgs = React.useMemo(() => keyMessages(results), [results]);
   const { user, otif } = useApp();
   const { openTrips, openOrders } = useDrill();
   const nav = useNavigate();
@@ -132,50 +144,45 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-[var(--page-gap)]">
-      <Grid>
-        <section className="surface-card relative overflow-hidden lg:col-span-8 animate-rise">
-          <img src="/brand/crax-range.webp" alt="The CRAX product range" className="absolute inset-y-0 right-0 hidden h-full w-[50%] object-cover object-[20%_center] md:block" />
-          <div aria-hidden className="absolute inset-0 hidden bg-[linear-gradient(90deg,var(--color-card)_50%,color-mix(in_oklab,var(--color-card)_60%,transparent)_62%,transparent_80%)] md:block" />
-          <div className="relative flex h-full flex-col gap-6 p-6 md:max-w-[56%]">
-            <PageHeader
-              eyebrow={NOW.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }) + " · " + NOW.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false })}
-              title={`Good ${hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}, ${first}`}
-              description={`${ALERTS.length} things need attention today. Everything else is on track.`}
-            />
-            <dl className="mt-auto grid grid-cols-3 gap-4 border-t border-border/60 pt-4">
-              {[
-                ["Active trips", fmtN(active.length), `${late.length} behind plan`],
-                ["Open orders", fmtN(orders.filter((o) => o.stage !== "dispatched" && (+NOW - +o.approved) / DAY <= 30).length), "last 30 days"],
-                ["E-com margin", ((pnlMtd.materialMargin / pnlMtd.netSales) * 100).toFixed(1) + "%", "MTD material"],
-              ].map(([l, v, c]) => (
-                <div key={l} className="min-w-0"><dt className="text-xs text-muted-foreground">{l}</dt><dd className="m-0 mt-1 text-xl font-semibold tracking-[-0.02em] tabular-nums">{v}</dd><dd className="m-0 text-xs text-muted-foreground">{c}</dd></div>
-              ))}
-            </dl>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => nav("/trips/timeline")} className="gap-1.5">Open trip timeline <IconArrowRight className="size-4" /></Button>
-              <Button variant="outline" onClick={() => nav("/sales/team")}>Sales vs target</Button>
-            </div>
+      <PageHeader
+        eyebrow="Executive overview · DFM Foods Ltd"
+        title="Business performance"
+        description={`${per.long} · variance against ${compare === "target" ? "target (FY27 AOP)" : "the prior period"} · all plants, all zones · data as of ${NOW.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} IST`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2" data-print="hide">
+            <PeriodTabs size="sm" aria-label="Reporting period" options={PERIODS.map((p) => ({ value: p.key, label: p.label }))} value={periodKey} onValueChange={(v: string) => setPeriodKey(v as PeriodKey)} />
+            <FormSelect aria-label="Compare with" value={compare} onChange={(e) => setCompare(e.target.value as CompareKey)} className="h-8 w-40 rounded-md px-2.5 text-[13px]">
+              <option value="target">vs Target (AOP)</option><option value="prior">vs Prior period</option>
+            </FormSelect>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.print()}><IconPrinter className="size-4" />Print / PDF</Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => nav("/reports/mis")}><IconFileAnalytics className="size-4" />MIS pack</Button>
           </div>
-        </section>
-        <InsightCard
-          className="lg:col-span-4 animate-rise"
-          title="Today’s briefing"
-          source="Generated from today’s TMS, DMS and ERP data"
-          stream={stream}
-          sources={[{ id: "1", label: "DMS secondary sales", href: "/sales/team" }, { id: "2", label: "Traqo TMS trips", href: "/trips/timeline" }]}
-          onRegenerate={() => setStream(makeStream())}
-        />
-      </Grid>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Dispatched today" value={today.length} deltaLabel={`so far today · ${fmtN(sum(today, "invQty"))} cases · 7-day avg ${avg7.toFixed(1)}/day`} sparkline={dispByDay.map((r) => r.length)}
-          className="cursor-pointer" onClick={() => openTrips("Dispatched today", today)} />
-        <KpiCard label="MTD secondary sales" value={cr(mc.mtd.sales)} delta={mc.mtd.target ? mc.mtd.sales / mc.mtd.target - 1 : 0} deltaLabel={`vs pro-rated target · ${pct(mc.mtd.sales, mc.mTarget)} of month`} sparkline={salesDaily}
-          className="cursor-pointer" onClick={() => nav("/sales/team")} />
-        <KpiCard label="MTD OTIF" value={(otifV * 100).toFixed(1) + "%"} delta={otifV - otif.green / 100} deltaLabel={`vs ${otif.green}% target · ${mtdOrders.length} eligible orders`} sparkline={monthly.map((m) => m.otif)}
-          className="cursor-pointer" onClick={() => nav("/orders/otif")} />
-        <KpiCard label="MTD freight spend" value={cr(mtdFreight)} deltaLabel={`₹${(mtdFreight / (sum(trips.filter((t) => t.mk === CUR_MONTH), "km") || 1)).toFixed(1)} per km · ${fmtN(trips.filter((t) => t.mk === CUR_MONTH).length)} trips`} sparkline={monthly.map((m) => m.perKm)} invertDelta
-          className="cursor-pointer" onClick={() => nav("/trips/costing")} />
+      <div className="grid grid-cols-1 gap-[var(--grid-gap)] xl:grid-cols-12">
+        <ExecScorecard className="xl:col-span-12" results={results} period={per} compare={compare} />
+        <SectionCard className="xl:col-span-12" title="Key messages" description="Largest misses and wins against target this period" contentClassName="grid grid-cols-1 gap-x-8 gap-y-4 p-4 lg:grid-cols-2">
+          <div>
+            <div className="eyebrow mb-2">Needs action</div>
+            <ol className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {msgs.misses.length ? msgs.misses.map(({ r, text }, i) => (
+                <li key={r.def.key} className="flex gap-2.5 text-[13px] leading-5"><span className="flex size-5 shrink-0 items-center justify-center rounded bg-rose-500/10 text-[11px] font-semibold text-rose-700 dark:text-rose-400">{i + 1}</span><span>{text}</span></li>
+              )) : <li className="text-[13px] text-muted-foreground">No KPI is off target this period.</li>}
+            </ol>
+          </div>
+          <div>
+            <div className="eyebrow mb-2">Ahead of plan</div>
+            <ol className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {msgs.wins.map(({ r, text }, i) => (
+                <li key={r.def.key} className="flex gap-2.5 text-[13px] leading-5"><span className="flex size-5 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">{i + 1}</span><span>{text}</span></li>
+              ))}
+            </ol>
+          </div>
+          <div className="border-t border-border pt-3 text-xs leading-5 text-muted-foreground lg:col-span-2">
+            Status rule: green meets target; amber is within tolerance (shown on each KPI); red is outside tolerance. Targets are the FY27 annual operating plan.
+          </div>
+        </SectionCard>
       </div>
 
       <ModuleTiles />

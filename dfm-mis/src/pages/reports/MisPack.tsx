@@ -1,0 +1,226 @@
+/* Monthly MIS pack: the month-end management report — statement tables, bridges, commentary and sign-off. */
+import * as React from "react";
+import { IconCheck, IconFileAnalytics, IconPrinter, IconBellRinging, IconArrowBackUp } from "@tabler/icons-react";
+import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/overtrue/page-header";
+import { SectionCard } from "@/components/overtrue/section-card";
+import { StatusBadge } from "@/components/overtrue/status-badge";
+import { Steps } from "@/components/overtrue/steps";
+import { WaterfallChart } from "@/components/overtrue/waterfall-chart";
+import { AuditTrail } from "@/components/overtrue/audit-trail";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/input";
+import { FormSelect } from "@/components/ui/select";
+import { ExecScorecard, RAG_LABEL, RAG_VARIANT, fmtUnit } from "@/components/app/ExecScorecard";
+import { KPIS, evaluate, ragFor, type Period } from "@/data/kpis";
+import { ACCOUNTS, ASMS, CFAS, MONTHS, NOW, ZONES, cfaQty, plSum, today0, type Pnl } from "@/data/data";
+import { DAY, cr } from "@/data/format";
+import { asmPeriod, asmPeriodTarget } from "@/data/sales";
+import { useApp } from "@/state/app";
+import { cn } from "@/lib/utils";
+
+const STAGES = ["Draft", "Finance review", "CFO approval", "Published"];
+interface PackState { stage: number; version: number; notes: Record<string, string>; log: { id: string; actor: string; action: string; time: string; outcome?: "success" | "warning" | "neutral" }[] }
+
+const monthRange = (i: number): Period => {
+  const m = MONTHS[i]; const a = m.date; const end = new Date(Math.min(+new Date(a.getFullYear(), a.getMonth() + 1, 0), +today0));
+  const pm = new Date(a.getFullYear(), a.getMonth() - 1, 1); const pe = new Date(a.getFullYear(), a.getMonth() - 1, Math.min(end.getDate(), new Date(a.getFullYear(), a.getMonth(), 0).getDate()));
+  return { key: "mtd", label: m.label, start: a, end, prior: { start: pm, end: pe }, long: `${m.label}${+end < +new Date(a.getFullYear(), a.getMonth() + 1, 0) ? " (month to date)" : ""} · ${a.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` };
+};
+const shiftYear = (d: Date, n: number) => new Date(d.getFullYear() + n, d.getMonth(), d.getDate());
+const pct = (a: number, b: number) => (b ? (a / b) * 100 : 0);
+const signed = (v: number, d = 1, suffix = "%") => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(d)}${suffix}`;
+const tone = (v: number, upGood = true) => (v === 0 ? "" : (v > 0) === upGood ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400");
+
+function usePack(mk: string, draft: Record<string, string>) {
+  const key = `dfm.mis.v1.${mk}`;
+  const [st, setSt] = React.useState<PackState>(() => { try { const v = localStorage.getItem(key); if (v) return JSON.parse(v); } catch { /* ignore */ } return { stage: 0, version: 1, notes: draft, log: [{ id: "c", actor: "MIS bot", action: "drafted the pack from source data", time: NOW.toLocaleString("en-IN"), outcome: "neutral" }] }; });
+  React.useEffect(() => { try { localStorage.setItem(key, JSON.stringify(st)); } catch { /* ignore */ } }, [key, st]);
+  return [st, setSt] as const;
+}
+
+export default function MisPack() {
+  const nav = useNavigate();
+  const { user, toast } = useApp();
+  const [mi, setMi] = React.useState(MONTHS.length - 1);
+  const per = React.useMemo(() => monthRange(mi), [mi]);
+  const m = MONTHS[mi];
+  const kpis = React.useMemo(() => evaluate(per, "target"), [per]);
+
+  // ---------- Sales by zone ----------
+  const zones = React.useMemo(() => ZONES.map(([z]) => {
+    const l = ASMS.filter((a) => a.zone === z);
+    const r: [Date, Date] = [per.start, per.end];
+    const act = l.reduce((s, a) => s + asmPeriod(a, r), 0), tgt = l.reduce((s, a) => s + asmPeriodTarget(a, r), 0);
+    const lm = l.reduce((s, a) => s + asmPeriod(a, [per.prior.start, per.prior.end]), 0);
+    const ly = l.reduce((s, a) => s + asmPeriod(a, [shiftYear(per.start, -1), shiftYear(per.end, -1)]), 0);
+    return { zone: z.split(" – ")[0], act, tgt, lm, ly };
+  }), [per]);
+  const sT = zones.reduce((s, z) => ({ act: s.act + z.act, tgt: s.tgt + z.tgt, lm: s.lm + z.lm, ly: s.ly + z.ly }), { act: 0, tgt: 0, lm: 0, ly: 0 });
+
+  // ---------- Supply chain ----------
+  const prev3 = [mi - 1, mi - 2, mi - 3].filter((i) => i >= 0).map(monthRange);
+  const supply = KPIS.filter((k) => k.fn === "Supply chain").map((def) => {
+    const cur = def.value(per.start, per.end), lm = mi > 0 ? def.value(monthRange(mi - 1).start, monthRange(mi - 1).end) : null;
+    const avg3 = prev3.length ? prev3.map((p) => def.value(p.start, p.end) ?? 0).reduce((a, b) => a + b, 0) / prev3.length : null;
+    const tgt = def.target(per.start, per.end);
+    return { def, cur, lm, avg3, tgt, rag: ragFor(def, cur, tgt) };
+  });
+
+  // ---------- E-com P&L ----------
+  const accs = ACCOUNTS.map((a) => a[0]);
+  const plCur = plSum(accs, m.key), plLm = mi > 0 ? plSum(accs, MONTHS[mi - 1].key) : null;
+  const plYtd = MONTHS.slice(0, mi + 1).map((x) => plSum(accs, x.key)).reduce((s, p) => Object.fromEntries(Object.keys(p).map((k) => [k, (s[k as keyof Pnl] ?? 0) + p[k as keyof Pnl]])) as Pnl, {} as Pnl);
+  const PL: [string, keyof Pnl, number, boolean?][] = [
+    ["Gross revenue", "grossRevenue", 1, true], ["Primary schemes", "primarySchemes", -1], ["Secondary scheme", "secondaryScheme", -1], ["Trade expiry", "tradeExpiry", -1], ["SS commission", "ssCommission", -1], ["Total claims & schemes", "productClaims", -1, true],
+    ["Net sales", "netSales", 1, true], ["RM cost", "rmCost", -1], ["PM cost", "pmCost", -1], ["Cost of sales", "costOfSales", -1, true], ["Material margin", "materialMargin", 1, true],
+  ];
+
+  // ---------- CFA ----------
+  const cfa = CFAS.map((c, ci) => {
+    const sumR = (a: Date, b: Date) => { let s = 0; for (let d = new Date(a); d <= b; d = new Date(+d + DAY)) s += cfaQty(ci, d); return s; };
+    return { cfa: c.replace("CFA ", ""), cur: sumR(per.start, per.end), lm: sumR(per.prior.start, per.prior.end) };
+  });
+  const cT = cfa.reduce((s, c) => ({ cur: s.cur + c.cur, lm: s.lm + c.lm }), { cur: 0, lm: 0 });
+
+  // ---------- Auto-drafted commentary ----------
+  const worst = [...zones].sort((a, b) => a.act / a.tgt - b.act / b.tgt)[0], best = [...zones].sort((a, b) => b.act / b.tgt - a.act / a.tgt)[0];
+  const reds = kpis.filter((k) => k.rag === "red");
+  const draft: Record<string, string> = {
+    exec: `${m.label}: ${kpis.filter((k) => k.rag === "green").length} of ${kpis.length} KPIs on target, ${reds.length} off target (${reds.map((k) => k.def.label).join(", ") || "none"}). Secondary sales ${cr(sT.act)} at ${pct(sT.act, sT.tgt).toFixed(1)}% of plan.`,
+    sales: `Secondary sales ${cr(sT.act)} against a plan of ${cr(sT.tgt)} (${pct(sT.act, sT.tgt).toFixed(1)}%). ${best.zone} leads at ${pct(best.act, best.tgt).toFixed(1)}%; ${worst.zone} trails at ${pct(worst.act, worst.tgt).toFixed(1)}%. Year-on-year growth ${signed(pct(sT.act - sT.ly, sT.ly))}.`,
+    supply: `OTIF ${fmtUnit(supply.find((s) => s.def.key === "otif")?.cur ?? null, "pct")} versus 95% target. Detention rate ${fmtUnit(supply.find((s) => s.def.key === "det")?.cur ?? null, "pct")} and GPS adherence ${fmtUnit(supply.find((s) => s.def.key === "track")?.cur ?? null, "pct")} remain the main gaps.`,
+    pnl: `E-com net sales ${cr(plCur.netSales)}; material margin ${pct(plCur.materialMargin, plCur.netSales).toFixed(1)}% of net sales${plLm ? ` (${signed(pct(plCur.materialMargin, plCur.netSales) - pct(plLm.materialMargin, plLm.netSales), 1, " pts")} vs ${MONTHS[mi - 1].label})` : ""}.`,
+    cfa: `CFAs dispatched ${Math.round(cT.cur).toLocaleString("en-IN")} cases, ${signed(pct(cT.cur - cT.lm, cT.lm))} versus the same days last month.`,
+  };
+  const [pack, setPack] = usePack(m.key, draft);
+  const locked = pack.stage >= 3;
+  const setNote = (k: string, v: string) => setPack((p) => ({ ...p, notes: { ...p.notes, [k]: v } }));
+  const advance = () => {
+    const next = Math.min(3, pack.stage + 1);
+    setPack((p) => ({ ...p, stage: next, version: next === 3 ? p.version : p.version, log: [{ id: String(Date.now()), actor: user?.name ?? "User", action: next === 1 ? "submitted the pack for finance review" : next === 2 ? "completed finance review" : "approved and published the pack", time: new Date().toLocaleString("en-IN"), outcome: "success" }, ...p.log] }));
+    toast(next === 3 ? `MIS pack ${m.label} published (v${pack.version})` : `Moved to ${STAGES[next]}`);
+  };
+  const reopen = () => setPack((p) => ({ ...p, stage: 0, version: p.version + 1, log: [{ id: String(Date.now()), actor: user?.name ?? "User", action: `reopened the pack as v${p.version + 1}`, time: new Date().toLocaleString("en-IN"), outcome: "warning" }, ...p.log] }));
+
+  const note = (k: string) => (
+    <div className="border-t border-border bg-muted/30 px-4 py-3">
+      <div className="mb-1.5 flex items-center justify-between"><span className="eyebrow">Management commentary</span>{pack.notes[k] === draft[k] ? <span className="text-[11px] text-muted-foreground">Auto-drafted from data — edit before approval</span> : null}</div>
+      {locked ? <p className="m-0 text-[13px] leading-5">{pack.notes[k] ?? draft[k]}</p> : <Textarea value={pack.notes[k] ?? draft[k]} onChange={(e) => setNote(k, e.target.value)} rows={2} className="min-h-[56px] bg-card text-[13px]" aria-label={`Commentary · ${k}`} />}
+    </div>
+  );
+  const H = ({ children, right }: { children: React.ReactNode; right?: boolean }) => <TableHead className={cn("whitespace-nowrap", right && "text-right")}>{children}</TableHead>;
+  const N = ({ children, className }: { children: React.ReactNode; className?: string }) => <TableCell className={cn("text-right tabular-nums whitespace-nowrap", className)}>{children}</TableCell>;
+
+  return (
+    <div className="flex flex-col gap-[var(--page-gap)]">
+      <PageHeader eyebrow="Reports · Monthly MIS pack" title={`Management information pack — ${m.label}`}
+        description={`${per.long} · DFM Foods Ltd · version ${pack.version} · prepared from TMS, ERP, DMS, CFA WMS and marketplace data · Confidential`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2" data-print="hide">
+            <FormSelect aria-label="Month" value={mi} onChange={(e) => setMi(Number(e.target.value))} className="h-8 w-36 rounded-md px-2.5 text-[13px]">
+              {MONTHS.map((x, i) => <option key={x.key} value={i}>{x.label}{i === MONTHS.length - 1 ? " (MTD)" : ""}</option>)}
+            </FormSelect>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.print()}><IconPrinter className="size-4" />Print / PDF</Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => nav("/alerts")}><IconBellRinging className="size-4" />Subscribe</Button>
+          </div>
+        } />
+
+      <SectionCard title="Sign-off" description="Draft → Finance review → CFO approval → Published. Commentary locks once published." contentClassName="flex flex-col gap-3 p-4">
+        <Steps steps={STAGES} current={pack.stage} />
+        <div className="flex flex-wrap items-center gap-2" data-print="hide">
+          <StatusBadge variant={locked ? "success" : "warning"}>{locked ? `Published · v${pack.version}` : `${STAGES[pack.stage]} · v${pack.version}`}</StatusBadge>
+          {!locked ? <Button size="sm" className="gap-1.5" onClick={advance}><IconCheck className="size-4" />{pack.stage === 0 ? "Submit for review" : pack.stage === 1 ? "Mark reviewed" : "Approve & publish"}</Button> : <Button size="sm" variant="outline" className="gap-1.5" onClick={reopen}><IconArrowBackUp className="size-4" />Reopen as v{pack.version + 1}</Button>}
+          <span className="text-xs text-muted-foreground">Approvals are recorded in the audit trail below.</span>
+        </div>
+      </SectionCard>
+
+      <section aria-label="1. Executive summary" className="flex flex-col gap-0">
+        <ExecScorecard results={kpis} period={per} compare="target" className="rounded-b-none" />
+        <div className="rounded-b-lg border border-t-0 border-border bg-card">{note("exec")}</div>
+      </section>
+
+      <SectionCard title="2. Secondary sales by zone" description="Actual vs AOP target, previous month (same days) and same period last year" contentClassName="p-0">
+        <div className="grid grid-cols-1">
+          <Table className="text-[12.5px] [&_td]:py-1.5">
+            <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>Zone</H><H right>Target</H><H right>Actual</H><H right>Ach. %</H><H right>Gap</H><H right>Prev. month</H><H right>MoM</H><H right>Last year</H><H right>YoY</H></TableRow></TableHeader>
+            <TableBody>
+              {zones.map((z) => (
+                <TableRow key={z.zone}>
+                  <TableCell className="font-medium">{z.zone}</TableCell><N>{cr(z.tgt)}</N><N className="font-semibold">{cr(z.act)}</N>
+                  <N><StatusBadge variant={RAG_VARIANT[z.act >= z.tgt ? "green" : z.act >= z.tgt * 0.95 ? "amber" : "red"]}>{pct(z.act, z.tgt).toFixed(1)}%</StatusBadge></N>
+                  <N className={tone(z.act - z.tgt)}>{z.act >= z.tgt ? "+" : "−"}{cr(Math.abs(z.act - z.tgt))}</N><N>{cr(z.lm)}</N><N className={tone(z.act - z.lm)}>{signed(pct(z.act - z.lm, z.lm))}</N><N>{cr(z.ly)}</N><N className={tone(z.act - z.ly)}>{signed(pct(z.act - z.ly, z.ly))}</N>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter><TableRow><TableCell className="font-semibold">Total</TableCell><N>{cr(sT.tgt)}</N><N className="font-semibold">{cr(sT.act)}</N><N>{pct(sT.act, sT.tgt).toFixed(1)}%</N><N className={tone(sT.act - sT.tgt)}>{sT.act >= sT.tgt ? "+" : "−"}{cr(Math.abs(sT.act - sT.tgt))}</N><N>{cr(sT.lm)}</N><N className={tone(sT.act - sT.lm)}>{signed(pct(sT.act - sT.lm, sT.lm))}</N><N>{cr(sT.ly)}</N><N className={tone(sT.act - sT.ly)}>{signed(pct(sT.act - sT.ly, sT.ly))}</N></TableRow></TableFooter>
+          </Table>
+          <div className="border-t border-border p-3">
+            <div className="eyebrow mb-1">Bridge · target to actual</div>
+            <WaterfallChart height={260} orientation="vertical" valueFormatter={(v, ctx) => (ctx === "axis" ? "₹" + (v / 1e7).toFixed(0) + "Cr" : cr(v))}
+              steps={[{ id: "t", label: "Target", value: sT.tgt, kind: "start" }, ...zones.map((z) => ({ id: z.zone, label: z.zone, value: z.act - z.tgt })), { id: "a", label: "Actual", value: sT.act, kind: "end" }]} />
+          </div>
+        </div>
+        {note("sales")}
+      </SectionCard>
+
+      <SectionCard title="3. Supply chain performance" description="This month vs previous month, trailing 3-month average and target" contentClassName="p-0">
+        <Table className="text-[12.5px] [&_td]:py-1.5">
+          <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>KPI</H><H right>{m.label}</H><H right>Prev. month</H><H right>3-month avg</H><H right>Target</H><H right>vs target</H><H>Status</H><H>Owner</H></TableRow></TableHeader>
+          <TableBody>
+            {supply.map((s) => {
+              const gap = s.cur != null && s.tgt != null ? s.cur - s.tgt : 0;
+              return (
+                <TableRow key={s.def.key}>
+                  <TableCell className="font-medium">{s.def.label}</TableCell><N className="font-semibold">{fmtUnit(s.cur, s.def.unit)}</N><N>{fmtUnit(s.lm, s.def.unit)}</N><N>{fmtUnit(s.avg3, s.def.unit)}</N><N className="text-muted-foreground">{fmtUnit(s.tgt, s.def.unit)}</N>
+                  <N className={tone(gap, s.def.better === "up")}>{s.def.unit === "pct" ? signed(gap, 1, " pts") : s.def.unit === "hours" ? signed(gap, 1, " h") : s.def.unit === "inr_per_km" ? signed(gap, 2, "") : signed(pct(gap, s.tgt ?? 1))}</N>
+                  <TableCell><StatusBadge variant={RAG_VARIANT[s.rag]}>{RAG_LABEL[s.rag]}</StatusBadge></TableCell><TableCell className="text-muted-foreground">{s.def.owner}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {note("supply")}
+      </SectionCard>
+
+      <SectionCard title="4. E-commerce P&L statement" description={`All marketplace accounts · ${m.label} vs ${mi > 0 ? MONTHS[mi - 1].label : "—"} and year to date (from ${MONTHS[0].label})`} contentClassName="p-0">
+        <Table className="text-[12.5px] [&_td]:py-1.5">
+          <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>Line item</H><H right>{m.label}</H><H right>% of gross</H><H right>{mi > 0 ? MONTHS[mi - 1].label : "Prev. month"}</H><H right>Change</H><H right>YTD</H><H right>YTD % of gross</H></TableRow></TableHeader>
+          <TableBody>
+            {PL.map(([label, k, sign, strong]) => {
+              const cur = plCur[k], lm = plLm?.[k] ?? 0, ytd = plYtd[k];
+              const ch = pct(cur - lm, lm);
+              return (
+                <TableRow key={k} className={cn(strong && "bg-muted/30 font-semibold")}>
+                  <TableCell className={cn(!strong && "pl-6 text-muted-foreground")}>{label}</TableCell>
+                  <N>{sign < 0 ? `(${cr(cur)})` : cr(cur)}</N><N className="text-muted-foreground">{pct(cur, plCur.grossRevenue).toFixed(1)}%</N>
+                  <N>{plLm ? (sign < 0 ? `(${cr(lm)})` : cr(lm)) : "First month"}</N><N className={plLm ? tone(ch, sign > 0) : "text-muted-foreground"}>{plLm ? signed(ch) : "First month"}</N>
+                  <N>{sign < 0 ? `(${cr(ytd)})` : cr(ytd)}</N><N className="text-muted-foreground">{pct(ytd, plYtd.grossRevenue).toFixed(1)}%</N>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+          <TableFooter><TableRow><TableCell className="font-semibold">Material margin %</TableCell><N>{pct(plCur.materialMargin, plCur.netSales).toFixed(1)}%</N><N className="text-muted-foreground">of net sales</N><N>{plLm ? pct(plLm.materialMargin, plLm.netSales).toFixed(1) + "%" : "First month"}</N><N className={plLm ? tone(pct(plCur.materialMargin, plCur.netSales) - pct(plLm.materialMargin, plLm.netSales)) : "text-muted-foreground"}>{plLm ? signed(pct(plCur.materialMargin, plCur.netSales) - pct(plLm.materialMargin, plLm.netSales), 1, " pts") : "First month"}</N><N>{pct(plYtd.materialMargin, plYtd.netSales).toFixed(1)}%</N><N className="text-muted-foreground">of net sales</N></TableRow></TableFooter>
+        </Table>
+        {note("pnl")}
+      </SectionCard>
+
+      <SectionCard title="5. Secondary supply · CFA dispatch" description="Cases dispatched this period vs the same days last month" contentClassName="p-0">
+        <Table className="text-[12.5px] [&_td]:py-1.5">
+          <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>CFA</H><H right>Cases</H><H right>Share</H><H right>Prev. month</H><H right>Change</H></TableRow></TableHeader>
+          <TableBody>{[...cfa].sort((a, b) => b.cur - a.cur).map((c) => (
+            <TableRow key={c.cfa}><TableCell className="font-medium">{c.cfa}</TableCell><N className="font-semibold">{Math.round(c.cur).toLocaleString("en-IN")}</N><N className="text-muted-foreground">{pct(c.cur, cT.cur).toFixed(1)}%</N><N>{Math.round(c.lm).toLocaleString("en-IN")}</N><N className={tone(c.cur - c.lm)}>{signed(pct(c.cur - c.lm, c.lm))}</N></TableRow>
+          ))}</TableBody>
+          <TableFooter><TableRow><TableCell className="font-semibold">Total</TableCell><N className="font-semibold">{Math.round(cT.cur).toLocaleString("en-IN")}</N><N>100%</N><N>{Math.round(cT.lm).toLocaleString("en-IN")}</N><N className={tone(cT.cur - cT.lm)}>{signed(pct(cT.cur - cT.lm, cT.lm))}</N></TableRow></TableFooter>
+        </Table>
+        {note("cfa")}
+      </SectionCard>
+
+      <SectionCard title="Approval history" description="Every submission, review and approval of this pack" contentClassName="p-4">
+        <AuditTrail events={pack.log} label="MIS pack approvals" />
+      </SectionCard>
+      <p className="m-0 flex items-center gap-1.5 text-xs text-muted-foreground"><IconFileAnalytics className="size-3.5" />Confidential — for internal management use only. Figures in ₹; Cr = crore, L = lakh. Brackets denote deductions.</p>
+    </div>
+  );
+}

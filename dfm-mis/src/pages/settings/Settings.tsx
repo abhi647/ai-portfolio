@@ -2,6 +2,9 @@ import * as React from "react";
 import { useParams } from "react-router-dom";
 import { IconPlus } from "@tabler/icons-react";
 import { SettingsSection } from "@/components/overtrue/settings-section";
+import { AuditTrail } from "@/components/overtrue/audit-trail";
+import { SectionCard } from "@/components/overtrue/section-card";
+import { auditEvents } from "@/data/governance";
 import { UptimeHistory } from "@/components/overtrue/uptime-history";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -24,6 +27,7 @@ export default function Settings() {
       {tab === "config" && <Config />}
       {tab === "sync" && <Sync />}
       {tab === "logic" && <Logic />}
+      {tab === "audit" && <Audit />}
     </ModulePage>
   );
 }
@@ -188,5 +192,13 @@ function Logic() {
         ))}
       </Accordion>
     </div>
+  );
+}
+
+function Audit() {
+  return (
+    <SectionCard title="Audit log" description="Sign-ins, exports, access and configuration changes, and report approvals · retained for 400 days" contentClassName="p-4">
+      <AuditTrail events={auditEvents()} label="Platform audit log" />
+    </SectionCard>
   );
 }

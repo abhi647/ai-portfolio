@@ -153,4 +153,4 @@ export function marginForecast() {
 
 /* -------------------------------- spoke health ------------------------------- */
 export type Health = "healthy" | "degraded" | "down";
-export const healthLabel: Record<Health, string> = { healthy: "On track", degraded: "Watch", down: "Critical" };
+export const healthLabel: Record<Health, string> = { healthy: "On target", degraded: "Watch", down: "Off target" };

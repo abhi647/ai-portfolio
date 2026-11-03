@@ -245,7 +245,7 @@ function makeTrip(created) {
     planQty,
     shortQty,
     excessQty,
-    total: freight + actDet + addl - shortPen - dmgPen,
+    total: Math.max(Math.round(freight * 0.4), freight + actDet + addl - shortPen - dmgPen),
     acceptedBy,
     epodDone,
     payStatus,
