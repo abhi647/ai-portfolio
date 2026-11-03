@@ -6,11 +6,11 @@ import { ComposedChart } from "@/components/overtrue/composed-chart";
 import { BulletChart } from "@/components/overtrue/bullet-chart";
 import { BarList } from "@/components/overtrue/bar-list";
 import { DonutChart } from "@/components/overtrue/donut-chart";
-import { Treemap } from "@/components/overtrue/treemap";
 import { DeltaBadge } from "@/components/overtrue/delta-badge";
 import { SegmentedMeter } from "@/components/overtrue/segmented-meter";
 import { StackedAreaChart } from "@/components/overtrue/stacked-area-chart";
 import { InsightLine } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/select";
@@ -163,8 +163,8 @@ function Team({ range, cmp, cmpLabel, preset }: SP & { preset: string }) {
         </Panel>
         <Panel span={7} title="Daily sales vs target pace" description={preset === "month" || preset === "last_month" || preset === "week" ? "Selected period" : "Last 30 days"}
           insight={(() => { const above = daily.filter((d) => d.sales >= d.target).length; return `Sales beat the daily pace on {{metric:${above} of ${daily.length} days|${pct(above, daily.length, 0)}|${above / daily.length >= 0.5 ? "positive" : "negative"}}}; Sundays and the first 3 days of the month drag the average.`; })()}>
-          <ComposedChart data={daily} xKey="day" showYAxis showLegend yFormatter={crAxis} className="h-72"
-            series={[{ key: "sales", label: "Sales", type: "bar" }, { key: "target", label: "Daily target pace", type: "line", dashed: true, color: C.c3 }]} />
+          <AxisFrame y="Secondary sales (₹)" x="Day · line = daily target pace"><ComposedChart data={daily} xKey="day" showYAxis showLegend yFormatter={crAxis} className="h-72"
+            series={[{ key: "sales", label: "Sales", type: "bar" }, { key: "target", label: "Daily target pace", type: "line", dashed: true, color: C.c3 }]} /></AxisFrame>
           <Foot>Month-end push is visible in the last 5 days of each month; Sundays dip.</Foot>
         </Panel>
       </Grid>
@@ -191,18 +191,21 @@ function Brand({ range, cmp, cmpLabel }: SP) {
   return (
     <>
       <Grid>
-        <Panel span={7} title="Brand × pack mix" description="Area = sales. Click a brand to see its packs."
-          insight={`{{metric:₹5 packs|${pct(sum(small, "sales"), sum(nodes, "sales"), 0)}|neutral}} of brand sales — a price-point business. ${nodes[0].label} is the anchor at ${pct(nodes[0].sales, sum(nodes, "sales"), 0)}.`} info="A treemap shows both levels of the hierarchy at once — a doughnut can only show one.">
-          <Treemap data={nodes.map((n, i) => ({ id: n.key, label: n.label, color: PALETTE[i], children: n.children!.map((c) => ({ id: c.key, label: c.label, value: c.sales })) }))} valueFormatter={(v) => cr(v)} height={340} rootLabel="All brands" />
+        <Panel span={7} title="Sales by brand and pack size" description="Secondary sales for each brand, split by pack price point"
+          insight={`{{metric:₹5 packs|${pct(sum(small, "sales"), sum(nodes, "sales"), 0)}|neutral}} of brand sales — a price-point business. ${nodes[0].label} is the anchor at ${pct(nodes[0].sales, sum(nodes, "sales"), 0)}.`}>
+          <AxisFrame y="Brand" x="Secondary sales (₹) · colour = pack size">
+            <TrendChart data={nodes.map((n) => ({ brand: n.label, ...Object.fromEntries(n.children!.map((c, j) => ["p" + j, Math.round(c.sales)])) }))} xKey="brand" type="bar" layout="horizontal" stacked showLegend showYAxis yFormatter={crAxis} className="h-[340px]"
+              series={nodes[0].children!.map((c, j) => ({ key: "p" + j, label: c.label, color: PALETTE[j] }))} />
+          </AxisFrame>
         </Panel>
         <Panel span={5} title={`Brand sales vs ${cmpLabel}`} insight={`{{metric:${fastest.label}|+${pct(fastest.sales - fastest.cmp, fastest.cmp)}|positive}} is growing fastest vs ${cmpLabel}.`}>
-          <TrendChart data={growth} xKey="brand" type="bar" showLegend showYAxis yFormatter={crAxis} className="h-[340px]" series={[{ key: "cur", label: "Current", color: C.c1 }, { key: "prev", label: cmpLabel, color: C.muted }]} />
+          <AxisFrame y="Secondary sales (₹)" x={`Brand · current period vs ${cmpLabel}`}><TrendChart data={growth} xKey="brand" type="bar" showLegend showYAxis yFormatter={crAxis} className="h-[340px]" series={[{ key: "cur", label: "Current", color: C.c1 }, { key: "prev", label: cmpLabel, color: C.muted }]} /></AxisFrame>
         </Panel>
       </Grid>
       <Grid>
         <Panel span={12} title="Brand share trend · last 6 months" description="100% stacked — how each brand’s share of sales is moving" info="A 100% stacked area shows share shifts that absolute bars hide."
           insight={(() => { const tot = (r: Record<string, unknown>) => nodes.reduce((a, _, i) => a + Number(r["b" + i]), 0); const sh = nodes.map((n, i) => ({ n, d: (Number(trend[5]["b" + i]) / tot(trend[5]) - Number(trend[0]["b" + i]) / tot(trend[0])) * 100 })).sort((a, b) => b.d - a.d); return `{{metric:${sh[0].n.label}|${sh[0].d >= 0 ? "+" : ""}${sh[0].d.toFixed(1)} pts|positive}} gained the most share since ${MONTHS[0].label}; {{metric:${sh[sh.length - 1].n.label}|${sh[sh.length - 1].d.toFixed(1)} pts|negative}} lost the most.`; })()}>
-          <StackedAreaChart data={trend} index="month" stack="expand" height={260} showLegend valueFormatter={(v) => cr(v)} series={nodes.map((n, i) => ({ key: "b" + i, label: n.label, color: PALETTE[i] }))} />
+          <AxisFrame y="Share of secondary sales (%)" x="Month · colour = brand"><StackedAreaChart data={trend} index="month" stack="expand" height={260} showLegend valueFormatter={(v) => cr(v)} series={nodes.map((n, i) => ({ key: "b" + i, label: n.label, color: PALETTE[i] }))} /></AxisFrame>
         </Panel>
       </Grid>
       <HierTable title="Brand-wise sales · Brand › Pack" nodes={nodes} cmpLabel={cmpLabel} range={range} />
@@ -225,13 +228,13 @@ function Channel({ range, cmp, cmpLabel, compare }: SP & { compare: string }) {
           <DonutChart data={nodes.map((n, i) => ({ name: n.label, value: n.sales, color: PALETTE[i] }))} valueFormatter={(v) => cr(v)} centerLabel="Total" centerValue={cr(tot)} legendPosition="right" className="h-72" />
         </Panel>
         <Panel span={7} title={`Channel sales vs ${cmpLabel}`} insight={(() => { const w = [...nodes].sort((a, b) => a.sales / a.cmp - b.sales / b.cmp)[0]; return `{{metric:${w.label}|${pct(w.sales - w.cmp, w.cmp)}|${w.sales >= w.cmp ? "neutral" : "negative"}}} is the slowest channel vs ${cmpLabel}.`; })()} info="Quick-commerce (Blinkit, Zepto, Instamart) is the fastest-growing sub-channel.">
-          <TrendChart data={nodes.map((n) => ({ ch: n.label.replace(" & ", " / "), cur: n.sales, prev: n.cmp }))} xKey="ch" type="bar" showLegend showYAxis yFormatter={crAxis} className="h-72" series={[{ key: "cur", label: "Current", color: C.c1 }, { key: "prev", label: cmpLabel, color: C.muted }]} />
+          <AxisFrame y="Secondary sales (₹)" x={`Channel · current period vs ${cmpLabel}`}><TrendChart data={nodes.map((n) => ({ ch: n.label.replace(" & ", " / "), cur: n.sales, prev: n.cmp }))} xKey="ch" type="bar" showLegend showYAxis yFormatter={crAxis} className="h-72" series={[{ key: "cur", label: "Current", color: C.c1 }, { key: "prev", label: cmpLabel, color: C.muted }]} /></AxisFrame>
         </Panel>
       </Grid>
       <Grid>
       <Panel span={7} title="Channel share trend · last 6 months" description="100% stacked area of each channel’s share"
         insight={`E-com & q-comm share moved from {{metric:${MONTHS[0].label}|${pct(Number(trend[0].c2), nodes.reduce((a, _, i) => a + Number(trend[0]["c" + i]), 0))}|neutral}} to {{metric:${MONTHS[5].label}|${pct(Number(trend[5].c2), nodes.reduce((a, _, i) => a + Number(trend[5]["c" + i]), 0))}|positive}}.`}>
-        <StackedAreaChart data={trend} index="month" stack="expand" height={260} showLegend valueFormatter={(v) => cr(v)} series={nodes.map((n, i) => ({ key: "c" + i, label: n.label, color: PALETTE[i] }))} />
+        <AxisFrame y="Share of secondary sales (%)" x="Month · colour = channel"><StackedAreaChart data={trend} index="month" stack="expand" height={260} showLegend valueFormatter={(v) => cr(v)} series={nodes.map((n, i) => ({ key: "c" + i, label: n.label, color: PALETTE[i] }))} /></AxisFrame>
       </Panel>
       <Panel span={5} title="Fastest-growing sub-channels" description={`Growth vs ${cmpLabel}`} insight={subs.length ? `{{metric:${subs[0].name}|+${subs[0].value.toFixed(1)}%|positive}} leads growth — quick-commerce accounts dominate the top of this list.` : null}>
         <BarList data={subs.slice(0, 8).map((s) => ({ name: s.name, value: Math.max(0, s.value) }))} color={C.good} valueFormatter={(v) => "+" + v.toFixed(1) + "%"} />
@@ -284,7 +287,7 @@ function Builder({ range }: { range: Range }) {
         {b.chart === "donut" ? (
           <DonutChart data={data.map((d, i) => ({ name: d.l, value: d.v, color: PALETTE[i % PALETTE.length] }))} valueFormatter={(v) => fmt(v)} legendPosition="right" className="h-80" />
         ) : (
-          <TrendChart data={data} xKey="l" type={b.chart as "bar" | "line"} showYAxis yFormatter={fmt} className="h-80" series={[{ key: "v", label: mLabel, color: C.c1 }]} />
+          <AxisFrame y={mLabel} x={String(b.dim)}><TrendChart data={data} xKey="l" type={b.chart as "bar" | "line"} showYAxis yFormatter={fmt} className="h-80" series={[{ key: "v", label: mLabel, color: C.c1 }]} /></AxisFrame>
         )}
       </Panel>
       <Panel title="Data">

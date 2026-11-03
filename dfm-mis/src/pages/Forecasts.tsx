@@ -4,6 +4,7 @@ import { ComposedChart } from "@/components/overtrue/composed-chart";
 import { BulletChart } from "@/components/overtrue/bullet-chart";
 import { ModulePage } from "@/components/app/module";
 import { DataTable, Grid, KpiRow, Panel, Pill, StagePill, Stat, type Col } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { useApp } from "@/state/app";
 import { useDrill } from "@/state/drill";
 import { oStage, tStage, type Order, type Trip } from "@/data/data";
@@ -66,14 +67,14 @@ export default function Forecasts() {
         <Panel span={8} title="Secondary sales · month-end landing" description="Cumulative sales: actual to date, forecast with 80% band, and pro-rated target" info="Weekday pattern and month-end push learned from the last 12 weeks, applied to the current 14-day run rate. The band covers daily noise and run-rate uncertainty."
           insight={`Likely to land at {{metric:${cr(sales.projected)}|${(sales.achievement * 100).toFixed(1)}%|${sales.achievement >= 1 ? "positive" : "negative"}}} of target. Closing the gap needs {{metric:${cr(sales.needPerDay)}/day|vs ${cr(sales.expectedPerDay)} expected|negative}} for the last ${sales.daysLeft} days.`}>
           <div id="sales" />
-          <ComposedChart data={sales.series} xKey="day" className="h-72" showYAxis showLegend yFormatter={(v) => "₹" + (v / 1e7).toFixed(0) + "Cr"}
+          <AxisFrame y="Cumulative secondary sales (₹)" x="Day of the month"><ComposedChart data={sales.series} xKey="day" className="h-72" showYAxis showLegend yFormatter={(v) => "₹" + (v / 1e7).toFixed(0) + "Cr"}
             series={[
               { key: "actual", label: "Actual", type: "area", color: "var(--color-chart-1)" },
               { key: "hi", label: "High (80%)", type: "line", dashed: true, color: band },
               { key: "forecast", label: "Forecast", type: "line", dashed: true, color: "var(--color-chart-2)", dots: true },
               { key: "lo", label: "Low (80%)", type: "line", dashed: true, color: band },
               { key: "target", label: "Target pace", type: "line", color: "var(--color-chart-3)" },
-            ]} />
+            ]} /></AxisFrame>
         </Panel>
         <Panel span={4} title="Zone landing" description="Projected month-end achievement · tick = 100%"
           insight={`{{metric:${worstZone.zone}|${(worstZone.achievement * 100).toFixed(1)}%|negative}} is furthest from target — the push should start there.`}>
@@ -83,13 +84,13 @@ export default function Forecasts() {
 
         <Panel span={6} title="Freight cost per km · next 3 months" description="Monthly ₹/km with a linear trend forecast and 80% band"
           insight={`Trend is {{metric:${fr.slope >= 0 ? "+" : "−"}₹${Math.abs(fr.slope).toFixed(2)}/km per month|${fr.slope > 0.05 ? "rising" : fr.slope < -0.05 ? "falling" : "flat"}|${fr.slope > 0.05 ? "negative" : "positive"}}}; next month ₹${fr.next[0].v.toFixed(1)}/km.`}>
-          <ComposedChart data={frData} xKey="month" className="h-64" showYAxis showLegend yFormatter={(v) => "₹" + v.toFixed(1)} yDomain="auto"
-            series={[{ key: "actual", label: "Actual", type: "line", color: "var(--color-chart-1)", dots: true }, { key: "hi", label: "High", type: "line", dashed: true, color: band }, { key: "forecast", label: "Forecast", type: "line", dashed: true, color: "var(--color-chart-2)", dots: true }, { key: "lo", label: "Low", type: "line", dashed: true, color: band }]} />
+          <AxisFrame y="Freight cost per km (₹)" x="Month · dashed = forecast with 80% range"><ComposedChart data={frData} xKey="month" className="h-64" showYAxis showLegend yFormatter={(v) => "₹" + v.toFixed(1)} yDomain="auto"
+            series={[{ key: "actual", label: "Actual", type: "line", color: "var(--color-chart-1)", dots: true }, { key: "hi", label: "High", type: "line", dashed: true, color: band }, { key: "forecast", label: "Forecast", type: "line", dashed: true, color: "var(--color-chart-2)", dots: true }, { key: "lo", label: "Low", type: "line", dashed: true, color: band }]} /></AxisFrame>
         </Panel>
         <Panel span={6} title="CFA demand · next 14 days" description="Daily cases across all CFAs: last 14 days actual, next 14 days forecast"
           insight={`Expect about {{metric:${fmtN(Math.round(cfa.total))} cases|next 14 days|neutral}} — ${cfa.trend >= 1 ? "up" : "down"} ${Math.abs((cfa.trend - 1) * 100).toFixed(0)}% on the prior trend. Sundays run a half shift.`}>
-          <ComposedChart data={cfaData} xKey="day" className="h-64" showYAxis showLegend yFormatter={(v) => (v / 1000).toFixed(0) + "k"}
-            series={[{ key: "actual", label: "Actual", type: "bar", color: "var(--color-chart-1)" }, { key: "forecast", label: "Forecast", type: "bar", pattern: "hatched", color: "var(--color-chart-2)" }]} />
+          <AxisFrame y="Cases dispatched · all CFAs" x="Date · hatched = forecast"><ComposedChart data={cfaData} xKey="day" className="h-64" showYAxis showLegend yFormatter={(v) => (v / 1000).toFixed(0) + "k"}
+            series={[{ key: "actual", label: "Actual", type: "bar", color: "var(--color-chart-1)" }, { key: "forecast", label: "Forecast", type: "bar", pattern: "hatched", color: "var(--color-chart-2)" }]} /></AxisFrame>
         </Panel>
 
         <Panel span={6} title="Orders likely to miss OTIF" description={`${or.scored.length} open orders scored by stage and how much of the OTIF window is used`} contentClassName="p-0"
@@ -106,8 +107,8 @@ export default function Forecasts() {
         <Panel span={12} title="E-com material margin · projection" description="Monthly material margin % with next month’s projection"
           insight={`Margin trends to {{metric:${mg.nextMonth.toFixed(1)}%|next month|${mg.nextMonth >= mg.mtd ? "positive" : "negative"}}} from ${mg.mtd.toFixed(1)}% MTD.`}>
           <div id="margin" />
-          <ComposedChart data={mgData} xKey="month" className="h-56" showYAxis showLegend yFormatter={(v) => v.toFixed(1) + "%"} yDomain="auto"
-            series={[{ key: "margin", label: "Actual", type: "line", color: "var(--color-chart-1)", dots: true }, { key: "projected", label: "Projected", type: "line", dashed: true, color: "var(--color-chart-2)", dots: true }]} />
+          <AxisFrame y="Material margin (% of net sales)" x="Month · dashed = projection"><ComposedChart data={mgData} xKey="month" className="h-56" showYAxis showLegend yFormatter={(v) => v.toFixed(1) + "%"} yDomain="auto"
+            series={[{ key: "margin", label: "Actual", type: "line", color: "var(--color-chart-1)", dots: true }, { key: "projected", label: "Projected", type: "line", dashed: true, color: "var(--color-chart-2)", dots: true }]} /></AxisFrame>
         </Panel>
       </Grid>
     </ModulePage>

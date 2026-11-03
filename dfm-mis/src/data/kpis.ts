@@ -97,10 +97,11 @@ export function ragFor(def: KpiDef, actual: number | null, target: number | null
   return -gap <= tol ? "amber" : "red";
 }
 
-export function evaluate(p: Period, compare: CompareKey): KpiResult[] {
-  return KPIS.map((def) => {
+/** `targets` overrides a KPI's target (MIS pack edits); `hidden` drops KPIs from the result. */
+export function evaluate(p: Period, compare: CompareKey, targets: Record<string, number> = {}, hidden: string[] = []): KpiResult[] {
+  return KPIS.filter((d) => !hidden.includes(d.key)).map((def) => {
     const actual = def.value(p.start, p.end);
-    const target = def.target(p.start, p.end);
+    const target = targets[def.key] ?? def.target(p.start, p.end);
     const prior = def.value(p.prior.start, p.prior.end);
     const comparator = compare === "target" ? target : prior;
     const variance = actual != null && comparator != null ? actual - comparator : null;

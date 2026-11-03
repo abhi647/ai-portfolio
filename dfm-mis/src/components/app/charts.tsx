@@ -4,7 +4,9 @@ import { ComposedChart } from "@/components/overtrue/composed-chart";
 import { MONTHS } from "@/data/data";
 import { fmtN } from "@/data/format";
 import { cn } from "@/lib/utils";
-import { useAutoInsight } from "./kit";
+import { AxisFrame, useAutoInsight } from "./kit";
+
+const X_MONTH = `Month (${MONTHS[MONTHS.length - 1].label} is month to date)`;
 
 const pts = (v: number) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1) + " pts";
 
@@ -42,14 +44,16 @@ export function monthly<T extends { mk: string }>(rows: T[], cats: Cat<T>[], agg
 }
 
 export function MonthlyStack<T extends { mk: string }>({
-  rows, cats, agg, fmt = fmtN, axis, onDrill, height = "h-72", stacked = true, type = "bar", good, bad,
+  rows, cats, agg, fmt = fmtN, axis, onDrill, height = "h-72", stacked = true, type = "bar", good, bad, yLabel = "Number of trips",
 }: {
+  yLabel?: string;
   rows: T[]; cats: Cat<T>[]; agg?: (rs: T[]) => number; fmt?: (v: number) => string; axis?: (v: number) => string;
   onDrill?: (label: string, rows: T[]) => void; height?: string; stacked?: boolean; type?: "bar" | "line" | "area"; good?: string[]; bad?: string[];
 }) {
   const m = monthly(rows, cats, agg);
   useAutoInsight(stackInsight(m.data, m.series, good, bad));
   return (
+    <AxisFrame y={yLabel} x={X_MONTH}>
     <TrendChart
       data={m.data}
       xKey="month"
@@ -66,13 +70,15 @@ export function MonthlyStack<T extends { mk: string }>({
         onDrill(`${c.label} · ${MONTHS[i].label}`, m.rowsAt(i, key));
       } : undefined}
     />
+    </AxisFrame>
   );
 }
 
 /** Stacked monthly bars with a percentage line on the right axis. */
 export function MonthlyWithRate<T extends { mk: string }>({
-  rows, cats, rate, rateLabel, onDrill, height = "h-72", fmt = fmtN, higherIsBetter = true,
+  rows, cats, rate, rateLabel, onDrill, height = "h-72", fmt = fmtN, higherIsBetter = true, yLabel = "Number of trips",
 }: {
+  yLabel?: string;
   rows: T[]; cats: Cat<T>[]; rate: (rs: T[]) => number | null; rateLabel: string; onDrill?: (label: string, rows: T[]) => void; height?: string; fmt?: (v: number) => string; higherIsBetter?: boolean;
 }) {
   const m = monthly(rows, cats);
@@ -90,6 +96,7 @@ export function MonthlyWithRate<T extends { mk: string }>({
   }
   useAutoInsight(text);
   return (
+    <AxisFrame y={`${yLabel} (bars)`} y2={`${rateLabel} (line)`} x={X_MONTH}>
     <ComposedChart
       data={data}
       xKey="month"
@@ -107,5 +114,6 @@ export function MonthlyWithRate<T extends { mk: string }>({
         onDrill(`${cats[+key.slice(1)].label} · ${MONTHS[i].label}`, m.rowsAt(i, key));
       } : undefined}
     />
+    </AxisFrame>
   );
 }

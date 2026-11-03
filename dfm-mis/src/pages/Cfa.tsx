@@ -3,6 +3,7 @@ import { ComposedChart } from "@/components/overtrue/composed-chart";
 import { ModulePage } from "@/components/app/module";
 import { FilterBar, inF, opts, type FilterValues } from "@/components/app/filters";
 import { Grid, KpiRow, Panel, Stat, Toggle, downloadCsv, type Col } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { IconDownload } from "@tabler/icons-react";
@@ -119,8 +120,8 @@ export default function Cfa() {
       <Grid>
         <Panel span={7} title="Daily dispatch · all selected CFAs"
           insight={`Throughput is {{metric:${fmtN(grand / work)} cases/day|${prev ? ((grand / prev - 1) * 100 >= 0 ? "+" : "") + ((grand / prev - 1) * 100).toFixed(1) + "%" : "–"}|${grand >= prev ? "positive" : "negative"}}} vs the previous ${n} days; peak was ${fdShort(days[peak])}.`} description="Bars: cases · line: 7-day working-day average">
-          <ComposedChart data={trend} xKey="day" showYAxis showLegend yFormatter={(v) => (v / 1000).toFixed(0) + "k"} className="h-72"
-            series={[{ key: "qty", label: "Cases", type: "bar" }, { key: "avg", label: "7-day avg", type: "line", color: "var(--color-chart-3)" }]} />
+          <AxisFrame y="Cases dispatched" x="Dispatch date"><ComposedChart data={trend} xKey="day" showYAxis showLegend yFormatter={(v) => (v / 1000).toFixed(0) + "k"} className="h-72"
+            series={[{ key: "qty", label: "Cases", type: "bar" }, { key: "avg", label: "7-day avg", type: "line", color: "var(--color-chart-3)" }]} /></AxisFrame>
         </Panel>
         <Panel span={5} title="CFA ranking" description={`Total cases · last ${n} days`}
           insight={list.length > 2 ? `Top 3 CFAs handle {{metric:${pct([...tot].sort((a, b) => b - a).slice(0, 3).reduce((a, b) => a + b, 0), grand, 0)}|of volume|neutral}}.` : null}>
