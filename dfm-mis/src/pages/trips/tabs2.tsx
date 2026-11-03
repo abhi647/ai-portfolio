@@ -5,8 +5,10 @@ import { BarList } from "@/components/overtrue/bar-list";
 import { HeatmapChart } from "@/components/overtrue/heatmap-chart";
 import { ScatterChart } from "@/components/overtrue/scatter-chart";
 import { RadialGauge } from "@/components/overtrue/radial-gauge";
-import { RadarChart } from "@/components/overtrue/radar-chart";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { DataTable, Foot, Grid, KpiRow, LinkCell, Num, Panel, Pill, Stat, Toggle, type Col } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { MonthlyStack, MonthlyWithRate } from "@/components/app/charts";
 import { useDrill } from "@/state/drill";
 import { C } from "@/data/colors";
@@ -41,29 +43,29 @@ export function Detention({ rows: all }: P) {
         </Panel>
         <Panel title="Actual vs system-computed detention" description="Bars in ₹ · line: claimed as % of system (right axis)"
           insight={(() => { const a = sum(det, "actDet"), sy = sum(sys, "sysDet"); return `Transporters claimed {{metric:${cr(a)}|${pct(a, sy, 0)} of system|positive}} — negotiation saved ${cr(sy - a)} versus the system-computed ${cr(sy)} over six months.`; })()}>
-          <ComposedChart data={avs} xKey="month" showYAxis showLegend yFormatter={crAxis} rightYFormatter={(v) => v.toFixed(0) + "%"} className="h-72"
+          <AxisFrame y="Detention (₹) · bars" y2="Claimed as % of system · line" x="Month"><ComposedChart data={avs} xKey="month" showYAxis showLegend yFormatter={crAxis} rightYFormatter={(v) => v.toFixed(0) + "%"} className="h-72"
             series={[{ key: "sys", label: "System computed", type: "bar", color: C.c3 }, { key: "act", label: "Actual (claimed)", type: "bar", color: C.bad }, { key: "ratio", label: "Claimed %", type: "line", axis: "right", color: "var(--color-foreground)", dots: true }]}
-            onBarClick={(row, key) => openTrips(`${key === "sys" ? "System detention" : "Claimed detention"} · ${row.month}`, (key === "sys" ? sys : det).filter((r) => r.mk === MONTHS[Number(row.__i)].key))} />
+            onBarClick={(row, key) => openTrips(`${key === "sys" ? "System detention" : "Claimed detention"} · ${row.month}`, (key === "sys" ? sys : det).filter((r) => r.mk === MONTHS[Number(row.__i)].key))} /></AxisFrame>
         </Panel>
         <Panel title="Detained trips · tracked vs untracked" info="Untracked detention can’t be verified against GPS dwell time."
           actions={<Toggle label="Measure" value={m} onChange={setM} options={[["count", "Trips"], ["cost", "₹ Cost"]]} />}>
-          <MonthlyStack rows={det} onDrill={openTrips} good={["Tracked"]} bad={["Untracked"]} agg={m === "cost" ? (rs) => sum(rs, "actDet") : undefined} fmt={m === "cost" ? crAxis : fmtN}
+          <MonthlyStack rows={det} onDrill={openTrips} good={["Tracked"]} bad={["Untracked"]} agg={m === "cost" ? (rs) => sum(rs, "actDet") : undefined} fmt={m === "cost" ? crAxis : fmtN} yLabel={m === "cost" ? "Detention paid (₹)" : "Trips with detention"}
             cats={[{ label: "Tracked", color: C.c2, pred: (r) => r.consent === "ALLOWED" }, { label: "Untracked", color: C.muted, pred: (r) => r.consent !== "ALLOWED" }]} />
         </Panel>
         <Panel title="Detention cost by payment status">
-          <MonthlyStack rows={det} onDrill={openTrips} good={["Paid"]} bad={["Unpaid"]} agg={(rs) => sum(rs, "actDet")} fmt={crAxis} cats={[{ label: "Paid", color: C.good, pred: (r) => r.payStatus === "Paid" }, { label: "Unpaid", color: C.bad, pred: (r) => r.payStatus !== "Paid" }]} />
+          <MonthlyStack rows={det} onDrill={openTrips} good={["Paid"]} bad={["Unpaid"]} yLabel="Detention charges (₹)" agg={(rs) => sum(rs, "actDet")} fmt={crAxis} cats={[{ label: "Paid", color: C.good, pred: (r) => r.payStatus === "Paid" }, { label: "Unpaid", color: C.bad, pred: (r) => r.payStatus !== "Paid" }]} />
         </Panel>
       </Grid>
       <Panel title="Destination × month detention charges" description="Top 12 destinations by claimed detention. Darker = higher cost. Click a cell for its trips."
         insight={destTop.length ? `{{metric:${destTop[0][0]}|${cr(sum(destTop[0][1], "actDet"))}|negative}} and {{metric:${destTop[1]?.[0] ?? ""}|${cr(sum(destTop[1]?.[1] ?? [], "actDet"))}|negative}} account for ${pct(sum(destTop[0][1], "actDet") + sum(destTop[1]?.[1] ?? [], "actDet"), sum(det, "actDet"), 0)} of all detention — unloading slots at these customers are the fix.` : null}>
-        <HeatmapChart
+        <AxisFrame y="Destination · top 12 by detention" x="Month · cell = detention charges (₹)"><HeatmapChart
           rows={destTop.map(([d, rs]) => ({ label: d, values: MONTHS.map((mm) => sum(rs.filter((x) => x.mk === mm.key), "actDet")) }))}
           columns={MONTHS.map((mm) => mm.label)}
           color="var(--color-destructive)"
           valueFormatter={(v) => (v ? inr(v) : "–")}
           onCellClick={(c) => openTrips(`Detention · ${c.rowLabel} · ${c.columnLabel}`, destTop[c.row][1].filter((x) => x.mk === MONTHS[c.column].key))}
           maxCellHeight={34}
-        />
+        /></AxisFrame>
       </Panel>
     </>
   );
@@ -114,7 +116,7 @@ export function Transporters({ rows }: P) {
           insight={`Top 3 carry {{metric:${pct(sum(g.slice(0, 3), (x) => (isF ? sum(x[1], "total") : x[1].length)), sum(g, (x) => (isF ? sum(x[1], "total") : x[1].length)), 0)}}} of ${isF ? "freight" : "trips"}; ${g[0][0]} leads.`} actions={<Toggle label="Measure" value={m} onChange={setM} options={[["count", "Trips"], ["value", "₹ Freight"]]} />}>
           <BarList data={g.map(([n, rs]) => ({ name: n, value: isF ? sum(rs, "total") : rs.length }))} valueFormatter={isF ? cr : fmtN} showPercentage onItemClick={(i) => openTrips(i.name, g.find((x) => x[0] === i.name)![1])} />
         </Panel>
-        <Panel span={7} title="Cost vs tracking compliance" description="Each dot is a transporter · size = trips. Top-left is best: cheap and tracked." info="Helps pick which market transporters to convert to contracts."
+        <Panel span={7} title="Cost vs tracking compliance" description="Each dot is a transporter. Left = cheaper per km, up = more trips GPS-tracked, bigger = more trips. Top-left is best." info="Helps pick which market transporters to convert to contracts."
           insight={(() => { const m = g.filter((x) => !TR_CONTRACT.includes(x[0])).sort((a, b) => sc(a[1]).perKm - sc(b[1]).perKm)[0]; return m ? `Best contracting candidate: {{metric:${m[0]}|₹${sc(m[1]).perKm.toFixed(1)}/km|positive}}, the cheapest market carrier, with ${fmtN(m[1].length)} trips already.` : null; })()}>
           <ScatterChart xKey="perKm" yKey="track" sizeKey="trips" nameKey="name" xLabel="₹ / km" yLabel="% tracked" sizeLabel="Trips" showAxisLabels showLegend
             xFormatter={(v) => "₹" + v} yFormatter={(v) => v + "%"} xDomain={["dataMin - 1", "dataMax + 1"]} yDomain={[30, 80]} className="h-80"
@@ -122,9 +124,22 @@ export function Transporters({ rows }: P) {
         </Panel>
       </Grid>
       <Grid>
-      <Panel span={7} title="Top 5 transporters · scorecard" description="Each axis scored 0–100 (higher is better) across tracking, detention, dispatch accuracy, cost and transit speed" info="A radar chart compares several carriers across many dimensions at once."
-        insight={`Best all-rounder: {{metric:${ranked[0][0]}|${score(ranked[0][1]).toFixed(0)}/100|positive}}. Weakest: {{metric:${ranked[ranked.length - 1][0]}|${score(ranked[ranked.length - 1][1]).toFixed(0)}/100|negative}}.`}>
-        <RadarChart data={radarData} angleKey="axis" series={top5.map(([n], i) => ({ key: n, label: n, color: [C.c1, C.c2, C.c3, C.c4, C.orange][i] }))} showLegend variant="line" domain={[0, 100]} className="h-[340px]" />
+      <Panel span={7} title="Top 5 transporters · score out of 100" description="Each criterion is scored 0–100, where 100 is best. Overall = average of the five." contentClassName="p-0"
+        info="Tracking = % trips with GPS consent · No detention = 100 − detention rate · Accuracy = 100 − 5 × shortage rate · Cost scores lower ₹/km higher · Speed scores shorter transit higher."
+        insight={`Best all-rounder: {{metric:${ranked[0][0]}|${score(ranked[0][1]).toFixed(0)}/100|positive}}. Weakest of all ${ranked.length} transporters: {{metric:${ranked[ranked.length - 1][0]}|${score(ranked[ranked.length - 1][1]).toFixed(0)}/100|negative}}.`}>
+        <Table className="text-[12.5px] [&_td]:py-1.5">
+          <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><TableHead className="pl-4">Transporter</TableHead>{radarAxes.map(([a]) => <TableHead key={a} className="text-right">{a}</TableHead>)}<TableHead className="pr-4 text-right">Overall</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {[...top5].sort((a, b) => score(b[1]) - score(a[1])).map(([n, rs]) => (
+              <TableRow key={n}>
+                <TableCell className="pl-4 font-medium whitespace-nowrap">{n}</TableCell>
+                {radarAxes.map(([a, f]) => { const v = Math.round(f(rs)); return <TableCell key={a} className="text-right tabular-nums"><span className={cn("rounded px-1.5 py-0.5", v >= 70 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : v >= 50 ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" : "bg-rose-500/10 text-rose-700 dark:text-rose-400")}>{v}</span></TableCell>; })}
+                <TableCell className="pr-4 text-right font-semibold tabular-nums">{score(rs).toFixed(0)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <p className="m-0 border-t border-border px-4 py-2 text-xs text-muted-foreground">Green ≥ 70 · amber 50–69 · red &lt; 50.</p>
       </Panel>
       <Panel span={5} title="Contracted vs market share by month">
         <MonthlyWithRate rows={rows} onDrill={openTrips} rate={(rs) => (rs.length ? pctv(rs.filter((r) => r.own === "Contracted").length, rs.length) : null)} rateLabel="% contracted"
@@ -162,14 +177,14 @@ export function Destinations({ rows }: P) {
       <Grid>
         <Panel title="Top destinations by trips"
           insight={`{{metric:${top[0][0]}|${pct(top[0][1].length, rows.length, 0)}|neutral}} is the busiest lane; top 5 destinations take ${pct(sum(top.slice(0, 5), (x) => x[1].length), rows.length, 0)} of trips.`}>
-          <TrendChart data={topData} xKey="dest" type="bar" layout="horizontal" stacked showLegend className="h-[380px]"
+          <AxisFrame y="Destination" x="Number of trips · colour = fleet type"><TrendChart data={topData} xKey="dest" type="bar" layout="horizontal" stacked showLegend showYAxis className="h-[380px]"
             series={[{ key: "c", label: "Contracted", color: C.c1 }, { key: "m", label: "Market", color: C.orange }]}
-            onBarClick={(row, key) => openTrips(`${row.dest} · ${key === "c" ? "Contracted" : "Market"}`, g.find((x) => x[0] === row.dest)![1].filter((r) => r.own === (key === "c" ? "Contracted" : "Market")))} />
+            onBarClick={(row, key) => openTrips(`${row.dest} · ${key === "c" ? "Contracted" : "Market"}`, g.find((x) => x[0] === row.dest)![1].filter((r) => r.own === (key === "c" ? "Contracted" : "Market")))} /></AxisFrame>
         </Panel>
         <Panel title="Cycle time by destination" description="Average hours per leg for closed trips"
           insight={(() => { const w = [...ct].sort((a, b) => b.t4 - a.t4)[0]; return `ePOD closure (T4) dominates cycle time — {{metric:${w.dest}|${w.t4} h|negative}} waits longest for ePOD after unloading.`; })()} info="T1 reporting → gate-out · T2 gate-out → destination · T3 destination dwell · T4 unload → ePOD.">
-          <TrendChart data={ct} xKey="dest" type="bar" layout="horizontal" stacked showLegend className="h-[380px]" yFormatter={(v) => v.toFixed(1) + " h"}
-            series={[{ key: "t1", label: "T1 Plant", color: C.orange }, { key: "t2", label: "T2 Transit", color: C.c1 }, { key: "t3", label: "T3 Destination", color: C.c4 }, { key: "t4", label: "T4 ePOD", color: C.muted }]} />
+          <AxisFrame y="Destination" x="Average hours · colour = trip leg"><TrendChart data={ct} xKey="dest" type="bar" layout="horizontal" stacked showLegend showYAxis className="h-[380px]" yFormatter={(v) => v.toFixed(1) + " h"}
+            series={[{ key: "t1", label: "T1 Plant", color: C.orange }, { key: "t2", label: "T2 Transit", color: C.c1 }, { key: "t3", label: "T3 Destination", color: C.c4 }, { key: "t4", label: "T4 ePOD", color: C.muted }]} /></AxisFrame>
         </Panel>
       </Grid>
       <Panel title="Destination summary">
@@ -204,7 +219,7 @@ export function Accuracy({ rows: all }: P) {
           <BarList data={byTr.map(([n, rs]) => ({ name: n, value: rs.length }))} color={C.bad} valueFormatter={fmtN} onItemClick={(i) => openTrips(`Shortage · ${i.name}`, byTr.find((x) => x[0] === i.name)![1])} />
         </Panel>
         <Panel title="Shortage cases by month">
-          <MonthlyStack rows={sh} onDrill={openTrips} good={["Contracted"]} bad={["Market"]} agg={(rs) => sum(rs, "shortQty")} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
+          <MonthlyStack rows={sh} onDrill={openTrips} good={["Contracted"]} bad={["Market"]} yLabel="Short-supplied cases" agg={(rs) => sum(rs, "shortQty")} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
         </Panel>
       </Grid>
     </>
@@ -238,7 +253,7 @@ export function CashDiscount({ rows: all }: P) {
           <Foot>2% cash discount on base freight when paid within 7 days of PI.</Foot>
         </Panel>
         <Panel span={8} title="Cash discount earned by month">
-          <MonthlyStack rows={av} onDrill={openTrips} agg={(rs) => sum(rs, "cdAmt")} fmt={(v) => inr(v)} axis={crAxis} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
+          <MonthlyStack rows={av} onDrill={openTrips} yLabel="Cash discount captured (₹)" agg={(rs) => sum(rs, "cdAmt")} fmt={(v) => inr(v)} axis={crAxis} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
         </Panel>
       </Grid>
       <Panel title="Paid trips · CD availed vs not" description="Line: capture % of eligible (right axis)">

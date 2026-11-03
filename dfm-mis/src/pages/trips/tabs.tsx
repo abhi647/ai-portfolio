@@ -5,10 +5,10 @@ import { BarChart } from "@/components/overtrue/bar-chart";
 import { BarList } from "@/components/overtrue/bar-list";
 import { FunnelChart } from "@/components/overtrue/funnel-chart";
 import { WaterfallChart } from "@/components/overtrue/waterfall-chart";
-import { DotPlot } from "@/components/overtrue/dot-plot";
 import { ActivityHeatmap } from "@/components/overtrue/activity-heatmap";
-import { SankeyChart } from "@/components/overtrue/sankey-chart";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataTable, Foot, Grid, KpiRow, LinkCell, Num, Panel, Pill, SectionHeading, StagePill, Stat, Toggle, type Col } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { MonthlyStack, MonthlyWithRate } from "@/components/app/charts";
 import { tripCols, useDrill } from "@/state/drill";
 import { C } from "@/data/colors";
@@ -62,9 +62,12 @@ export function Live({ rows }: P) {
           <BarList className="mt-6" sortOrder="none" color={C.c1} valueFormatter={(v) => v.toFixed(1) + " h median"}
             data={stageAge.map((x) => ({ name: x.s.label, value: x.med }))} onItemClick={(i) => openTrips(`${i.name} · active`, active.filter((r) => tStage(r.stage).label === i.name))} />
         </Panel>
-        <Panel span={4} title="Trips created by hour · today" description="Each column is an hour; the current hour is highlighted"
+        <Panel span={4} title="Trips created by hour · today" description="Number of trips created in each hour of today, midnight to now"
           insight={`Peak so far: {{metric:${String(peakHr).padStart(2, "0")}:00|${byHour[peakHr]} trips|neutral}}. ${byHour.slice(NOW.getHours() - 2, NOW.getHours() + 1).reduce((a, b) => a + b, 0)} created in the last 3 hours.`}>
-          <DotPlot data={byHour} labels={byHour.map((_, h) => String(h).padStart(2, "0"))} labelEvery={4} emphasis={NOW.getHours()} rows={8} showTrack valueFormatter={(v) => `${v} trips`} className="h-48" />
+          <AxisFrame y="Trips created" x="Hour of day (00–23)">
+            <TrendChart data={byHour.map((v, h) => ({ hour: String(h).padStart(2, "0"), trips: v }))} xKey="hour" type="bar" showYAxis className="h-48"
+              series={[{ key: "trips", label: "Trips created", color: C.c1 }]} />
+          </AxisFrame>
         </Panel>
       </Grid>
       <Panel title={sel ? tStage(sel).label : "All active trips"} description={`${fmtN(list.length)} trips · newest update first`} contentClassName="p-5">
@@ -117,17 +120,20 @@ export function Dispatch({ rows }: P) {
       <Grid>
         <Panel span={8} title="Date-wise dispatches · last 15 days" description="By origin gate-out time, stacked by plant. Click a segment for its trips." info="Sundays are typically low-volume."
           insight={`Greater Noida ships {{metric:GN|${pct(gn15, sum(byDay, (r) => r.length), 0)}|neutral}} of volume. By ${NOW.getHours()}:00 today {{metric:${today.length} trips|${pace ? ((today.length / pace - 1) * 100 >= 0 ? "+" : "") + ((today.length / pace - 1) * 100).toFixed(0) + "%" : "–"}|${today.length >= pace ? "positive" : "negative"}}} have gated out against a usual ${pace.toFixed(1)} by this time.`}>
-          <TrendChart data={data} xKey="day" type="bar" stacked showLegend showYAxis series={LOCATIONS.map((l, j) => ({ key: "s" + j, label: l, color: [C.c1, C.c2, C.c3][j] }))}
-            className="h-72" onBarClick={(row, key) => openTrips(`${LOCATIONS[+key.slice(1)]} · ${row.day}`, byDay[Number(row.__i)].filter((r) => r.loc === LOCATIONS[+key.slice(1)]))} />
+          <AxisFrame y="Trips dispatched" x="Gate-out date · colour = plant"><TrendChart data={data} xKey="day" type="bar" stacked showLegend showYAxis series={LOCATIONS.map((l, j) => ({ key: "s" + j, label: l, color: [C.c1, C.c2, C.c3][j] }))}
+            className="h-72" onBarClick={(row, key) => openTrips(`${LOCATIONS[+key.slice(1)]} · ${row.day}`, byDay[Number(row.__i)].filter((r) => r.loc === LOCATIONS[+key.slice(1)]))} /></AxisFrame>
         </Panel>
-        <Panel span={4} title="Gate-out by hour" description="Last 15 days · when trucks leave the plant"
+        <Panel span={4} title="Gate-out by hour of day" description="When trucks leave the plant · total trips in each hour over the last 15 days"
           insight={`Busiest hour is {{metric:${String(peakH).padStart(2, "0")}:00|${hours[peakH]} trips|neutral}}; {{metric:Night gate-outs|${pct(night, sum(hours, (x) => x), 0)}|neutral}} (8 pm–6 am).`}>
-          <DotPlot data={hours} labels={hours.map((_, h) => String(h).padStart(2, "0"))} labelEvery={4} emphasis={peakH} rows={16} showTrack valueFormatter={(v) => `${v} trips`} />
+          <AxisFrame y="Trips gated out · last 15 days" x="Hour of day (00–23)">
+            <TrendChart data={hours.map((v, h) => ({ hour: String(h).padStart(2, "0"), trips: v }))} xKey="hour" type="bar" showYAxis className="h-64"
+              series={[{ key: "trips", label: "Trips gated out", color: C.c1 }]} />
+          </AxisFrame>
         </Panel>
         <Panel span={12} title="Dispatch calendar" description="Trips gated out per day across the last 6 months. Click a day for its trips."
           insight={`{{metric:${DOW[bestDow]}|${dow[bestDow].toFixed(1)} trips/day|positive}} is the busiest weekday; Sundays average {{metric:|${dow[0].toFixed(1)}|neutral}}. Month-end weeks run visibly darker as the sales push lands.`}>
-          <ActivityHeatmap data={calData} endDate={NOW} weeks={26} cellSize={26} gap={4} unit="trips" valueFormatter={(v) => `${v} trips`} showLegend showSummary weekdayLabels="mwf"
-            onCellClick={(d) => openTrips(`Dispatched ${fdShort(d.date)}`, cal.get(dayKey(d.date)) ?? [])} />
+          <AxisFrame y="Weekday" x="Week · last 26 weeks · darker = more trips"><ActivityHeatmap data={calData} endDate={NOW} weeks={26} cellSize={26} gap={4} unit="trips" valueFormatter={(v) => `${v} trips`} showLegend showSummary weekdayLabels="mwf"
+            onCellClick={(d) => openTrips(`Dispatched ${fdShort(d.date)}`, cal.get(dayKey(d.date)) ?? [])} /></AxisFrame>
         </Panel>
       </Grid>
       <Panel title="Date-wise dispatch tracker">
@@ -173,8 +179,8 @@ export function Inside({ rows }: P) {
       <Grid>
         <Panel span={7} title={`${b.label} · ageing`} description={`Hours since ${b.from}. Red bars are past the ${b.warn} h threshold.`}
           insight={(() => { const over = list.filter((r) => r.age / H > b.warn); return over.length ? `{{metric:${over.length} vehicles|${pct(over.length, list.length, 0)}|negative}} are past the ${b.warn} h threshold; the oldest has waited {{metric:|${ageStr(list[0].age)}|negative}} (${list[0].vno}, ${list[0].transporter}).` : `All ${list.length} vehicles are within the ${b.warn} h threshold.`; })()}>
-          <BarChart data={slabRows} xKey="slab" yKey="vehicles" color={C.bad} mutedColor="var(--color-chart-1)" highlight={(r) => Number(r.a) >= b.warn} showYAxis
-            onBarClick={(r) => openTrips(`${b.label} · ${r.slab}`, (r as unknown as { rows: Trip[] }).rows)} className="h-64" />
+          <AxisFrame y="Vehicles waiting" x="Hours waiting"><BarChart data={slabRows} xKey="slab" yKey="vehicles" color={C.bad} mutedColor="var(--color-chart-1)" highlight={(r) => Number(r.a) >= b.warn} showYAxis
+            onBarClick={(r) => openTrips(`${b.label} · ${r.slab}`, (r as unknown as { rows: Trip[] }).rows)} className="h-64" /></AxisFrame>
         </Panel>
         <Panel span={5} title={`${b.label} · by ${k === "plant" ? "plant" : "destination"}`} description="Click a row to see its vehicles"
           insight={by.length ? `{{metric:${by[0][0]}|${pct(by[0][1].length, list.length, 0)}|neutral}} holds the most vehicles in this bucket.` : null}>
@@ -213,15 +219,38 @@ export function Hygiene({ rows }: P) {
         <Stat label="Avg distance / trip" value={fmtN(avg(rows, "km")) + " km"} />
       </KpiRow>
       <Grid>
-        <Panel span={12} title="Trip flow · plant → fleet → distance" description="How trips route from each plant through contracted or market vehicles to each distance slab" info="A Sankey shows two splits at once — something two separate bar charts can’t."
+        <Panel span={12} title="Trips by plant, fleet type and distance" description="Number of trips from each plant, split by contracted or market vehicles and by distance band" contentClassName="p-0"
           insight={`Market vehicles carry {{metric:long-haul (>300 km)|${pct(longMkt, longAll, 0)}|negative}} of long-haul trips — the lanes where contracting would save the most per km.`}>
-          <SankeyChart nodes={nodes} links={links} valueFormatter={(v) => `${fmtN(v)} trips`} showShares className="h-[340px]" />
+          <Table className="text-[12.5px] [&_td]:py-1.5">
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="pl-4">Plant</TableHead><TableHead>Fleet type</TableHead>
+                {DIST_SLABS.map((d) => <TableHead key={d[0]} className="text-right">{d[0]}</TableHead>)}
+                <TableHead className="text-right">Total trips</TableHead><TableHead className="pr-4 text-right">Share of all trips</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {LOCATIONS.flatMap((l) => (["Contracted", "Market"] as const).map((o, k) => {
+                const rs = rows.filter((r) => r.loc === l && r.own === o);
+                return (
+                  <TableRow key={l + o} className={k === 1 ? "border-b-2 border-border" : undefined}>
+                    <TableCell className="pl-4 font-medium">{k === 0 ? l : ""}</TableCell>
+                    <TableCell className="text-muted-foreground">{o}</TableCell>
+                    {DIST_SLABS.map((d) => { const n = rs.filter((r) => slabOf(r) === d[0]).length; return <TableCell key={d[0]} className="text-right tabular-nums"><LinkCell onClick={() => openTrips(`${l} · ${o} · ${d[0]}`, rs.filter((r) => slabOf(r) === d[0]))}>{fmtN(n)}</LinkCell></TableCell>; })}
+                    <TableCell className="text-right font-semibold tabular-nums">{fmtN(rs.length)}</TableCell>
+                    <TableCell className="pr-4 text-right text-muted-foreground tabular-nums">{pct(rs.length, rows.length, 1)}</TableCell>
+                  </TableRow>
+                );
+              }))}
+            </TableBody>
+            <TableFooter><TableRow><TableCell className="pl-4 font-semibold" colSpan={2}>All plants</TableCell>{DIST_SLABS.map((d) => <TableCell key={d[0]} className="text-right font-semibold tabular-nums">{fmtN(rows.filter((r) => slabOf(r) === d[0]).length)}</TableCell>)}<TableCell className="text-right font-semibold tabular-nums">{fmtN(rows.length)}</TableCell><TableCell className="pr-4 text-right">100%</TableCell></TableRow></TableFooter>
+          </Table>
         </Panel>
         <Panel title="Order mix by month" description="Direct vs indent vs mixed trips">
           <MonthlyStack rows={rows} onDrill={openTrips} cats={[["Indent Order", C.c1], ["Direct Order", C.c2], ["Mixed Order", C.c4]].map(([l, c]) => ({ label: l, color: c, pred: (r: Trip) => r.otype === l }))} />
         </Panel>
         <Panel title="Contracted vs market" actions={modeToggle(m1, setM1)}>
-          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m1)} fmt={fmtOf(m1)} good={["Contracted"]} bad={["Market"]} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
+          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m1)} fmt={fmtOf(m1)} yLabel={m1 === "value" ? "Freight (₹)" : "Number of trips"} good={["Contracted"]} bad={["Market"]} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
         </Panel>
         <Panel title="Tracking adherence" description="Bars: trip count · line: % tracked (right axis)" info="Tracked = driver gave SIM-based location consent.">
           <MonthlyWithRate rows={rows} onDrill={openTrips} rate={tracked} rateLabel="% tracked" cats={[{ label: "Tracked", color: C.c2, pred: (r) => r.consent === "ALLOWED" }, { label: "Not tracked", color: C.muted, pred: (r) => r.consent !== "ALLOWED" }]} />
@@ -233,10 +262,10 @@ export function Hygiene({ rows }: P) {
           <MonthlyStack rows={rows} onDrill={openTrips} cats={DIST_SLABS.map(([l, a, b, c]) => ({ label: l, color: c, pred: (r: Trip) => r.km >= a && r.km <= b }))} />
         </Panel>
         <Panel title="Trips by vehicle length" actions={modeToggle(m2, setM2)}>
-          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m2)} fmt={fmtOf(m2)} cats={["20", "22", "24", "27", "32"].map((l, i) => ({ label: l + " ft", color: [C.c1, C.c2, C.c3, C.c4, C.c5][i], pred: (r: Trip) => r.len === l }))} />
+          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m2)} fmt={fmtOf(m2)} yLabel={m2 === "value" ? "Freight (₹)" : "Number of trips"} cats={["20", "22", "24", "27", "32"].map((l, i) => ({ label: l + " ft", color: [C.c1, C.c2, C.c3, C.c4, C.c5][i], pred: (r: Trip) => r.len === l }))} />
         </Panel>
         <Panel title="Distance travelled (km)">
-          <MonthlyStack rows={rows} onDrill={openTrips} agg={(rs) => sum(rs, "km")} axis={(v) => (v / 1000).toFixed(0) + "k"} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
+          <MonthlyStack rows={rows} onDrill={openTrips} yLabel="Distance travelled (km)" agg={(rs) => sum(rs, "km")} axis={(v) => (v / 1000).toFixed(0) + "k"} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
         </Panel>
         <Panel title="Trip completion" description="Bars: trips · line: completion % (right axis)">
           <MonthlyWithRate rows={rows} onDrill={openTrips} rate={(rs) => (rs.length ? pctv(rs.filter((r) => ["unloaded", "epod_done"].includes(r.stage)).length, rs.length) : null)} rateLabel="% complete"
@@ -272,12 +301,12 @@ export function Costing({ rows: all }: P) {
       </KpiRow>
       <Grid>
       <Panel span={7} title="Monthly freight value · contracted vs market" description="Click a segment for the trips">
-        <MonthlyStack rows={rows} onDrill={openTrips} agg={(rs) => sum(rs, "total")} fmt={cr} axis={crAxis} good={["Contracted"]} bad={["Market"]} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
+        <MonthlyStack rows={rows} onDrill={openTrips} yLabel="Freight (₹)" agg={(rs) => sum(rs, "total")} fmt={cr} axis={crAxis} good={["Contracted"]} bad={["Market"]} cats={[{ label: "Contracted", color: C.c1, pred: (r) => r.own === "Contracted" }, { label: "Market", color: C.orange, pred: (r) => r.own === "Market" }]} />
       </Panel>
         <Panel span={5} title="Cost per km trend" description="₹ per km, total freight ÷ total distance" info="A line chart shows the trend across months more clearly than grouped bars."
           insight={(() => { const gap = lineData[4].m - lineData[4].c; const d = lineData[4].t - lineData[3].t; return `Market runs {{metric:₹${gap.toFixed(1)}/km|${pct(gap, lineData[4].c)}|negative}} above contracted in ${MONTHS[4].label}. Blended cost moved {{metric:|${d >= 0 ? "+" : "−"}₹${Math.abs(d).toFixed(1)}/km|${d > 0 ? "negative" : "positive"}}} month on month.`; })()}>
-          <TrendChart data={lineData} xKey="month" type="line" showLegend showYAxis yFormatter={(v) => "₹" + v} yDomain={["auto", "auto"]} className="h-72"
-            series={[{ key: "c", label: "Contracted", color: C.c1 }, { key: "m", label: "Market", color: C.orange }, { key: "t", label: "Total", color: "var(--color-foreground)" }]} />
+          <AxisFrame y="Freight cost per km (₹)" x="Month"><TrendChart data={lineData} xKey="month" type="line" showLegend showYAxis yFormatter={(v) => "₹" + v} yDomain={["auto", "auto"]} className="h-72"
+            series={[{ key: "c", label: "Contracted", color: C.c1 }, { key: "m", label: "Market", color: C.orange }, { key: "t", label: "Total", color: "var(--color-foreground)" }]} /></AxisFrame>
         </Panel>
       </Grid>
       <Grid>
@@ -287,7 +316,7 @@ export function Costing({ rows: all }: P) {
       <Panel span={7} title="Freight build-up" description="Base freight to total freight for the selected month"
         insight={(() => { const d = sum(mr, "actDet") + sum(mr, "addl"), p = sum(mr, "shortPen") + sum(mr, "dmgPen"); return `Detention and extras add {{metric:${cr(d)}|+${pct(d, sum(mr, "freight"))}|negative}} on top of base freight; penalties claw back {{metric:${cr(p)}|${pct(p, sum(mr, "freight"))}|positive}}.`; })()}
         actions={<Toggle label="Month" value={mo} onChange={setMo} options={MONTHS.map((m) => [m.key, m.label.split(" ")[0]])} />}>
-        <WaterfallChart
+        <AxisFrame y="Amount (₹)" x="Freight component"><WaterfallChart
           height={280}
           valueFormatter={(v, ctx) => (ctx === "axis" ? "₹" + crAxis(v) : cr(v))}
           steps={[
@@ -298,16 +327,16 @@ export function Costing({ rows: all }: P) {
             { id: "dmg", label: "Damage penalty", value: -sum(mr, "dmgPen") },
             { id: "total", label: "Total freight", value: sum(mr, "total"), kind: "end" },
           ]}
-        />
+        /></AxisFrame>
         <Foot>Total freight = base + detention + additional − shortage − damage. Avg ₹{costKm(mr).toFixed(1)}/km across {fmtN(mr.length)} trips.</Foot>
       </Panel>
       </Grid>
       <Grid>
         <Panel title="Freight by order type">
-          <MonthlyStack rows={rows} onDrill={openTrips} agg={(rs) => sum(rs, "total")} fmt={cr} axis={crAxis} cats={[{ label: "Direct", color: C.c1, pred: (r) => r.otype === "Direct Order" }, { label: "Indent + mixed", color: C.c3, pred: (r) => r.otype !== "Direct Order" }]} />
+          <MonthlyStack rows={rows} onDrill={openTrips} yLabel="Freight (₹)" agg={(rs) => sum(rs, "total")} fmt={cr} axis={crAxis} cats={[{ label: "Direct", color: C.c1, pred: (r) => r.otype === "Direct Order" }, { label: "Indent + mixed", color: C.c3, pred: (r) => r.otype !== "Direct Order" }]} />
         </Panel>
         <Panel title="Trips by distance slab" actions={modeToggle(m1, setM1)}>
-          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m1)} fmt={fmtOf(m1)} cats={DIST_SLABS.map(([l, a, b, c]) => ({ label: l, color: c, pred: (r: Trip) => r.km >= a && r.km <= b }))} />
+          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m1)} fmt={fmtOf(m1)} yLabel={m1 === "value" ? "Freight (₹)" : "Number of trips"} cats={DIST_SLABS.map(([l, a, b, c]) => ({ label: l, color: c, pred: (r: Trip) => r.km >= a && r.km <= b }))} />
         </Panel>
       </Grid>
     </>
@@ -336,14 +365,14 @@ export function Payments({ rows: all }: P) {
           <FunnelChart steps={funnel.map(([n, rs]) => ({ name: n, value: rs.length }))} valueFormatter={fmtN} activeIndex={active} onActiveIndexChange={setActive} />
         </Panel>
         <Panel span={7} title="Payment status by month" actions={modeToggle(m1, setM1)}>
-          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m1)} fmt={fmtOf(m1)} good={["Paid"]} bad={["Charges Rejected", "Payment Pending"]} cats={st.map(([s, c]) => ({ label: s, color: c, pred: (r: Trip) => r.payStatus === s }))} />
+          <MonthlyStack rows={rows} onDrill={openTrips} agg={aggOf(m1)} fmt={fmtOf(m1)} yLabel={m1 === "value" ? "Freight (₹)" : "Number of trips"} good={["Paid"]} bad={["Charges Rejected", "Payment Pending"]} cats={st.map(([s, c]) => ({ label: s, color: c, pred: (r: Trip) => r.payStatus === s }))} />
         </Panel>
         <Panel title="Paid trips · within due date vs delayed" description="Line: % on time (right axis)">
           <MonthlyWithRate rows={paid} onDrill={openTrips} rate={(rs) => (rs.length ? pctv(rs.filter((r) => r.timely).length, rs.length) : null)} rateLabel="% on time"
             cats={[{ label: "Within due date", color: C.good, pred: (r) => !!r.timely }, { label: "Delayed", color: C.bad, pred: (r) => !r.timely }]} />
         </Panel>
         <Panel title="ePOD clean source" description="Auto-verified vs manually cleaned ePODs">
-          <MonthlyStack rows={rows} onDrill={openTrips} good={["Auto"]} bad={["Manual"]} cats={[{ label: "Auto", color: C.c2, pred: (r) => r.cleanSource === "Auto" }, { label: "Manual", color: C.c3, pred: (r) => r.cleanSource === "Manual" }]} />
+          <MonthlyStack yLabel="ePOD-closed trips" rows={rows} onDrill={openTrips} good={["Auto"]} bad={["Manual"]} cats={[{ label: "Auto", color: C.c2, pred: (r) => r.cleanSource === "Auto" }, { label: "Manual", color: C.c3, pred: (r) => r.cleanSource === "Manual" }]} />
         </Panel>
       </Grid>
     </>

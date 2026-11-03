@@ -9,7 +9,7 @@ import { BarList } from "@/components/overtrue/bar-list";
 import { HeatmapChart } from "@/components/overtrue/heatmap-chart";
 import { StatusBadge } from "@/components/overtrue/status-badge";
 import { Button } from "@/components/ui/button";
-import { DataTable, InsightLine, Toggle, type Col } from "@/components/app/kit";
+import { AxisFrame, DataTable, InsightLine, Toggle, type Col } from "@/components/app/kit";
 import { DenseTable } from "@/components/app/dense";
 import { execute, fmt, insightsFor, type ChartType, type QueryResult, type QuerySpec } from "@/ai/engine";
 import { PALETTE } from "@/data/colors";
@@ -90,7 +90,24 @@ export function GenChart({ spec, pinned, onPin, compact, className }: { spec: Qu
   );
 }
 
+/** Axis titles derived from the query: the grouping on one axis, the measure (with its unit) on the other. */
 export function ChartBody({ r, compact, fill }: { r: QueryResult; compact?: boolean; fill?: boolean }) {
+  const s = r.spec;
+  const body = <ChartBodyInner r={r} compact={compact} fill={fill} />;
+  if (!s.dimension || ["kpi", "table", "donut", "bar_list"].includes(s.chart)) return body;
+  const dimL = r.ds.dims.find((d) => d.key === s.dimension)?.label ?? "Group";
+  const serL = s.series ? r.ds.dims.find((d) => d.key === s.series)?.label : undefined;
+  const ms = s.measures.map((k) => r.ds.measures.find((m) => m.key === k)!).filter(Boolean);
+  if (s.chart === "heatmap") {
+    const time = !!r.ds.dims.find((d) => d.key === s.dimension)?.time;
+    return <AxisFrame fill={fill} y={time ? serL : dimL} x={`${time ? dimL : serL} · cells: ${ms[0]?.label}`}>{body}</AxisFrame>;
+  }
+  if (s.chart === "horizontal_bar" && !s.series) return <AxisFrame fill={fill} y={dimL} x={ms.map((m) => m.label).join(" · ")}>{body}</AxisFrame>;
+  if (s.chart === "combo" && ms[1]) return <AxisFrame fill={fill} y={`${ms[0].label} (bars)`} y2={`${ms[1].label} (line)`} x={dimL}>{body}</AxisFrame>;
+  return <AxisFrame fill={fill} y={ms.length > 1 && !s.series ? ms.map((m) => m.label).join(" · ") : ms[0]?.label} x={serL ? `${dimL} · colour = ${serL}` : dimL}>{body}</AxisFrame>;
+}
+
+function ChartBodyInner({ r, compact, fill }: { r: QueryResult; compact?: boolean; fill?: boolean }) {
   const s = r.spec;
   const ms = s.measures.map((k) => r.ds.measures.find((m) => m.key === k)!);
   const m0 = ms[0];
@@ -151,7 +168,7 @@ export function ChartBody({ r, compact, fill }: { r: QueryResult; compact?: bool
   const horizontal = s.chart === "horizontal_bar";
   const type = s.chart === "line" || s.chart === "area" ? s.chart : "bar";
   return (
-    <TrendChart data={data} xKey="label" type={type} layout={horizontal ? "horizontal" : "vertical"} showYAxis={!horizontal} showLegend={ms.length > 1}
+    <TrendChart data={data} xKey="label" type={type} layout={horizontal ? "horizontal" : "vertical"} showYAxis showLegend={ms.length > 1}
       series={ms.map((m, i) => ({ key: m.key, label: m.label, color: PALETTE[i] }))} yFormatter={f0}
       className={horizontal ? (fill && labels.length <= 12 ? "h-full min-h-0" : undefined) : h} style={horizontal && !(fill && labels.length <= 12) ? { height: Math.max(180, labels.length * (compact || fill ? 26 : 32) + 40) } : undefined} />
   );

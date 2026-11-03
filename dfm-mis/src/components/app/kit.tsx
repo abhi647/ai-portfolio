@@ -315,3 +315,23 @@ export function LinkCell({ children, onClick }: { children: React.ReactNode; onC
     </button>
   );
 }
+
+/* ------------------------------- Axis titles ------------------------------- */
+/**
+ * Puts plain-language axis titles around a chart: y on the left (and y2 on the right for a second axis),
+ * x underneath. overtrue/ui charts draw ticks but no axis titles, so every chart goes through this.
+ */
+export function AxisFrame({ x, y, y2, children, className, fill }: { x?: React.ReactNode; y?: React.ReactNode; y2?: React.ReactNode; children: React.ReactNode; className?: string; fill?: boolean }) {
+  const side = "flex w-4 shrink-0 items-center justify-center text-[11px] font-medium whitespace-nowrap text-muted-foreground [writing-mode:vertical-rl]";
+  return (
+    <div data-slot="axis-frame" className={cn("flex min-w-0 flex-col", fill && "h-full min-h-0", className)}>
+      <div className={cn("flex min-w-0 gap-1", fill && "min-h-0 flex-1")}>
+        {y ? <div className={cn(side, "rotate-180")} aria-hidden>{y}</div> : null}
+        <div className={cn("min-w-0 flex-1", fill && "h-full min-h-0")}>{children}</div>
+        {y2 ? <div className={side} aria-hidden>{y2}</div> : null}
+      </div>
+      {x ? <div className="mt-1 pl-5 text-center text-[11px] font-medium text-muted-foreground" aria-hidden>{x}</div> : null}
+      <span className="sr-only">{[y && `Vertical axis: ${typeof y === "string" ? y : ""}`, y2 && `Right axis: ${typeof y2 === "string" ? y2 : ""}`, x && `Horizontal axis: ${typeof x === "string" ? x : ""}`].filter(Boolean).join(". ")}</span>
+    </div>
+  );
+}

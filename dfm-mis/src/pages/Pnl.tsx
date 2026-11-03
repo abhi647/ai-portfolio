@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FormSelect } from "@/components/ui/select";
 import { ModulePage } from "@/components/app/module";
 import { Grid, KpiRow, Num, Panel, Stat, Toggle } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { usePersistentState } from "@/state/app";
 import { PALETTE } from "@/data/colors";
 import { ACCOUNTS, MONTHS, monthLabel, plSum, pnl, type Pnl as PnlT } from "@/data/data";
@@ -74,7 +75,7 @@ export default function Pnl() {
 
       <Panel title={`Gross revenue to material margin · ${monthLabel(mk)}`} description="Where every rupee of gross revenue goes"
         insight={`Of every ₹100 of gross revenue, {{metric:₹${(tot.productClaims / tot.grossRevenue * 100).toFixed(0)}|claims|negative}} goes to schemes and claims and {{metric:₹${(tot.costOfSales / tot.grossRevenue * 100).toFixed(0)}|materials|neutral}} to RM & PM, leaving {{metric:₹${(tot.materialMargin / tot.grossRevenue * 100).toFixed(0)}|margin|positive}}. Primary schemes are the single biggest lever.`} info="A waterfall shows how each deduction bridges gross revenue to margin — the clearest way to read a P&L.">
-        <WaterfallChart height={300} valueFormatter={(v, ctx) => (ctx === "axis" ? "₹" + crAxis(v) : cr(v))}
+        <AxisFrame y="Amount (₹)" x="P&L line, from gross revenue to material margin"><WaterfallChart height={300} valueFormatter={(v, ctx) => (ctx === "axis" ? "₹" + crAxis(v) : cr(v))}
           steps={[
             { id: "g", label: "Gross revenue", value: tot.grossRevenue, kind: "start" },
             { id: "ps", label: "Primary schemes", value: -tot.primarySchemes },
@@ -85,7 +86,7 @@ export default function Pnl() {
             { id: "rm", label: "RM cost", value: -tot.rmCost },
             { id: "pm", label: "PM cost", value: -tot.pmCost },
             { id: "m", label: "Material margin", value: tot.materialMargin, kind: "end" },
-          ]} />
+          ]} /></AxisFrame>
       </Panel>
 
       <Panel title={`E-com P&L · ${monthLabel(mk)}`} description="Click claims, cost of sales, RM or PM to expand">
@@ -110,12 +111,12 @@ export default function Pnl() {
       <Grid>
         <Panel title="Material margin % by account" description="Last 6 months"
           insight={(() => { const r = sel.map((a) => ({ a, v: mm(pnl(a, mk)) })).sort((x, y) => y.v - x.v); return `{{metric:${r[0].a}|${r[0].v.toFixed(1)}%|positive}} has the best margin and {{metric:${r[r.length - 1].a}|${r[r.length - 1].v.toFixed(1)}%|negative}} the weakest — a ${(r[0].v - r[r.length - 1].v).toFixed(1)} pt spread driven mostly by scheme rates.`; })()}>
-          <TrendChart data={MONTHS.map((m) => ({ month: m.label, ...Object.fromEntries(sel.map((a) => [a, +mm(pnl(a, m.key)).toFixed(1)])) }))} xKey="month" type="line" showLegend showYAxis yDomain={["auto", "auto"]} yFormatter={(v) => v + "%"} className="h-72"
-            series={sel.map((a) => ({ key: a, label: a, color: PALETTE[ALL.indexOf(a)] }))} />
+          <AxisFrame y="Material margin (% of net sales)" x="Month · one line per account"><TrendChart data={MONTHS.map((m) => ({ month: m.label, ...Object.fromEntries(sel.map((a) => [a, +mm(pnl(a, m.key)).toFixed(1)])) }))} xKey="month" type="line" showLegend showYAxis yDomain={["auto", "auto"]} yFormatter={(v) => v + "%"} className="h-72"
+            series={sel.map((a) => ({ key: a, label: a, color: PALETTE[ALL.indexOf(a)] }))} /></AxisFrame>
         </Panel>
         <Panel title="Net sales by account" insight={(() => { const r = sel.map((a) => ({ a, v: pnl(a, mk).netSales })).sort((x, y) => y.v - x.v); return `{{metric:${r[0].a}|${pct(r[0].v, sum(r, "v"), 0)}|neutral}} of e-com net sales; quick-commerce accounts together make up ${pct(sum(r.filter((x) => ["Blinkit", "Zepto", "Swiggy Instamart"].includes(x.a)), "v"), sum(r, "v"), 0)}.`; })()}>
-          <TrendChart data={MONTHS.map((m) => ({ month: m.label, ...Object.fromEntries(sel.map((a) => [a, pnl(a, m.key).netSales])) }))} xKey="month" type="bar" stacked showLegend showYAxis yFormatter={crAxis} className="h-72"
-            series={sel.map((a) => ({ key: a, label: a, color: PALETTE[ALL.indexOf(a)] }))} />
+          <AxisFrame y="Net sales (₹)" x="Month · colour = account"><TrendChart data={MONTHS.map((m) => ({ month: m.label, ...Object.fromEntries(sel.map((a) => [a, pnl(a, m.key).netSales])) }))} xKey="month" type="bar" stacked showLegend showYAxis yFormatter={crAxis} className="h-72"
+            series={sel.map((a) => ({ key: a, label: a, color: PALETTE[ALL.indexOf(a)] }))} /></AxisFrame>
         </Panel>
       </Grid>
     </ModulePage>

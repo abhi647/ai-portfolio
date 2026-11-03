@@ -1,6 +1,6 @@
 /* Monthly MIS pack: the month-end management report — statement tables, bridges, commentary and sign-off. */
 import * as React from "react";
-import { IconCheck, IconFileAnalytics, IconPrinter, IconBellRinging, IconArrowBackUp } from "@tabler/icons-react";
+import { IconCheck, IconFileAnalytics, IconPrinter, IconBellRinging, IconArrowBackUp, IconPencil, IconArrowUp, IconArrowDown, IconTrash, IconPlus } from "@tabler/icons-react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/overtrue/page-header";
 import { SectionCard } from "@/components/overtrue/section-card";
@@ -10,7 +10,9 @@ import { WaterfallChart } from "@/components/overtrue/waterfall-chart";
 import { AuditTrail } from "@/components/overtrue/audit-trail";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { AxisFrame } from "@/components/app/kit";
 import { FormSelect } from "@/components/ui/select";
 import { ExecScorecard, RAG_LABEL, RAG_VARIANT, fmtUnit } from "@/components/app/ExecScorecard";
 import { KPIS, evaluate, ragFor, type Period } from "@/data/kpis";
@@ -21,7 +23,17 @@ import { useApp } from "@/state/app";
 import { cn } from "@/lib/utils";
 
 const STAGES = ["Draft", "Finance review", "CFO approval", "Published"];
-interface PackState { stage: number; version: number; notes: Record<string, string>; log: { id: string; actor: string; action: string; time: string; outcome?: "success" | "warning" | "neutral" }[] }
+interface SectionCfg { id: string; title: string; visible: boolean; custom?: boolean }
+interface PackState {
+  stage: number; version: number; notes: Record<string, string>;
+  log: { id: string; actor: string; action: string; time: string; outcome?: "success" | "warning" | "neutral"; changes?: { field: string; before: string; after: string }[] }[];
+  title?: string; sections: SectionCfg[]; targets: Record<string, number>; hidden: string[];
+}
+const DEFAULT_SECTIONS: SectionCfg[] = [
+  { id: "exec", title: "Executive summary", visible: true }, { id: "sales", title: "Secondary sales by zone", visible: true },
+  { id: "supply", title: "Supply chain performance", visible: true }, { id: "pnl", title: "E-commerce P&L statement", visible: true },
+  { id: "cfa", title: "Secondary supply · CFA dispatch", visible: true },
+];
 
 const monthRange = (i: number): Period => {
   const m = MONTHS[i]; const a = m.date; const end = new Date(Math.min(+new Date(a.getFullYear(), a.getMonth() + 1, 0), +today0));
@@ -35,18 +47,27 @@ const tone = (v: number, upGood = true) => (v === 0 ? "" : (v > 0) === upGood ? 
 
 function usePack(mk: string, draft: Record<string, string>) {
   const key = `dfm.mis.v1.${mk}`;
-  const [st, setSt] = React.useState<PackState>(() => { try { const v = localStorage.getItem(key); if (v) return JSON.parse(v); } catch { /* ignore */ } return { stage: 0, version: 1, notes: draft, log: [{ id: "c", actor: "MIS bot", action: "drafted the pack from source data", time: NOW.toLocaleString("en-IN"), outcome: "neutral" }] }; });
+  const [st, setSt] = React.useState<PackState>(() => {
+    const base: PackState = { stage: 0, version: 1, notes: draft, sections: DEFAULT_SECTIONS, targets: {}, hidden: [], log: [{ id: "c", actor: "MIS bot", action: "drafted the pack from source data", time: NOW.toLocaleString("en-IN"), outcome: "neutral" }] };
+    try { const v = localStorage.getItem(key); if (v) return { ...base, ...JSON.parse(v) }; } catch { /* ignore */ }
+    return base;
+  });
   React.useEffect(() => { try { localStorage.setItem(key, JSON.stringify(st)); } catch { /* ignore */ } }, [key, st]);
   return [st, setSt] as const;
 }
 
 export default function MisPack() {
+  const [mi, setMi] = React.useState(MONTHS.length - 1);
+  // One pack per month: remount so each month loads its own saved state.
+  return <Pack key={mi} mi={mi} setMi={setMi} />;
+}
+
+function Pack({ mi, setMi }: { mi: number; setMi: (i: number) => void }) {
   const nav = useNavigate();
   const { user, toast } = useApp();
-  const [mi, setMi] = React.useState(MONTHS.length - 1);
   const per = React.useMemo(() => monthRange(mi), [mi]);
   const m = MONTHS[mi];
-  const kpis = React.useMemo(() => evaluate(per, "target"), [per]);
+  const kpisDefault = React.useMemo(() => evaluate(per, "target"), [per]);
 
   // ---------- Sales by zone ----------
   const zones = React.useMemo(() => ZONES.map(([z]) => {
@@ -86,9 +107,9 @@ export default function MisPack() {
 
   // ---------- Auto-drafted commentary ----------
   const worst = [...zones].sort((a, b) => a.act / a.tgt - b.act / b.tgt)[0], best = [...zones].sort((a, b) => b.act / b.tgt - a.act / a.tgt)[0];
-  const reds = kpis.filter((k) => k.rag === "red");
+  const reds = kpisDefault.filter((k) => k.rag === "red");
   const draft: Record<string, string> = {
-    exec: `${m.label}: ${kpis.filter((k) => k.rag === "green").length} of ${kpis.length} KPIs on target, ${reds.length} off target (${reds.map((k) => k.def.label).join(", ") || "none"}). Secondary sales ${cr(sT.act)} at ${pct(sT.act, sT.tgt).toFixed(1)}% of plan.`,
+    exec: `${m.label}: ${kpisDefault.filter((k) => k.rag === "green").length} of ${kpisDefault.length} KPIs on target, ${reds.length} off target (${reds.map((k) => k.def.label).join(", ") || "none"}). Secondary sales ${cr(sT.act)} at ${pct(sT.act, sT.tgt).toFixed(1)}% of plan.`,
     sales: `Secondary sales ${cr(sT.act)} against a plan of ${cr(sT.tgt)} (${pct(sT.act, sT.tgt).toFixed(1)}%). ${best.zone} leads at ${pct(best.act, best.tgt).toFixed(1)}%; ${worst.zone} trails at ${pct(worst.act, worst.tgt).toFixed(1)}%. Year-on-year growth ${signed(pct(sT.act - sT.ly, sT.ly))}.`,
     supply: `OTIF ${fmtUnit(supply.find((s) => s.def.key === "otif")?.cur ?? null, "pct")} versus 95% target. Detention rate ${fmtUnit(supply.find((s) => s.def.key === "det")?.cur ?? null, "pct")} and GPS adherence ${fmtUnit(supply.find((s) => s.def.key === "track")?.cur ?? null, "pct")} remain the main gaps.`,
     pnl: `E-com net sales ${cr(plCur.netSales)}; material margin ${pct(plCur.materialMargin, plCur.netSales).toFixed(1)}% of net sales${plLm ? ` (${signed(pct(plCur.materialMargin, plCur.netSales) - pct(plLm.materialMargin, plLm.netSales), 1, " pts")} vs ${MONTHS[mi - 1].label})` : ""}.`,
@@ -96,6 +117,14 @@ export default function MisPack() {
   };
   const [pack, setPack] = usePack(m.key, draft);
   const locked = pack.stage >= 3;
+  const kpis = React.useMemo(() => evaluate(per, "target", pack.targets, pack.hidden), [per, pack.targets, pack.hidden]);
+  const [editing, setEditing] = React.useState(false);
+  const [editNote, setEditNote] = React.useState<string | null>(null);
+  const who = user?.name ?? "User";
+  const logEdit = (action: string, changes?: { field: string; before: string; after: string }[]) =>
+    setPack((p) => ({ ...p, log: [{ id: String(Date.now() + Math.random()), actor: who, action, time: new Date().toLocaleString("en-IN"), outcome: "neutral", changes }, ...p.log] }));
+  const setSections = (fn: (s: SectionCfg[]) => SectionCfg[]) => setPack((p) => ({ ...p, sections: fn(p.sections) }));
+  const packTitle = pack.title || `Management information pack — ${m.label}`;
   const setNote = (k: string, v: string) => setPack((p) => ({ ...p, notes: { ...p.notes, [k]: v } }));
   const advance = () => {
     const next = Math.min(3, pack.stage + 1);
@@ -104,44 +133,41 @@ export default function MisPack() {
   };
   const reopen = () => setPack((p) => ({ ...p, stage: 0, version: p.version + 1, log: [{ id: String(Date.now()), actor: user?.name ?? "User", action: `reopened the pack as v${p.version + 1}`, time: new Date().toLocaleString("en-IN"), outcome: "warning" }, ...p.log] }));
 
-  const note = (k: string) => (
-    <div className="border-t border-border bg-muted/30 px-4 py-3">
-      <div className="mb-1.5 flex items-center justify-between"><span className="eyebrow">Management commentary</span>{pack.notes[k] === draft[k] ? <span className="text-[11px] text-muted-foreground">Auto-drafted from data — edit before approval</span> : null}</div>
-      {locked ? <p className="m-0 text-[13px] leading-5">{pack.notes[k] ?? draft[k]}</p> : <Textarea value={pack.notes[k] ?? draft[k]} onChange={(e) => setNote(k, e.target.value)} rows={2} className="min-h-[56px] bg-card text-[13px]" aria-label={`Commentary · ${k}`} />}
-    </div>
-  );
+  const note = (k: string) => {
+    const text = pack.notes[k] ?? draft[k] ?? "";
+    const open = !locked && (editing || editNote === k);
+    return (
+      <div className="border-t border-border bg-muted/30 px-4 py-3">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="eyebrow">Management commentary</span>
+          <span className="flex items-center gap-2">
+            {pack.notes[k] === draft[k] ? <span className="text-[11px] text-muted-foreground">Auto-drafted from data</span> : <span className="text-[11px] text-muted-foreground">Edited</span>}
+            {!locked && !editing ? (
+              editNote === k
+                ? <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => { setEditNote(null); logEdit(`edited the commentary for “${pack.sections.find((x) => x.id === k)?.title ?? k}”`); }} data-print="hide"><IconCheck className="size-3.5" />Done</Button>
+                : <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setEditNote(k)} data-print="hide"><IconPencil className="size-3.5" />Edit commentary</Button>
+            ) : null}
+          </span>
+        </div>
+        {open ? <Textarea autoFocus={editNote === k} value={text} onChange={(e) => setNote(k, e.target.value)} rows={3} className="min-h-[72px] bg-card text-[13px]" aria-label={`Commentary · ${k}`} /> : <p className="m-0 text-[13px] leading-5 whitespace-pre-wrap">{text || <span className="text-muted-foreground">No commentary yet.</span>}</p>}
+      </div>
+    );
+  };
   const H = ({ children, right }: { children: React.ReactNode; right?: boolean }) => <TableHead className={cn("whitespace-nowrap", right && "text-right")}>{children}</TableHead>;
   const N = ({ children, className }: { children: React.ReactNode; className?: string }) => <TableCell className={cn("text-right tabular-nums whitespace-nowrap", className)}>{children}</TableCell>;
 
-  return (
-    <div className="flex flex-col gap-[var(--page-gap)]">
-      <PageHeader eyebrow="Reports · Monthly MIS pack" title={`Management information pack — ${m.label}`}
-        description={`${per.long} · DFM Foods Ltd · version ${pack.version} · prepared from TMS, ERP, DMS, CFA WMS and marketplace data · Confidential`}
-        actions={
-          <div className="flex flex-wrap items-center gap-2" data-print="hide">
-            <FormSelect aria-label="Month" value={mi} onChange={(e) => setMi(Number(e.target.value))} className="h-8 w-36 rounded-md px-2.5 text-[13px]">
-              {MONTHS.map((x, i) => <option key={x.key} value={i}>{x.label}{i === MONTHS.length - 1 ? " (MTD)" : ""}</option>)}
-            </FormSelect>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.print()}><IconPrinter className="size-4" />Print / PDF</Button>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => nav("/alerts")}><IconBellRinging className="size-4" />Subscribe</Button>
-          </div>
-        } />
-
-      <SectionCard title="Sign-off" description="Draft → Finance review → CFO approval → Published. Commentary locks once published." contentClassName="flex flex-col gap-3 p-4">
-        <Steps steps={STAGES} current={pack.stage} />
-        <div className="flex flex-wrap items-center gap-2" data-print="hide">
-          <StatusBadge variant={locked ? "success" : "warning"}>{locked ? `Published · v${pack.version}` : `${STAGES[pack.stage]} · v${pack.version}`}</StatusBadge>
-          {!locked ? <Button size="sm" className="gap-1.5" onClick={advance}><IconCheck className="size-4" />{pack.stage === 0 ? "Submit for review" : pack.stage === 1 ? "Mark reviewed" : "Approve & publish"}</Button> : <Button size="sm" variant="outline" className="gap-1.5" onClick={reopen}><IconArrowBackUp className="size-4" />Reopen as v{pack.version + 1}</Button>}
-          <span className="text-xs text-muted-foreground">Approvals are recorded in the audit trail below.</span>
-        </div>
-      </SectionCard>
-
-      <section aria-label="1. Executive summary" className="flex flex-col gap-0">
+  const renderSection = (sc: SectionCfg, n: number) => {
+    const t = sc.title;
+    switch (sc.id) {
+      case "exec": return (
+      <section aria-label={`${n}. ${t}`} className="flex flex-col gap-0">
+        <h2 className="m-0 mb-2 text-[15px] font-semibold tracking-tight">{n}. {t}</h2>
         <ExecScorecard results={kpis} period={per} compare="target" className="rounded-b-none" />
         <div className="rounded-b-lg border border-t-0 border-border bg-card">{note("exec")}</div>
       </section>
-
-      <SectionCard title="2. Secondary sales by zone" description="Actual vs AOP target, previous month (same days) and same period last year" contentClassName="p-0">
+      );
+      case "sales": return (
+      <SectionCard title={`${n}. ${t}`} description="Actual vs AOP target, previous month (same days) and same period last year" contentClassName="p-0">
         <div className="grid grid-cols-1">
           <Table className="text-[12.5px] [&_td]:py-1.5">
             <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>Zone</H><H right>Target</H><H right>Actual</H><H right>Ach. %</H><H right>Gap</H><H right>Prev. month</H><H right>MoM</H><H right>Last year</H><H right>YoY</H></TableRow></TableHeader>
@@ -158,14 +184,17 @@ export default function MisPack() {
           </Table>
           <div className="border-t border-border p-3">
             <div className="eyebrow mb-1">Bridge · target to actual</div>
+            <AxisFrame y="Secondary sales (₹)" x="Target, then each zone’s shortfall (red) or excess (green), ending at actual">
             <WaterfallChart height={260} orientation="vertical" valueFormatter={(v, ctx) => (ctx === "axis" ? "₹" + (v / 1e7).toFixed(0) + "Cr" : cr(v))}
               steps={[{ id: "t", label: "Target", value: sT.tgt, kind: "start" }, ...zones.map((z) => ({ id: z.zone, label: z.zone, value: z.act - z.tgt })), { id: "a", label: "Actual", value: sT.act, kind: "end" }]} />
+            </AxisFrame>
           </div>
         </div>
         {note("sales")}
       </SectionCard>
-
-      <SectionCard title="3. Supply chain performance" description="This month vs previous month, trailing 3-month average and target" contentClassName="p-0">
+      );
+      case "supply": return (
+      <SectionCard title={`${n}. ${t}`} description="This month vs previous month, trailing 3-month average and target" contentClassName="p-0">
         <Table className="text-[12.5px] [&_td]:py-1.5">
           <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>KPI</H><H right>{m.label}</H><H right>Prev. month</H><H right>3-month avg</H><H right>Target</H><H right>vs target</H><H>Status</H><H>Owner</H></TableRow></TableHeader>
           <TableBody>
@@ -183,8 +212,9 @@ export default function MisPack() {
         </Table>
         {note("supply")}
       </SectionCard>
-
-      <SectionCard title="4. E-commerce P&L statement" description={`All marketplace accounts · ${m.label} vs ${mi > 0 ? MONTHS[mi - 1].label : "—"} and year to date (from ${MONTHS[0].label})`} contentClassName="p-0">
+      );
+      case "pnl": return (
+      <SectionCard title={`${n}. ${t}`} description={`All marketplace accounts · ${m.label} vs ${mi > 0 ? MONTHS[mi - 1].label : "—"} and year to date (from ${MONTHS[0].label})`} contentClassName="p-0">
         <Table className="text-[12.5px] [&_td]:py-1.5">
           <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>Line item</H><H right>{m.label}</H><H right>% of gross</H><H right>{mi > 0 ? MONTHS[mi - 1].label : "Prev. month"}</H><H right>Change</H><H right>YTD</H><H right>YTD % of gross</H></TableRow></TableHeader>
           <TableBody>
@@ -205,8 +235,9 @@ export default function MisPack() {
         </Table>
         {note("pnl")}
       </SectionCard>
-
-      <SectionCard title="5. Secondary supply · CFA dispatch" description="Cases dispatched this period vs the same days last month" contentClassName="p-0">
+      );
+      case "cfa": return (
+      <SectionCard title={`${n}. ${t}`} description="Cases dispatched this period vs the same days last month" contentClassName="p-0">
         <Table className="text-[12.5px] [&_td]:py-1.5">
           <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><H>CFA</H><H right>Cases</H><H right>Share</H><H right>Prev. month</H><H right>Change</H></TableRow></TableHeader>
           <TableBody>{[...cfa].sort((a, b) => b.cur - a.cur).map((c) => (
@@ -216,6 +247,94 @@ export default function MisPack() {
         </Table>
         {note("cfa")}
       </SectionCard>
+      );
+      default: return (
+        <SectionCard title={`${n}. ${t}`} description="Additional commentary section" contentClassName="p-0">{note(sc.id)}</SectionCard>
+      );
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-[var(--page-gap)]">
+      <PageHeader eyebrow="Reports · Monthly MIS pack" title={packTitle}
+        description={`${per.long} · DFM Foods Ltd · version ${pack.version} · prepared from TMS, ERP, DMS, CFA WMS and marketplace data · Confidential`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2" data-print="hide">
+            <FormSelect aria-label="Month" value={mi} onChange={(e) => setMi(Number(e.target.value))} className="h-8 w-36 rounded-md px-2.5 text-[13px]">
+              {MONTHS.map((x, i) => <option key={x.key} value={i}>{x.label}{i === MONTHS.length - 1 ? " (MTD)" : ""}</option>)}
+            </FormSelect>
+            {locked ? <Button size="sm" variant="outline" disabled title="Reopen the pack to edit">Published · read only</Button>
+              : <Button size="sm" variant={editing ? "default" : "outline"} className="gap-1.5" onClick={() => { setEditing((e) => !e); setEditNote(null); }}><IconPencil className="size-4" />{editing ? "Close editor" : "Edit pack"}</Button>}
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.print()}><IconPrinter className="size-4" />Print / PDF</Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => nav("/alerts")}><IconBellRinging className="size-4" />Subscribe</Button>
+          </div>
+        } />
+
+      <SectionCard title="Sign-off" description="Draft → Finance review → CFO approval → Published. The pack can be edited until it is published; reopen it to make changes after that." contentClassName="flex flex-col gap-3 p-4">
+        <Steps steps={STAGES} current={pack.stage} />
+        <div className="flex flex-wrap items-center gap-2" data-print="hide">
+          <StatusBadge variant={locked ? "success" : "warning"}>{locked ? `Published · v${pack.version}` : `${STAGES[pack.stage]} · v${pack.version}`}</StatusBadge>
+          {!locked ? <Button size="sm" className="gap-1.5" onClick={advance}><IconCheck className="size-4" />{pack.stage === 0 ? "Submit for review" : pack.stage === 1 ? "Mark reviewed" : "Approve & publish"}</Button> : <Button size="sm" variant="outline" className="gap-1.5" onClick={reopen}><IconArrowBackUp className="size-4" />Reopen as v{pack.version + 1}</Button>}
+          <span className="text-xs text-muted-foreground">Approvals are recorded in the audit trail below.</span>
+        </div>
+      </SectionCard>
+
+      {editing ? (
+        <SectionCard title="Edit pack" description="Changes save automatically and are recorded in the approval history" data-print="hide" contentClassName="grid grid-cols-1 gap-5 p-4 xl:grid-cols-2"
+          actions={<Button size="sm" className="gap-1.5" onClick={() => { setEditing(false); logEdit("finished editing the pack"); }}><IconCheck className="size-4" />Done editing</Button>}>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">Pack title
+              <Input value={pack.title ?? ""} placeholder={`Management information pack — ${m.label}`} onChange={(e) => setPack((p) => ({ ...p, title: e.target.value }))} className="h-9 text-sm text-foreground" />
+            </label>
+            <div>
+              <div className="eyebrow mb-1.5">Sections · order, name and visibility</div>
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                {pack.sections.map((sc, i) => (
+                  <li key={sc.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5">
+                    <Switch checked={sc.visible} aria-label={`Show ${sc.title}`} onCheckedChange={(v) => { setSections((xs) => xs.map((x) => (x.id === sc.id ? { ...x, visible: v } : x))); logEdit(`${v ? "showed" : "hid"} the section “${sc.title}”`); }} />
+                    <Input value={sc.title} aria-label="Section title" onChange={(e) => setSections((xs) => xs.map((x) => (x.id === sc.id ? { ...x, title: e.target.value } : x)))} className="h-8 flex-1 text-[13px]" />
+                    <Button variant="ghost" size="icon-sm" aria-label="Move up" disabled={i === 0} onClick={() => setSections((xs) => { const y = [...xs]; [y[i - 1], y[i]] = [y[i], y[i - 1]]; return y; })}><IconArrowUp className="size-4" /></Button>
+                    <Button variant="ghost" size="icon-sm" aria-label="Move down" disabled={i === pack.sections.length - 1} onClick={() => setSections((xs) => { const y = [...xs]; [y[i + 1], y[i]] = [y[i], y[i + 1]]; return y; })}><IconArrowDown className="size-4" /></Button>
+                    {sc.custom ? <Button variant="ghost" size="icon-sm" aria-label="Delete section" onClick={() => { setSections((xs) => xs.filter((x) => x.id !== sc.id)); logEdit(`deleted the section “${sc.title}”`); }}><IconTrash className="size-4" /></Button> : <span className="w-8" />}
+                  </li>
+                ))}
+              </ul>
+              <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={() => { const id = `custom-${Date.now()}`; setSections((xs) => [...xs, { id, title: "Additional notes", visible: true, custom: true }]); setPack((p) => ({ ...p, notes: { ...p.notes, [id]: "" } })); logEdit("added a commentary section"); }}><IconPlus className="size-4" />Add commentary section</Button>
+            </div>
+          </div>
+          <div>
+            <div className="eyebrow mb-1.5">Executive scorecard · KPIs and targets for {m.label}</div>
+            <Table className="text-[12.5px] [&_td]:py-1">
+              <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><TableHead className="w-10">Show</TableHead><TableHead>KPI</TableHead><TableHead className="text-right">AOP target</TableHead><TableHead className="w-32 text-right">Pack target</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {KPIS.map((k) => {
+                  const aop = k.target(per.start, per.end);
+                  const scale = k.unit === "inr" ? 1e7 : 1;
+                  return (
+                    <TableRow key={k.key}>
+                      <TableCell><Switch checked={!pack.hidden.includes(k.key)} aria-label={`Show ${k.label}`} onCheckedChange={(v) => { setPack((p) => ({ ...p, hidden: v ? p.hidden.filter((x) => x !== k.key) : [...p.hidden, k.key] })); logEdit(`${v ? "added" : "removed"} “${k.label}” ${v ? "to" : "from"} the scorecard`); }} /></TableCell>
+                      <TableCell className="font-medium">{k.label}</TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">{fmtUnit(aop, k.unit)}</TableCell>
+                      <TableCell className="text-right">
+                        <span className="inline-flex items-center gap-1">
+                          <Input type="number" step="0.1" aria-label={`${k.label} target`} className="h-7 w-24 text-right text-[12.5px]"
+                            value={pack.targets[k.key] != null ? +(pack.targets[k.key] / scale).toFixed(2) : ""} placeholder={aop != null ? String(+(aop / scale).toFixed(2)) : ""}
+                            onChange={(e) => setPack((p) => { const t = { ...p.targets }; if (e.target.value === "") delete t[k.key]; else t[k.key] = Number(e.target.value) * scale; return { ...p, targets: t }; })}
+                            onBlur={(e) => { if (e.target.value !== "") logEdit(`changed the ${k.label} target`, [{ field: k.label, before: fmtUnit(aop, k.unit), after: fmtUnit(Number(e.target.value) * scale, k.unit) }]); }} />
+                          <span className="w-5 text-left text-[11px] text-muted-foreground">{k.unit === "inr" ? "Cr" : k.unit === "pct" ? "%" : k.unit === "hours" ? "h" : k.unit === "inr_per_km" ? "₹" : ""}</span>
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <p className="m-0 mt-1.5 text-[11px] text-muted-foreground">Leave a pack target blank to use the AOP target. Overrides apply to this month’s pack only.</p>
+          </div>
+        </SectionCard>
+      ) : null}
+
+      {pack.sections.filter((x) => x.visible).map((sc, i) => <React.Fragment key={sc.id}>{renderSection(sc, i + 1)}</React.Fragment>)}
 
       <SectionCard title="Approval history" description="Every submission, review and approval of this pack" contentClassName="p-4">
         <AuditTrail events={pack.log} label="MIS pack approvals" />

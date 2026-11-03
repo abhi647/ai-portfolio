@@ -13,6 +13,7 @@ import { TrendChart } from "@/components/overtrue/trend-chart";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Grid, Panel, Foot } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { tripEta } from "@/pages/trips/timeline";
 import { MODULES } from "@/nav";
 import { useApp } from "@/state/app";
@@ -242,7 +243,7 @@ export default function Home() {
 
         <Panel span={8} title="Daily secondary sales vs target run-rate" description="Last 14 days · bars are actual sales, dashed line is the daily target pace"
           insight={(() => { const above = dailyTrend.filter((d) => d.sales >= d.target).length; return `Sales beat the daily target pace on {{metric:${above} of 14 days|${pct(above, 14, 0)}|${above >= 7 ? "positive" : "negative"}}}. The last two days show the month-end push kicking in.`; })()}>
-          <ComposedChart
+          <AxisFrame y="Secondary sales (₹)" x="Day · last 14 days"><ComposedChart
             data={dailyTrend}
             xKey="day"
             series={[{ key: "sales", label: "Sales", type: "bar" }, { key: "target", label: "Daily target", type: "line", dashed: true, color: "var(--color-chart-3)" }]}
@@ -250,7 +251,7 @@ export default function Home() {
             showLegend
             yFormatter={crAxis}
             className="h-80"
-          />
+          /></AxisFrame>
         </Panel>
         <Panel span={4} title="Zone achievement · MTD" description="Bar = achievement, tick = 100% of target" info="Achievement = MTD secondary sales ÷ pro-rated MTD target."
           insight={`{{metric:${worstZone.label}|${(worstZone.value * 100).toFixed(0)}%|negative}} needs the most help to close the month.`}>
@@ -260,8 +261,8 @@ export default function Home() {
         <Panel span={12} title="Service vs cost · last 6 months" description="OTIF % (line, right axis) against freight cost per km (bars) — are we buying service with money?"
           info="Plotting cost and service together shows the trade-off a single metric hides."
           insight={(() => { const a = monthly[4], b = monthly[3]; return `In ${a.month} cost per km moved {{metric:₹${(a.perKm - b.perKm).toFixed(1)}|${a.perKm > b.perKm ? "up" : "down"}|${a.perKm > b.perKm ? "negative" : "positive"}}} while OTIF moved {{metric:${(a.otif - b.otif).toFixed(1)} pts|${a.otif >= b.otif ? "up" : "down"}|${a.otif >= b.otif ? "positive" : "negative"}}} — ${a.perKm > b.perKm && a.otif < b.otif ? "paying more for worse service; review market-vehicle usage." : "a healthy trade-off."}`; })()}>
-          <ComposedChart data={monthly} xKey="month" showYAxis showLegend className="h-64" yFormatter={(v) => "₹" + v} rightYFormatter={(v) => v + "%"} yDomain="auto"
-            series={[{ key: "perKm", label: "₹ / km", type: "bar", color: C2 }, { key: "otif", label: "OTIF %", type: "line", axis: "right", color: "var(--color-chart-2)", dots: true }]} />
+          <AxisFrame y="Freight cost per km (₹) · bars" y2="OTIF (%) · line" x="Month"><ComposedChart data={monthly} xKey="month" showYAxis showLegend className="h-64" yFormatter={(v) => "₹" + v} rightYFormatter={(v) => v + "%"} yDomain="auto"
+            series={[{ key: "perKm", label: "₹ / km", type: "bar", color: C2 }, { key: "otif", label: "OTIF %", type: "line", axis: "right", color: "var(--color-chart-2)", dots: true }]} /></AxisFrame>
         </Panel>
       </Grid>
 

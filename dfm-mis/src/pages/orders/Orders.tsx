@@ -6,11 +6,12 @@ import { BarList } from "@/components/overtrue/bar-list";
 import { HeatmapChart } from "@/components/overtrue/heatmap-chart";
 import { RadialGauge } from "@/components/overtrue/radial-gauge";
 import { GanttChart } from "@/components/overtrue/gantt-chart";
-import { SankeyChart } from "@/components/overtrue/sankey-chart";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StackedAreaChart } from "@/components/overtrue/stacked-area-chart";
 import { ModulePage } from "@/components/app/module";
 import { FilterBar, fv, inF, opts, type FilterValues } from "@/components/app/filters";
 import { DataTable, Foot, Grid, KpiRow, LinkCell, Num, Panel, Pill, Stat, StagePill, Toggle, type Col } from "@/components/app/kit";
+import { AxisFrame } from "@/components/app/kit";
 import { otifTone, OtifValue } from "@/components/app/otif";
 import { orderCols, tripCols, useDrill } from "@/state/drill";
 import { useApp, usePersistentState } from "@/state/app";
@@ -79,8 +80,8 @@ function Live({ rows: all }: P) {
       <Grid>
         <Panel span={7} title="Open orders by stage and ageing" description="Ageing from approval. Anything red needs escalation." info="Click a segment to see those orders."
           insight={(() => { const red = open.filter((o) => ageH(o) >= 48); const st = openStages.map((s) => ({ s, n: red.filter((o) => o.stage === s.key).length })).sort((a, b) => b.n - a.n)[0]; return red.length ? `{{metric:${red.length} orders|${pct(red.length, open.length, 0)}|negative}} are over 48 h old, mostly stuck at {{metric:${st.s.label}|${st.n}|negative}}.` : `No open order is older than 48 h — {{metric:${open.length} orders|on track|positive}}.`; })()}>
-          <TrendChart data={data} xKey="stage" type="bar" stacked showLegend showYAxis className="h-72" series={AGE.map(([l, c], j) => ({ key: "s" + j, label: l, color: c }))}
-            onBarClick={(row, key) => { const s = openStages.find((x) => x.label === row.stage)!; const [l, , a, b] = AGE[+key.slice(1)]; openOrders(`${s.label} · ${l}`, open.filter((o) => o.stage === s.key && ageH(o) >= a && ageH(o) < b)); }} />
+          <AxisFrame y="Open orders" x="Order stage · colour = hours since approval"><TrendChart data={data} xKey="stage" type="bar" stacked showLegend showYAxis className="h-72" series={AGE.map(([l, c], j) => ({ key: "s" + j, label: l, color: c }))}
+            onBarClick={(row, key) => { const s = openStages.find((x) => x.label === row.stage)!; const [l, , a, b] = AGE[+key.slice(1)]; openOrders(`${s.label} · ${l}`, open.filter((o) => o.stage === s.key && ageH(o) >= a && ageH(o) < b)); }} /></AxisFrame>
         </Panel>
         <Panel span={5} title="Oldest open orders" description="Top 8 by hours since approval"
           insight={open.length ? `Oldest is {{metric:${open.slice().sort((a, b) => +a.approved - +b.approved)[0].dest}|${ageStr(+NOW - +open.slice().sort((a, b) => +a.approved - +b.approved)[0].approved)}|negative}} (${open.slice().sort((a, b) => +a.approved - +b.approved)[0].statusTxt}).` : null}>
@@ -121,9 +122,9 @@ function Destinations({ rows: all }: P) {
       </KpiRow>
       <Panel title="Pending orders by destination" description="Last 30 days · click any cell for the orders behind it"
         insight={g.length ? `{{metric:${g[0][0]}|${g[0][1].length} open|neutral}} has the deepest backlog; ${pct(aged.length, rows.length, 0)} of all open orders are past 48 h.` : null}>
-        <HeatmapChart rows={g.slice(0, 15).map(([d, rs]) => ({ label: d, values: OSTAGES.slice(0, 5).map((s) => rs.filter((o) => o.stage === s.key).length) }))}
+        <AxisFrame y="Destination · top 15" x="Order stage · cell = number of pending orders"><HeatmapChart rows={g.slice(0, 15).map(([d, rs]) => ({ label: d, values: OSTAGES.slice(0, 5).map((s) => rs.filter((o) => o.stage === s.key).length) }))}
           columns={OSTAGES.slice(0, 5).map((s) => s.label)} valueFormatter={(v) => `${v} orders`} maxCellHeight={30}
-          onCellClick={(c) => openOrders(`${c.rowLabel} · ${c.columnLabel}`, g[c.row][1].filter((o) => o.stage === OSTAGES[c.column].key))} />
+          onCellClick={(c) => openOrders(`${c.rowLabel} · ${c.columnLabel}`, g[c.row][1].filter((o) => o.stage === OSTAGES[c.column].key))} /></AxisFrame>
       </Panel>
       <Panel title="Destination-wise tracker">
         <DataTable rows={g} cols={cols} pageSize={15} exportName="destination-tracker" getRowId={(r) => r[0]} />
@@ -167,9 +168,9 @@ function Indents({ rows: all }: P) {
       <Grid>
         <Panel span={12} title="Indents and auctions raised · last 7 days" description="Stacked by source, with the share still waiting for a transporter"
           insight={`{{metric:Auctions|${pct(rows.filter((i) => i.src === "Auction").length, rows.length, 0)}|neutral}} of requests went to auction, averaging ${avg(rows.filter((i) => i.bids), (i) => i.bids!).toFixed(1)} bids. Indents are accepted in ${avg(rows.filter((i) => i.src === "Indent" && i.accepted), (i) => (+i.accepted! - +i.created) / H).toFixed(1)} h vs ${avg(rows.filter((i) => i.src === "Auction" && i.accepted), (i) => (+i.accepted! - +i.created) / H).toFixed(1)} h for auctions.`}>
-          <StackedAreaChart height={240} index="day" stack="normal" showLegend valueFormatter={(v) => `${v}`}
+          <AxisFrame y="Indents and auctions raised" x="Day · colour = source"><StackedAreaChart height={240} index="day" stack="normal" showLegend valueFormatter={(v) => `${v}`}
             series={[{ key: "ind", label: "Indent", color: C.c1 }, { key: "auc", label: "Auction", color: C.c4 }]}
-            data={Array.from({ length: 7 }, (_, i) => { const d = new Date(+today0 - (6 - i) * DAY); const rs = rows.filter((x) => dayKey(x.created) === dayKey(d)); return { day: fdShort(d), ind: rs.filter((x) => x.src === "Indent").length, auc: rs.filter((x) => x.src === "Auction").length }; })} />
+            data={Array.from({ length: 7 }, (_, i) => { const d = new Date(+today0 - (6 - i) * DAY); const rs = rows.filter((x) => dayKey(x.created) === dayKey(d)); return { day: fdShort(d), ind: rs.filter((x) => x.src === "Indent").length, auc: rs.filter((x) => x.src === "Auction").length }; })} /></AxisFrame>
         </Panel>
       </Grid>
       <Panel title="Indent and auction feed" description={`${rows.length} raised`}>
@@ -207,16 +208,16 @@ function Planning({ rows: all }: P) {
       </KpiRow>
       <Panel title="Order-to-dispatch cycle time by month" description="Average hours per leg, stacked to the total cycle"
         insight={(() => { const legs = STEPS.map(([l, a, b]) => ({ l, v: avgStep(rows, a, b) })).sort((x, y) => y.v - x.v); return `{{metric:${legs[0].l}|${legs[0].v.toFixed(1)} h|negative}} is the longest leg — ${pct(legs[0].v, sum(legs, "v"), 0)} of the order-to-dispatch cycle.`; })()}>
-        <TrendChart data={ct} xKey="month" type="bar" stacked showLegend showYAxis yFormatter={(v) => v + " h"} className="h-72" series={STEPS.map(([l, , , c], j) => ({ key: "s" + j, label: l, color: c }))} />
+        <AxisFrame y="Average hours" x="Month · colour = planning step"><TrendChart data={ct} xKey="month" type="bar" stacked showLegend showYAxis yFormatter={(v) => v + " h"} className="h-72" series={STEPS.map(([l, , , c], j) => ({ key: "s" + j, label: l, color: c }))} /></AxisFrame>
       </Panel>
       <Grid>
         <Panel title="Approval → indent by plant" description="Average hours"
           insight={`Ghaziabad takes {{metric:${plant[5].gzb} h|vs ${plant[5].gn} h GN|${plant[5].gzb > plant[5].gn ? "negative" : "positive"}}} to raise an indent this month.`}>
-          <TrendChart data={plant} xKey="month" type="line" showLegend showYAxis yFormatter={(v) => v + " h"} className="h-64" series={[{ key: "gn", label: "Greater Noida", color: C.c1 }, { key: "gzb", label: "Ghaziabad", color: C.c2 }]} />
+          <AxisFrame y="Average hours, approval → indent" x="Month · one line per plant"><TrendChart data={plant} xKey="month" type="line" showLegend showYAxis yFormatter={(v) => v + " h"} className="h-64" series={[{ key: "gn", label: "Greater Noida", color: C.c1 }, { key: "gzb", label: "Ghaziabad", color: C.c2 }]} /></AxisFrame>
         </Panel>
         <Panel title="Acceptance TAT · indent vs auction" description="Average hours from indent to acceptance"
           insight={`Auctions take {{metric:${(src[5].auc - src[5].ind).toFixed(1)} h longer|${src[5].auc} h|negative}} to close than direct indents — reserve them for lanes without a contracted carrier.`}>
-          <TrendChart data={src} xKey="month" type="line" showLegend showYAxis yFormatter={(v) => v + " h"} className="h-64" series={[{ key: "ind", label: "Indent", color: C.c1 }, { key: "auc", label: "Auction", color: C.c4 }]} />
+          <AxisFrame y="Average hours, indent → acceptance" x="Month · one line per source"><TrendChart data={src} xKey="month" type="line" showLegend showYAxis yFormatter={(v) => v + " h"} className="h-64" series={[{ key: "ind", label: "Indent", color: C.c1 }, { key: "auc", label: "Auction", color: C.c4 }]} /></AxisFrame>
         </Panel>
       </Grid>
       <Panel title="Planning performance by month">
@@ -255,9 +256,9 @@ function Dedicated() {
       <Panel title="Daily utilisation · last 15 days" description="Trips per vehicle per day. Target is 2+ trips; empty cells are idle days — dedicated vehicles are paid a fixed monthly rate, so idle days are pure cost."
         info="Click a cell to see that day’s trips."
         insight={`{{metric:${idleTot} idle vehicle-days|${pct(idleTot, workDays * DEDICATED.length, 0)} of capacity|negative}} on working days. ${worstIdle.d.vno} (${worstIdle.d.tr}) sat idle ${worstIdle.n} days — reassign it to the busiest short-haul lane.`}>
-        <HeatmapChart rows={DEDICATED.map((d) => ({ label: d.vno, values: days.map((day) => vt.filter((t) => t.vno === d.vno && t.dk === dayKey(day)).length) }))}
+        <AxisFrame y="Dedicated vehicle (registration)" x="Date · cell = trips that day"><HeatmapChart rows={DEDICATED.map((d) => ({ label: d.vno, values: days.map((day) => vt.filter((t) => t.vno === d.vno && t.dk === dayKey(day)).length) }))}
           columns={days.map((d) => fdDay(d))} valueFormatter={(v) => `${v} trip${v === 1 ? "" : "s"}`} max={3} levels={4} maxCellHeight={32}
-          onCellClick={(c) => openTrips(`${c.rowLabel} · ${c.columnLabel}`, vt.filter((t) => t.vno === c.rowLabel && t.dk === dayKey(days[c.column])))} />
+          onCellClick={(c) => openTrips(`${c.rowLabel} · ${c.columnLabel}`, vt.filter((t) => t.vno === c.rowLabel && t.dk === dayKey(days[c.column])))} /></AxisFrame>
       </Panel>
       <Panel title="Vehicle schedule · last 5 days" description="Gantt of each dedicated vehicle’s trips (creation → unloading). Gaps between bars are idle time. Click a trip to open it."
         insight={`Turnaround between trips averages {{metric:${(() => { const gaps: number[] = []; DEDICATED.forEach((d) => { const ts = sched.filter((x) => x.group === d.vno).sort((a, b) => +a.start - +b.start); for (let i = 1; i < ts.length; i++) gaps.push((+ts[i].start - +ts[i - 1].end) / H); }); const pos = gaps.filter((x) => x > 0); return pos.length ? (pos.reduce((a, b) => a + b, 0) / pos.length).toFixed(1) : "0"; })()} h|idle gap|neutral}} per vehicle — the target is under 4 h for a 2-trip day.`}>
@@ -338,9 +339,9 @@ function Otif({ rows: all }: P) {
         </Panel>
         <Panel span={8} title="Monthly OTIF %" description="Direct vs stock transfer, with the target line"
           insight={(() => { const below = line.filter((x) => x.d != null && x.d < th.green).length; return `Direct orders missed the {{metric:${th.green}% target|${below} of 6 months|${below > 2 ? "negative" : "neutral"}}}; stock transfers stayed above it every month.`; })()} info="OTIF % = qty dispatched by the target date (approval + 48 h direct / 72 h stock transfer) ÷ order qty.">
-          <ComposedChart data={line} xKey="month" showYAxis showLegend yDomain="auto" yFormatter={(v) => v + "%"} className="h-80"
+          <AxisFrame y="OTIF (%)" x="Month · one line per order type, dashed = target"><ComposedChart data={line} xKey="month" showYAxis showLegend yDomain="auto" yFormatter={(v) => v + "%"} className="h-80"
             referenceLines={[{ y: th.green, label: `Target ${th.green}%`, color: C.good, dashed: true }]}
-            series={[{ key: "all", label: "Overall", type: "line", color: "var(--color-foreground)", dots: true }, { key: "d", label: "Direct", type: "line", color: C.c1, dots: true }, { key: "s", label: "Stock transfer", type: "line", color: C.orange, dots: true }]} />
+            series={[{ key: "all", label: "Overall", type: "line", color: "var(--color-foreground)", dots: true }, { key: "d", label: "Direct", type: "line", color: C.c1, dots: true }, { key: "s", label: "Stock transfer", type: "line", color: C.orange, dots: true }]} /></AxisFrame>
         </Panel>
       </Grid>
       <KpiRow className="xl:grid-cols-4">
@@ -350,18 +351,27 @@ function Otif({ rows: all }: P) {
         <Stat label="Short-dispatched MTD" value={causes[3][1].length} hint="On time, not in full" />
       </KpiRow>
       <Grid>
-        <Panel span={12} title="Order outcome flow (MTD)" description="Order type → OTIF outcome → root cause of misses" info="Follow each band to see where misses come from."
+        <Panel span={12} title="Order outcomes this month" description="How many orders of each type met OTIF, missed it, or are still within their window" contentClassName="p-0"
           insight={`{{metric:Short dispatch|${pct(causes[3][1].length, missed.length || 1, 0)} of misses|negative}} — orders left on time but not in full. Fixing load planning recovers more OTIF than chasing transporters.`}>
-          <SankeyChart className="h-[320px]" valueFormatter={(v) => `${v} orders`} showShares
-            nodes={[{ name: "Direct Order", color: C.c1 }, { name: "Stock Transfer", color: C.orange }, { name: "Met", color: C.good }, { name: "Missed", color: C.bad }, { name: "Pending", color: C.muted }, ...causes.filter((c) => c[1].length).map((c) => ({ name: c[0], color: C.bad }))]}
-            links={[
-              ...(["Direct Order", "Stock Transfer"] as const).flatMap((t) => [
-                { source: t, target: "Met", value: mtd.filter((o) => o.type === t && o.otifStatus === "met").length },
-                { source: t, target: "Missed", value: mtd.filter((o) => o.type === t && o.otifStatus === "missed").length },
-                { source: t, target: "Pending", value: mtd.filter((o) => o.type === t && (o.otifStatus === "na" || o.otifStatus === "risk")).length },
-              ]),
-              ...causes.filter((c) => c[1].length).map((c) => ({ source: "Missed", target: c[0], value: c[1].length })),
-            ].filter((l) => l.value > 0)} />
+          <Table className="text-[12.5px] [&_td]:py-1.5">
+            <TableHeader className="bg-muted/50"><TableRow className="hover:bg-transparent"><TableHead className="pl-4">Order type</TableHead><TableHead className="text-right">Orders</TableHead><TableHead className="text-right">Met OTIF</TableHead><TableHead className="text-right">Missed OTIF</TableHead><TableHead className="text-right">Still open / at risk</TableHead><TableHead className="pr-4 text-right">Met as % of closed</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {([["Direct Order", mtd.filter((o) => o.type === "Direct Order")], ["Stock Transfer", mtd.filter((o) => o.type === "Stock Transfer")], ["All orders", mtd]] as [string, Order[]][]).map(([t, rs], i) => {
+                const met = rs.filter((o) => o.otifStatus === "met"), mis = rs.filter((o) => o.otifStatus === "missed"), open = rs.filter((o) => o.otifStatus === "na" || o.otifStatus === "risk");
+                return (
+                  <TableRow key={t} className={i === 2 ? "bg-muted/40 font-semibold" : undefined}>
+                    <TableCell className="pl-4 font-medium">{t}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmtN(rs.length)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-emerald-700 dark:text-emerald-400"><LinkCell onClick={() => openOrders(`${t} · met OTIF`, met)}>{fmtN(met.length)}</LinkCell></TableCell>
+                    <TableCell className="text-right tabular-nums text-rose-700 dark:text-rose-400"><LinkCell onClick={() => openOrders(`${t} · missed OTIF`, mis)}>{fmtN(mis.length)}</LinkCell></TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground"><LinkCell onClick={() => openOrders(`${t} · open`, open)}>{fmtN(open.length)}</LinkCell></TableCell>
+                    <TableCell className="pr-4 text-right tabular-nums">{pct(met.length, met.length + mis.length, 1)}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <p className="m-0 border-t border-border px-4 py-2 text-xs text-muted-foreground">Why orders missed OTIF: {causes.filter((c) => c[1].length).map((c) => `${c[0]} ${c[1].length}`).join(" · ")} — ranked in the next panel.</p>
         </Panel>
         <Panel title="Missed OTIF · root cause (MTD)" description="Ranked; click to see the orders" info="A ranked bar list compares causes more precisely than a doughnut.">
           <BarList data={causes.map(([n, rs]) => ({ name: n, value: rs.length }))} color={C.bad} showPercentage valueFormatter={fmtN} onItemClick={(i) => openOrders(`Missed OTIF · ${i.name}`, causes.find((c) => c[0] === i.name)![1])} />
@@ -409,7 +419,7 @@ function Ecom() {
       </KpiRow>
       <Panel title="Appointments · next 7 days" description="By platform"
         insight={(() => { const tot = data.map((d) => PLATFORMS.reduce((a, _, j) => a + Number((d as Record<string, unknown>)["s" + j]), 0)); const pk = tot.indexOf(Math.max(...tot)); const missedN = rows.filter((o) => o.status === "Appointment Missed").length; return `Peak day {{metric:${data[pk].day}|${tot[pk]} slots|neutral}}. ${missedN} missed appointments in 5 weeks — each one is a re-booking and a chargeback risk.`; })()}>
-        <TrendChart data={data} xKey="day" type="bar" stacked showLegend showYAxis className="h-64" series={PLATFORMS.map((p, j) => ({ key: "s" + j, label: p, color: PALETTE[j] }))} />
+        <AxisFrame y="Appointments booked" x="Day · colour = platform"><TrendChart data={data} xKey="day" type="bar" stacked showLegend showYAxis className="h-64" series={PLATFORMS.map((p, j) => ({ key: "s" + j, label: p, color: PALETTE[j] }))} /></AxisFrame>
       </Panel>
       <Panel title={`E-com appointment orders${sel ? " · " + sel : ""}`} description={`${list.length} purchase orders`}>
         <DataTable rows={list} cols={cols} search={(r) => [r.po, r.plat, r.fc].join(" ")} getRowId={(r) => r.po} exportName="ecom-appointments" />
